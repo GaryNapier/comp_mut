@@ -28,9 +28,9 @@ locus_tag2drugs = tbprofiler.get_lt2drugs(conf["bed"])
 
 # If a list of samples is supplied through the args object, store it in a list else get the list from looking in the results direcotry
 
-# samples = "test_sample_list"
-# args_dir = "../pakistan/tbprofiler_pakistan_results/json"
-args_dir = "~jody/tbprofiler_tests/results/"
+samples = "test_sample_list"
+args_dir = "../pakistan/tbprofiler_pakistan_results/json"
+# args_dir = "~jody/tbprofiler_tests/results/"
 suffix = ".results.json"
 
 # if args.samples:
