@@ -22,36 +22,50 @@ with open(metadata_file) as mf:
         # Make the id the key, but also recapitulate the id in the key-values by including everything
         meta_dict[row[id_key]] = row
 
-mf.close()
 
-meta_dict
+# files_dir = "json/"
 
-# SAMEA2534433.results.json
-# ERR1465765.results.json
-# SAMEA3715554.results.json
-# ERR1465906.results.json
-# ERR1193661.results.json
-# ERR1193674.results.json
-# ERR1193709.results.json
-# ERR1465895.results.json
-# ERR757145.results.json
+# json_files_list = ["{}{}".format(files_dir, i) for i in os.listdir(files_dir)]
 
-files_dir = "json/"
+# json_files_list = ["json/SRR11662391.results.json"]
 
-json_files_list = ["{}{}".format(files_dir, i) for i in os.listdir(files_dir)]
+tbprofiler_results_location = "/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/"
+suffix = ".results.json"
+
 
 # mutations_dict = {}
 mutations_dict = defaultdict(dict)
-for file in json_files_list:
+# for file in json_files_list:
+for samp in meta_dict:
     # Open the json file for the sample
-    data = json.load(open(file))
+    # data = json.load(open(file))
+    data = json.load(open("%s%s%s" % (tbprofiler_results_location, samp, suffix)))
+    # samp = data["id"]
+    inh_dst = meta_dict[samp]['isoniazid']
+    lins = [lin['lin'] for lin in data['lineage']]
+    lin = lins[len(lins) - 1] # I hate Python!
     for var in data["dr_variants"] + data["other_variants"]:
-        if var["gene"] == "ahpC":
-            samp = data["id"]
-            mutations_dict[samp]["drtype"] = data["drtype"]
-            mutations_dict[samp]["lineage"] = data["lineage"]
-            mutations_dict[samp]["gene"] = var["gene"]
-            mutations_dict[samp]["change"] = var["change"]
+        if "drugs" in var:
+            drugs = [drug['drug'] for drug in var['drugs']]
+        else:
+            drugs = "unknown"
+        if var["gene"] == "ahpC" and var['type'] != 'synonymous':
+            mutations_dict[samp] = {'wgs_id': samp,
+            'drtype':data["drtype"],
+            'lineage':lin,
+            'gene':var["gene"],
+            'change':var["change"],
+            'freq':var["freq"], 
+            'drugs': drugs, 
+            'inh_dst': inh_dst}
 
 
+fieldnames = tuple(next(iter(mutations_dict.values())).keys())
 
+outfile = 'mut_test.txt'
+with open(outfile, 'w') as f:
+    writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter='\t')
+    writer.writeheader()
+    # Loop over the dictionaries, appending each dictionary as a row in the file
+    for id in mutations_dict:
+        writer.writerow(mutations_dict[id])
