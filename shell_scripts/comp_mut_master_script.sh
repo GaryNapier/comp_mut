@@ -6,12 +6,11 @@ set -e
 set -u
 set -o pipefail
 
-# ----------------
-# Setup - GLOBAL
-# ----------------
+# ------
+# Setup 
+# ------
 
 cd ~/comp_mut
-
 
 # ----------
 # Variables
@@ -23,8 +22,6 @@ cd ~/comp_mut
 tbp_results_dir=/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/
 main_metadata_dir=../metadata/
 local_metadata_dir=metadata/
-local_json_dir=json/
-
 
 # Files
 
@@ -32,36 +29,24 @@ local_json_dir=json/
 main_tb_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 
 # Created files
-# head_metadata_file=${local_metadata_dir}head_metadata.csv # testing
-test_sample_list=test_sample_list
+head_metadata_file=${main_metadata_dir}head_metadata.csv # testing
+sample_list=test_sample_list.txt
 temp_json_files_list=files.tmp
+all_ahpc_mutations_file=${local_metadata_dir}all_ahpc_mutations.txt
 
+# ------------------------
+# Find all ahpC mutations
+# ------------------------
 
-
-# Pull the samples from the metadata and only copy across json files for which there is metadata
-
-# Get the sample IDs and put in a file
-cat ${main_tb_metadata_file} | csvtk cut -f "wgs_id" | tail -n +2 | head -50 > ${test_sample_list}
-# List the files in the TBprofiler results dir (with absolute path - find command) and grep the ones from the metadata
-find ${tbp_results_dir} -type f | grep -f ${test_sample_list} > ${temp_json_files_list}
-# Copy these files across 
-cat ${temp_json_files_list} | parallel --bar -j1 cp {} ${local_json_dir}
-
-
-
+echo "RUNNING python_scripts/find_ahpc_mutations.py"
+python python_scripts/find_ahpc_mutations.py --metadata-file ${main_tb_metadata_file} --id-key wgs_id --tbp-results ${tbp_results_dir} --outfile ${all_ahpc_mutations_file}
 
 # -----------------------------------------------------------
 # Run tbprofiler_template.py to find novel mutations in katG
 # -----------------------------------------------------------
 
 
-# python python_scripts/tbprofiler_template_testing.py --sample_list_file test_sample_list --dir ../pakistan/tbprofiler_pakistan_results/json
+# python python_scripts/tbprofiler_template_testing.py --sample_list_file sample_list --dir ../pakistan/tbprofiler_pakistan_results/json
 
-python python_scripts/tbprofiler_template.py --dir ${tbp_results_dir}
-
-
-
-
-
-
+# python python_scripts/tbprofiler_template.py --dir ${tbp_results_dir}
 
