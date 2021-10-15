@@ -38,7 +38,7 @@ all_ahpc_mutations_file=${local_metadata_dir}all_ahpc_mutations.txt
 # Find all ahpC mutations
 # ------------------------
 
-echo "RUNNING python_scripts/find_ahpc_mutations.py"
+echo " --- RUNNING python_scripts/find_ahpc_mutations.py --- "
 python python_scripts/find_ahpc_mutations.py --metadata-file ${main_tb_metadata_file} --id-key wgs_id --tbp-results ${tbp_results_dir} --outfile ${all_ahpc_mutations_file}
 
 # -----------------------------------------------------------
