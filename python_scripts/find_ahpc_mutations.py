@@ -50,18 +50,19 @@ def main(args):
         lins = [lin['lin'] for lin in data['lineage']]
         lin = lins[len(lins) - 1] # I hate Python!
         for var in data["dr_variants"] + data["other_variants"]:
-            if "drugs" in var:
-                drugs = [drug['drug'] for drug in var['drugs']]
-            else:
-                drugs = "unknown"
-            if var["gene"] == "ahpC" and var['type'] != 'synonymous':
+            # if "drugs" in var:
+            #     drugs = [drug['drug'] for drug in var['drugs']]
+            # else:
+            #     drugs = "unknown"
+            if var["gene"] == "ahpC" and var['type'] != 'synonymous' and "drugs" not in var and var["freq"] >= 0.7:
+
                 mutations_dict[samp] = {'wgs_id': samp,
                 'drtype':data["drtype"],
                 'lineage':lin,
                 'gene':var["gene"],
                 'change':var["change"],
                 'freq':var["freq"], 
-                'drugs': drugs, 
+                # 'drugs': drugs,   
                 'inh_dst': inh_dst}
 
     fieldnames = tuple(next(iter(mutations_dict.values())).keys())
