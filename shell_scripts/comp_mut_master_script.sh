@@ -32,7 +32,7 @@ main_tb_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 head_metadata_file=${main_metadata_dir}head_metadata.csv # testing
 sample_list=test_sample_list.txt
 temp_json_files_list=files.tmp
-all_ahpc_mutations_file=${local_metadata_dir}all_ahpc_mutations.txt
+all_ahpc_mutations_file=${local_metadata_dir}novel_ahpc_mutations.txt
 
 # ------------------------
 # Find all ahpC mutations
