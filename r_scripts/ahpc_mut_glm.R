@@ -41,7 +41,7 @@ round_if <- function(x, round_place = 3){
 option_list = list(
   make_option(c("-m", "--metadata-file"), type="character", default=NULL,
               help="input location and name of metadata file", metavar="character"),
-  make_option(c("-mf", "--mutations-data-file"), type="character", default=NULL,
+  make_option(c("-u", "--mutations-data-file"), type="character", default=NULL,
               help="input location and name of mutations file", metavar="character"),
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="input location and name of output file", metavar="character")
