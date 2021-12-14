@@ -205,7 +205,7 @@ models_results <- models_results[!(models_results[, "estimate_lin"] < 0), ]
 models_results$term <- gsub("_to_", ">", models_results$term)
 models_results$term <- gsub("MINUS", "-", models_results$term)
 
-write.csv(outfile, row.names = F)
+write.csv(models_results, file = outfile, row.names = F)
 
 
 
