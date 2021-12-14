@@ -4,7 +4,11 @@
 # SETUP
 # ------
 
+rm(list=ls())
+
 library(broom)
+library(optparse)
+library(scales)
 
 options(digits = 3, scipen = -2)
 
@@ -23,7 +27,7 @@ round_if <- function(x, round_place = 3){
     if(is.na(num)){
       x_new[i] <- x[i]
     }else if(num < 0.01){
-      x_new[i] <- scientific(num)
+      x_new[i] <- scales::scientific(num)
     }else{
       x_new[i] <- round(num, round_place)
     }
@@ -31,19 +35,47 @@ round_if <- function(x, round_place = 3){
   x_new
 }
 
+
+# Arguments ----
+
+option_list = list(
+  make_option(c("-m", "--metadata-file"), type="character", default=NULL,
+              help="input location and name of metadata file", metavar="character"),
+  make_option(c("-mf", "--mutations-data-file"), type="character", default=NULL,
+              help="input location and name of mutations file", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="input location and name of output file", metavar="character")
+  );
+
+# make_option(c("-s", "--STUDY_ACCESSION"), type="character", default=NULL,
+#             help="input study accession number", metavar="character"),
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+print("ARGUMENTS:")
+print(opt)
+print("---")
+print(str(opt))
+
 # ------
 # PATHS
 # ------
 
-metadata_path <- "~/Documents/metadata/"
-mutations_data_path <- "~/Documents/comp_mut/metadata/"
+# metadata_path <- "~/Documents/metadata/"
+# mutations_data_path <- "~/Documents/comp_mut/metadata/"
 
 # ------
 # FILES
 # ------
 
-metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-ahpc_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+# metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+# ahpc_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+# outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
+
+metadata_file <- opt$metadata_file
+ahpc_mut_file <- opt$ahpc_mut_file
+outfile <- opt$outfile
 
 # -------------
 # READ IN DATA
@@ -173,6 +205,7 @@ models_results <- models_results[!(models_results[, "estimate_lin"] < 0), ]
 models_results$term <- gsub("_to_", ">", models_results$term)
 models_results$term <- gsub("MINUS", "-", models_results$term)
 
+write.csv(outfile, row.names = F)
 
 
 
