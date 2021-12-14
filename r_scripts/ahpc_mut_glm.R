@@ -39,9 +39,9 @@ round_if <- function(x, round_place = 3){
 # Arguments ----
 
 option_list = list(
-  make_option(c("-m", "--metadata-file"), type="character", default=NULL,
+  make_option(c("-m", "--metadata_file"), type="character", default=NULL,
               help="input location and name of metadata file", metavar="character"),
-  make_option(c("-u", "--mutations-data-file"), type="character", default=NULL,
+  make_option(c("-u", "--mutations_data_file"), type="character", default=NULL,
               help="input location and name of mutations file", metavar="character"),
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="input location and name of output file", metavar="character")
@@ -73,8 +73,8 @@ print(str(opt))
 # ahpc_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
 # outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
 
-metadata_file <- opt$`metadata-file`
-ahpc_mut_file <- opt$`mutations-data-file`
+metadata_file <- opt$metadata_file
+ahpc_mut_file <- opt$mutations_data_file
 outfile <- opt$outfile
 
 # -------------
