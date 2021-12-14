@@ -74,7 +74,7 @@ print(str(opt))
 # outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
 
 metadata_file <- opt$metadata_file
-ahpc_mut_file <- opt$ahpc_mut_file
+ahpc_mut_file <- opt$mutations_data_file
 outfile <- opt$outfile
 
 # -------------
