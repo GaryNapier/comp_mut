@@ -16,25 +16,11 @@ options(digits = 3, scipen = -2)
 # FUNCTIONS
 # ----------
 
-heaD <- function(x, ...){
-  head(x, ...)
-}
+source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
-round_if <- function(x, round_place = 3){
-  x_new <- vector()
-  for(i in seq(x)){
-    num <- as.numeric(x[i])
-    if(is.na(num)){
-      x_new[i] <- x[i]
-    }else if(num < 0.01){
-      x_new[i] <- scales::scientific(num)
-    }else{
-      x_new[i] <- round(num, round_place)
-    }
-  }
-  x_new
-}
-
+# ---------
+# OPTPARSE
+# ---------
 
 # Arguments ----
 
@@ -62,16 +48,18 @@ print(str(opt))
 # PATHS
 # ------
 
-# metadata_path <- "~/Documents/metadata/"
-# mutations_data_path <- "~/Documents/comp_mut/metadata/"
+# For testing
+metadata_path <- "~/Documents/metadata/"
+mutations_data_path <- "~/Documents/comp_mut/metadata/"
 
 # ------
 # FILES
 # ------
 
-# metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-# ahpc_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
-# outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
+# For testing
+metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+ahpc_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
 
 metadata_file <- opt$metadata_file
 ahpc_mut_file <- opt$mutations_data_file
@@ -204,8 +192,9 @@ models_results <- models_results[!(models_results[, "estimate_lin"] < 0), ]
 # Clean
 models_results$term <- gsub("_to_", ">", models_results$term)
 models_results$term <- gsub("MINUS", "-", models_results$term)
+models_results[, sapply(models_results, is.numeric)] <- round(num_cols(models_results), 3)
 
-write.csv(models_results, file = outfile, row.names = F)
+write.csv(models_results, file = outfile, row.names = F, quote = F)
 
 
 
