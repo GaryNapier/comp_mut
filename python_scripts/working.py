@@ -15,22 +15,37 @@ from csv import DictReader
 # metadata_file = args.metadata_file
 # id_key = args.id_key
 
-mutations_file = "metadata/novel_ahpc_mutations.txt"
+# mutations_file = "metadata/novel_ahpc_mutations.txt"
+# metadata_file = "../metadata/tb_data_18_02_2021.csv"
+# id_key = "wgs_id"
+# mutaions_key = "wgs_id" # column name of mutation names e.g. "c.-101A>G"
+
+ahpc_glm_results_file = "metadata/ahpc_model_results.csv"
 metadata_file = "../metadata/tb_data_18_02_2021.csv"
-id_key = "wgs_id"
-mutaions_key = "wgs_id" # column name of mutation names e.g. "c.-101A>G"
+tbdb_file = "../tbdb/tbdb.csv"
+tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
+metadata_id_key = "wgs_id"
+suffix = ".results.json"
+
+# test_file = 'metadata/head_metadata.csv'
+
+
+
 
 # -------------
 # READ IN DATA
 # -------------
 
-# Read in mutations data
-mutations_dict = {}
-with open(mutations_file, 'r') as mf:
-    mutations_reader = DictReader(mf, delimiter='\t')
-    for row in mutations_reader:
+# Read in ahpc GLM results file
+ahpc_dict = {}
+with open(ahpc_glm_results_file, 'r') as f:
+    ahpc_reader = csv.DictReader(f)
+    # Get the header name of the ahpC mutations
+    ahpc_mutation_header = ahpc_reader.fieldnames[0].split(',')[0]
+    for row in ahpc_reader:
         # Make the id the key, but also recapitulate the id in the key-values by including everything
-        mutations_dict[row[mutaions_key]] = row
+        ahpc_dict[row[ahpc_mutation_header]] = row
+
 
 # Read in metadata
 meta_dict = {}
@@ -38,7 +53,69 @@ with open(metadata_file) as mf:
     metadata_reader = csv.DictReader(mf)
     for row in metadata_reader:
         # Make the id the key, but also recapitulate the id in the key-values by including everything
-        meta_dict[row[id_key]] = row
+        meta_dict[row[metadata_id_key]] = row
+
+
+# Read in tbdb file
+tbdb_dict = {}
+with open(tbdb_file, 'r') as f:
+    tbdb_reader = csv.DictReader(f)
+    for row in tbdb_reader:
+        tbdb_dict[row['Gene']] = row
+
+
+# Get all samples from the tbprofiler results
+# If a list of samples is supplied through the args object, store it in a list else get the list from looking in the results direcotry
+samples = [x.replace(suffix,"") for x in os.listdir(tbprofiler_results_dir) if x[-len(suffix):]==suffix]
+samples = samples[0:1000]
+# REPLACE WITH
+# if args.samples:
+#     samples = [x.rstrip() for x in open(args.samples).readlines()]
+# else:
+#     samples = [x.replace(args.suffix,"") for x in os.listdir(args.dir) if x[-len(args.suffix):]==args.suffix]
+
+
+# ---------------------------------------------------------------------
+# Find which samples have any ahpC mutation 
+# - either known from the tbdb file or novel from the ahpC GLM results
+# ---------------------------------------------------------------------
+
+
+
+samps_known_ahpc_dict = {}
+
+for samp in tqdm(samples):
+    # Open the json file for the sample
+    data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+
+
+
+data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, 'ERR4810954', suffix))))
+
+
+
+
+
+
+
+
+
+samps_known_ahpc_dict[samp] = [x for x in data['dr_variants'] if x['gene'] == 'ahpC']
+
+
+
+
+    for change in data['dr_variants']:
+        if change['gene']  == 'ahpC':
+            samps_known_ahpc_dict[samp] = {'wgs_id': samp,
+            'drtype':data["drtype"],
+            'gene':change["gene"],
+            'change':change["change"], 
+            'freq':change["freq"]}
+
+
+
+
 
 
 # ------------------
@@ -46,22 +123,25 @@ with open(metadata_file) as mf:
 # ------------------
 
 # Get set of unique mutations
-mutations_set = []
-for key in mutations_dict:
-    mutations_set.append(mutations_dict[key]['change'])
-mutations_set = set(mutations_set)
+# mutations_set = []
+# for key in mutations_dict:
+#     mutations_set.append(mutations_dict[key]['change'])
+# mutations_set = set(mutations_set)
 
 
 
-parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
-parser.add_argument('--mutations-file', default = '', type = str, help = 'txt file of novel mutations found with find_ahpc_mutations.py; columns: wgs_id, drtype, lineage, gene, change, freq, inh_dst)
-parser.add_argument('--id-key', default = '', type = str, help = 'column name in metadata file with sample ids')
-parser.add_argument('--outfile',default="ahpc_mutations_stats.txt",type=str,help='name of output file')
-parser.set_defaults(func=main)
 
-args = parser.parse_args()
-args.func(args)
+
+
+# parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
+# parser.add_argument('--mutations-file', default = '', type = str, help = 'txt file of novel mutations found with find_ahpc_mutations.py; columns: wgs_id, drtype, lineage, gene, change, freq, inh_dst)
+# parser.add_argument('--id-key', default = '', type = str, help = 'column name in metadata file with sample ids')
+# parser.add_argument('--outfile',default="ahpc_mutations_stats.txt",type=str,help='name of output file')
+# parser.set_defaults(func=main)
+
+# args = parser.parse_args()
+# args.func(args)
 
 
 
