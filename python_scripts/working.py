@@ -30,8 +30,6 @@ suffix = ".results.json"
 # test_file = 'metadata/head_metadata.csv'
 
 
-
-
 # -------------
 # READ IN DATA
 # -------------
@@ -66,8 +64,8 @@ with open(tbdb_file, 'r') as f:
 
 # Get all samples from the tbprofiler results
 # If a list of samples is supplied through the args object, store it in a list else get the list from looking in the results direcotry
-samples = [x.replace(suffix,"") for x in os.listdir(tbprofiler_results_dir) if x[-len(suffix):]==suffix]
-samples = samples[0:1000]
+# samples = [x.replace(suffix,"") for x in os.listdir(tbprofiler_results_dir) if x[-len(suffix):]==suffix]
+# samples = samples[0:1000]
 # REPLACE WITH
 # if args.samples:
 #     samples = [x.rstrip() for x in open(args.samples).readlines()]
@@ -80,39 +78,49 @@ samples = samples[0:1000]
 # - either known from the tbdb file or novel from the ahpC GLM results
 # ---------------------------------------------------------------------
 
+ahpc_katg_dict = defaultdict(dict)
 
+for samp in tqdm(meta_dict):
 
-samps_known_ahpc_dict = {}
-
-for samp in tqdm(samples):
     # Open the json file for the sample
     data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
 
+    # Test
+    # data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, 'SRR6046149', suffix))))
+    # [x for x in data["dr_variants"] + data["other_variants"] if x['gene'] in ['ahpC','katG']]
 
+    # Test if non-syn ahpc is in the changes
+    if any((x['gene'] == 'ahpC' and x['type'] != 'synonymous' and x['freq'] >= 0.7) for x in data["dr_variants"] + data["other_variants"]):
 
-data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, 'ERR4810954', suffix))))
+        # Get DST data for sample
+        inh_dst = meta_dict[samp]['isoniazid']
 
+        # Create empty list per id
+        ahpc_katg_dict[samp] = []
 
+        for var in data["dr_variants"] + data["other_variants"]:
+            if var['gene'] in ['ahpC', 'katG'] and var['type'] != 'synonymous' and var["freq"] >= 0.7:
 
+                # if [var['gene'] in ['ahpC', 'katG'] and var['type'] != 'synonymous' and var["freq"] >= 0.7 for var in data["dr_variants"] + data["other_variants"] ]:
 
+                # Set default value for drugs if no entry in the list of dictionaries
+                var.setdefault('drugs', 'unknown')
 
+                # Append the dictionary to the list
+                ahpc_katg_dict[samp].append({'wgs_id':samp,
+                'lineage': data['sublin'],
+                'drtype':data["drtype"],
+                'gene':var["gene"],
+                'change':var["change"],
+                'type':var['type'],
+                'freq':var['freq'], 
+                'drugs':var['drugs'], 
+                'inh_dst':inh_dst})
+            else:
+                next
 
-
-
-
-samps_known_ahpc_dict[samp] = [x for x in data['dr_variants'] if x['gene'] == 'ahpC']
-
-
-
-
-    for change in data['dr_variants']:
-        if change['gene']  == 'ahpC':
-            samps_known_ahpc_dict[samp] = {'wgs_id': samp,
-            'drtype':data["drtype"],
-            'gene':change["gene"],
-            'change':change["change"], 
-            'freq':change["freq"]}
-
+    else:
+        next
 
 
 
