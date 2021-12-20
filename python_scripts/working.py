@@ -117,10 +117,75 @@ for samp in tqdm(meta_dict):
                 'drugs':var['drugs'], 
                 'inh_dst':inh_dst})
             else:
-                next
+                continue
 
     else:
-        next
+        continue
+
+# --------
+
+# Get all unknown ahpC mutations from the GLM model results
+unknown_ahpc_samps_dict = defaultdict(dict)
+for samp in ahpc_katg_dict:
+    for var in ahpc_katg_dict[samp]:
+        if var['gene'] == 'ahpC' and var['change'] in [ahpc_dict.keys(), ]: # ADD TBDB
+            unknown_ahpc_samps_dict[samp] = ahpc_katg_dict[samp]
+
+# --------
+
+# Get those with unknown katG
+# 'SAMEA2534152': [{'wgs_id': 'SAMEA2534152',
+#                'lineage': 'lineage2.2.1',
+#                'drtype': 'MDR',
+#                'gene': 'katG',
+#                'change': 'Chromosome:g.2129622_2154065del',
+#                'type': 'large_deletion',
+#                'freq': 1,
+#                'drugs': [{'type': 'drug',
+#                  'drug': 'isoniazid',
+#                  'confidence': 'indeterminate'}],
+#                'inh_dst': '1'},
+#               {'wgs_id': 'SAMEA2534152',
+#                'lineage': 'lineage2.2.1',
+#                'drtype': 'MDR',
+#                'gene': 'katG',
+#                'change': 'p.Arg463Leu',
+#                'type': 'missense',
+#                'freq': 1.0,
+#                'drugs': 'unknown',
+#                'inh_dst': '1'},
+#               {'wgs_id': 'SAMEA2534152',
+#                'lineage': 'lineage2.2.1',
+#                'drtype': 'MDR',
+#                'gene': 'ahpC',
+#                'change': 'c.-72C>T',
+#                'type': 'non_coding',
+#                'freq': 1.0,
+#                'drugs': 'unknown',
+#                'inh_dst': '1'}],
+
+unknown_katg_dict = defaultdict(dict)
+for samp in unknown_ahpc_samps_dict:
+    # Create empty list per id
+    unknown_katg_dict[samp] = []
+    for var in unknown_ahpc_samps_dict[samp]:
+        if var['gene'] == 'katG' and var['drugs'] == 'unknown':
+            unknown_katg_dict[samp].append(var)
+
+for samp in list(unknown_katg_dict):
+    if len(unknown_katg_dict[samp]) == 0:
+        del unknown_katg_dict[samp]
+
+
+# unknown_katg_dict = defaultdict(dict)
+# for samp in unknown_ahpc_samps_dict:
+#     # Create empty list per id
+#     tmp = []
+#     for var in unknown_ahpc_samps_dict[samp]:
+#         if var['gene'] == 'katG' and var['drugs'] == 'unknown':
+#             tmp.append(var)
+#     if len(tmp)>0:
+#         unknown_katg_dict[samp] = tmp
 
 
 
