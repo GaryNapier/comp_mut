@@ -59,19 +59,22 @@ tbdb_dict = {}
 with open(tbdb_file, 'r') as f:
     tbdb_reader = csv.DictReader(f)
     for row in tbdb_reader:
-        tbdb_dict[row['Gene']] = row
+        if row['Gene'] in tbdb_dict.keys():
+            tbdb_dict[row['Gene']].append(row)
+        else:
+            tbdb_dict[row['Gene']] = []
+            tbdb_dict[row['Gene']].append(row)
 
 
-# Get all samples from the tbprofiler results
-# If a list of samples is supplied through the args object, store it in a list else get the list from looking in the results direcotry
-# samples = [x.replace(suffix,"") for x in os.listdir(tbprofiler_results_dir) if x[-len(suffix):]==suffix]
-# samples = samples[0:1000]
-# REPLACE WITH
-# if args.samples:
-#     samples = [x.rstrip() for x in open(args.samples).readlines()]
-# else:
-#     samples = [x.replace(args.suffix,"") for x in os.listdir(args.dir) if x[-len(args.suffix):]==args.suffix]
+# -------------
+# Wrangle data 
+# -------------
 
+# Find KNOWN ahpC mutations form tbdb
+
+known_ahpc = []
+for mut in tbdb_dict['ahpC']:
+    known_ahpc.append(mut['Mutation'])
 
 # ---------------------------------------------------------------------
 # Find which samples have any ahpC mutation 
@@ -128,7 +131,7 @@ for samp in tqdm(meta_dict):
 unknown_ahpc_samps_dict = defaultdict(dict)
 for samp in ahpc_katg_dict:
     for var in ahpc_katg_dict[samp]:
-        if var['gene'] == 'ahpC' and var['change'] in [ahpc_dict.keys(), ]: # ADD TBDB
+        if var['gene'] == 'ahpC' and var['change'] in list(ahpc_dict.keys()) + known_ahpc:
             unknown_ahpc_samps_dict[samp] = ahpc_katg_dict[samp]
 
 # --------
@@ -172,6 +175,7 @@ for samp in unknown_ahpc_samps_dict:
         if var['gene'] == 'katG' and var['drugs'] == 'unknown':
             unknown_katg_dict[samp].append(var)
 
+# Remove empty list samples
 for samp in list(unknown_katg_dict):
     if len(unknown_katg_dict[samp]) == 0:
         del unknown_katg_dict[samp]
