@@ -134,7 +134,7 @@ model_list_results$p.value <- round_if(model_list_results$p.value)
 # Add main lineage as co-variate
 mut_plus_lin_model_list <- list()
 for(i in seq(mutations)){
-  mod <- as.formula(sprintf("inh_dst ~ %s + main_lineage", mutations[i]))
+  mod <- as.formula(sprintf("inh_dst ~ main_lineage + %s", mutations[i]))
   mut_plus_lin_model_list[[i]] <- glm(formula = mod, data = metadata, family = binomial)
 }
 names(mut_plus_lin_model_list) <- mutations
