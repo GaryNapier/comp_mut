@@ -71,10 +71,12 @@ with open(tbdb_file, 'r') as f:
 # -------------
 
 # Find KNOWN ahpC mutations form tbdb
-
 known_ahpc = []
 for mut in tbdb_dict['ahpC']:
     known_ahpc.append(mut['Mutation'])
+
+# Concat known ahpc and ahpc from GLM results
+all_ahpc_list = list(ahpc_dict.keys()) + known_ahpc
 
 # ---------------------------------------------------------------------
 # Find which samples have any ahpC mutation 
@@ -82,7 +84,6 @@ for mut in tbdb_dict['ahpC']:
 # ---------------------------------------------------------------------
 
 ahpc_katg_dict = defaultdict(dict)
-
 for samp in tqdm(meta_dict):
 
     # Open the json file for the sample
@@ -92,104 +93,99 @@ for samp in tqdm(meta_dict):
     # data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, 'SRR6046149', suffix))))
     # [x for x in data["dr_variants"] + data["other_variants"] if x['gene'] in ['ahpC','katG']]
 
-    # Test if non-syn ahpc is in the changes
-    if any((x['gene'] == 'ahpC' and x['type'] != 'synonymous' and x['freq'] >= 0.7) for x in data["dr_variants"] + data["other_variants"]):
+    # Including 'any()' statement to stop loop creating dictionary entry of empty lists
+    # Only include samples which have at least one: 
+    #  ahpc, > 0.7 freq, and at least one ahpc mutation is either DR-associated (known) or one of the mutations from the GLM results
+    if any((var['gene'] == 'ahpC' and var['freq'] >= 0.7 and var['change'] in all_ahpc_list) for var in data["dr_variants"] + data["other_variants"]):
 
         # Get DST data for sample
         inh_dst = meta_dict[samp]['isoniazid']
 
         # Create empty list per id
-        ahpc_katg_dict[samp] = []
+        ahpc_katg_dict[samp] = {}
+
+        ahpc_katg_dict[samp]['metadata'] = {'wgs_id':samp,
+        'inh_dst':inh_dst,
+        'lineage':data['sublin'],
+        'drtype':data['drtype']}
+
+        ahpc_katg_dict[samp]['mutations'] = []
 
         for var in data["dr_variants"] + data["other_variants"]:
-            if var['gene'] in ['ahpC', 'katG'] and var['type'] != 'synonymous' and var["freq"] >= 0.7:
 
-                # if [var['gene'] in ['ahpC', 'katG'] and var['type'] != 'synonymous' and var["freq"] >= 0.7 for var in data["dr_variants"] + data["other_variants"] ]:
+            # Only include:
+            # ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
+            # katG: non-syn, >0.7 freq, mutation is unknown
+            # if (var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7) or (var['gene'] == 'katG' and var['type'] != 'synonymous' and var['freq'] >= 0.7 and 'drugs' not in var.keys()):
+            if (var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7) or (var['gene'] == 'katG' and var['type'] != 'synonymous' and var['freq'] >= 0.7):
 
                 # Set default value for drugs if no entry in the list of dictionaries
                 var.setdefault('drugs', 'unknown')
 
                 # Append the dictionary to the list
-                ahpc_katg_dict[samp].append({'wgs_id':samp,
-                'lineage': data['sublin'],
-                'drtype':data["drtype"],
-                'gene':var["gene"],
-                'change':var["change"],
+                ahpc_katg_dict[samp]['mutations'].append({'gene':var['gene'],
+                'change':var['change'],
                 'type':var['type'],
                 'freq':var['freq'], 
-                'drugs':var['drugs'], 
-                'inh_dst':inh_dst})
+                'drugs':var['drugs']})
             else:
                 continue
-
     else:
         continue
 
-# --------
 
-# Get all unknown ahpC mutations from the GLM model results
-unknown_ahpc_samps_dict = defaultdict(dict)
-for samp in ahpc_katg_dict:
-    for var in ahpc_katg_dict[samp]:
-        if var['gene'] == 'ahpC' and var['change'] in list(ahpc_dict.keys()) + known_ahpc:
-            unknown_ahpc_samps_dict[samp] = ahpc_katg_dict[samp]
-
-# --------
-
-# Get those with unknown katG
-# 'SAMEA2534152': [{'wgs_id': 'SAMEA2534152',
-#                'lineage': 'lineage2.2.1',
-#                'drtype': 'MDR',
-#                'gene': 'katG',
-#                'change': 'Chromosome:g.2129622_2154065del',
-#                'type': 'large_deletion',
-#                'freq': 1,
-#                'drugs': [{'type': 'drug',
-#                  'drug': 'isoniazid',
-#                  'confidence': 'indeterminate'}],
-#                'inh_dst': '1'},
-#               {'wgs_id': 'SAMEA2534152',
-#                'lineage': 'lineage2.2.1',
-#                'drtype': 'MDR',
-#                'gene': 'katG',
-#                'change': 'p.Arg463Leu',
-#                'type': 'missense',
-#                'freq': 1.0,
-#                'drugs': 'unknown',
-#                'inh_dst': '1'},
-#               {'wgs_id': 'SAMEA2534152',
-#                'lineage': 'lineage2.2.1',
-#                'drtype': 'MDR',
-#                'gene': 'ahpC',
+# Data structure:
+# x = {'ID_1': {'metadata': {'wgs_id':'ID_1',
+#         'inh_dst':1,
+#         'lineage':'lin1',
+#         'drtype':'XDR'}, 
+# 	'mutations': [{'gene': 'ahpC',
 #                'change': 'c.-72C>T',
 #                'type': 'non_coding',
 #                'freq': 1.0,
-#                'drugs': 'unknown',
-#                'inh_dst': '1'}],
+#                'drugs': 'unknown'}, 
+# 		{'gene': 'katG',
+#                'change': 'p.Ser315Thr',
+#                'type': 'missense',
+#                'freq': 1.0,
+#                'drugs': [{'type': 'drug',
+#                  'drug': 'isoniazid',
+#                  'confidence': 'high'}]}]}, 
+# 'ID_2': {'metadata': {'wgs_id':'ID_1',
+#         'inh_dst':1,
+#         'lineage':'lin1',
+#         'drtype':'XDR'}, 
+# 	'mutations': [{'gene': 'ahpC',
+#                'change': 'c.-72C>T',
+#                'type': 'non_coding',
+#                'freq': 1.0,
+#                'drugs': 'unknown'}, 
+# 		{'gene': 'katG',
+#                'change': 'p.Ser315Thr',
+#                'type': 'missense',
+#                'freq': 1.0,
+#                'drugs': [{'type': 'drug',
+#                  'drug': 'isoniazid',
+#                  'confidence': 'high'}]}]}}
 
-unknown_katg_dict = defaultdict(dict)
-for samp in unknown_ahpc_samps_dict:
-    # Create empty list per id
-    unknown_katg_dict[samp] = []
-    for var in unknown_ahpc_samps_dict[samp]:
-        if var['gene'] == 'katG' and var['drugs'] == 'unknown':
-            unknown_katg_dict[samp].append(var)
-
-# Remove empty list samples
-for samp in list(unknown_katg_dict):
-    if len(unknown_katg_dict[samp]) == 0:
-        del unknown_katg_dict[samp]
 
 
-# unknown_katg_dict = defaultdict(dict)
-# for samp in unknown_ahpc_samps_dict:
-#     # Create empty list per id
-#     tmp = []
-#     for var in unknown_ahpc_samps_dict[samp]:
-#         if var['gene'] == 'katG' and var['drugs'] == 'unknown':
-#             tmp.append(var)
-#     if len(tmp)>0:
-#         unknown_katg_dict[samp] = tmp
+# Filter to samples with unknown katG
+unknown_katg_dict = {}
+test = []
+for samp in ahpc_katg_dict:
+    if any((var['gene'] == 'katG' and var['drugs'] == 'unknown') for var in ahpc_katg_dict[samp]['mutations']):
+        for var in ahpc_katg_dict[samp]['mutations']:
+            if (var['gene'] == 'katG' and var['drugs'] == 'unknown') or var['gene'] == 'katG' and :
+
+
+
+
+
+
+
+
+
 
 
 
@@ -221,209 +217,6 @@ for samp in list(unknown_katg_dict):
 # args.func(args)
 
 
-
-
-
-
-
-
-# mutation 1
-#         Has mutation?    INH_DST
-# samp 1  0                   0
-# samp 2  1                   1
-# samp 3  0                   0
-
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-# def get_gene2drugs(bed_file):
-#     lt2drugs = {}
-#     for l in open(bed_file):
-#         row = l.strip().split()
-#         lt2drugs[row[4]] = row[5].split(",")
-#     return lt2drugs
-
-# def get_conf_dict(library_prefix):
-#     files = {"gff":".gff","ref":".fasta","ann":".ann.txt","barcode":".barcode.bed","bed":".bed","json_db":".dr.json","version":".version.json"}
-#     conf = {}
-#     for key in files:
-#         sys.stderr.write("Using %s file: %s\n" % (key,library_prefix+files[key]))
-#         conf[key] = pp.filecheck(library_prefix+files[key])
-#     return conf
-
-# db = 'tbdb'
-
-# conf = get_conf_dict(sys.base_prefix + "/share/tbprofiler/%s" % db)
-
-# # Get a dictionary mapping the locus_tags to drugs: {"Rv1484": ["isoniazid","ethionamide"], ... etc. }
-# # gene2drugs = tbprofiler.get_gene2drugs(conf["bed"])
-# gene2drugs = get_gene2drugs(conf["bed"])
-
-# metadata_file = "../metadata/tb_data_18_02_2021.csv"
-
-# project_samples = ['SRR1723521']
-# project_dir = "/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/"
-# suffix = ".results.json"
-
-# project_variants = defaultdict(list)
-# # for s in tqdm(project_samples):
-# s = project_samples[0]
-# data = json.load(open(pp.filecheck("%s/%s%s" % (project_dir,s,suffix))))
-# for var in data["dr_variants"] + data["other_variants"]:
-#     if var["type"]=="synonymous": continue
-#     if "Ser315Thr" in var["change"]:
-#         print(var["change"])
-#      # {('katG', 'p.Ser315Thr', 'isoniazid'): ['SRR1723521'],
-#             #  ('gyrA', 'p.Glu21Gln', 'NA'): ['SRR1723521'],
-#             #  ('gyrA', 'p.Ser95Thr', 'NA'): ['SRR1723521'],
-#             #  ('gyrA', 'p.Gly668Asp', 'NA'): ['SRR1723521'],
-#             #  ('mshA', 'p.Ala187Val', 'NA'): ['SRR1723521'],
-#             #  ('rpsL', 'c.-165T>C', 'NA'): ['SRR1723521'],
-#             #  ('katG', 'p.Arg463Leu', 'NA'): ['SRR1723521'],
-#             #  ('ahpC', 'c.-101A>G', 'NA'): ['SRR1723521'],
-#             #  ('thyA', 'p.Pro3Ala', 'NA'): ['SRR1723521'],
-#             #  ('ald', 'c.-32T>C', 'NA'): ['SRR1723521'],
-#             #  ('gid', 'p.Glu92Asp', 'NA'): ['SRR1723521']})
-#     if "drugs" in var:
-#         for d in var["drugs"]:
-#             project_variants[(var["gene"],var["change"],d["drug"])].append(s)
-#     else:
-#         project_variants[(var["gene"],var["change"],"NA")].append(s)
-
-# global_dir = project_dir
-# global_samples = ['SRR1723521']
-# global_variants = defaultdict(list)
-# global_drtypes = defaultdict(list)
-# global_variant_lineages = defaultdict(list)
-# # for s in tqdm(global_samples):
-# s = global_samples[0]
-# data = json.load(open(pp.filecheck("%s/%s%s" % (global_dir,s,suffix))))
-# for var in data["dr_variants"] + data["other_variants"]:
-#     # defaultdict(list,
-#     #         {('katG', 'p.Ser315Thr'): ['SRR1723521'],
-#     #          ('gyrA', 'p.Glu21Gln'): ['SRR1723521'],
-#     #          ('gyrA', 'p.Ser95Thr'): ['SRR1723521'],
-#     #          ('gyrA', 'p.Gly668Asp'): ['SRR1723521'],
-#     #          ('fgd1', 'c.960T>C'): ['SRR1723521'],
-#     #          ('mshA', 'p.Ala187Val'): ['SRR1723521'],
-#     #          ('rpoB', 'c.3225T>C'): ['SRR1723521'],
-#     #          ('rpsL', 'c.-165T>C'): ['SRR1723521'],
-#     #          ('rpsA', 'c.636A>C'): ['SRR1723521'],
-#     #          ('tlyA', 'c.33A>G'): ['SRR1723521'],
-#     #          ('katG', 'p.Arg463Leu'): ['SRR1723521'],
-#     #          ('ahpC', 'c.-101A>G'): ['SRR1723521'],
-#     #          ('thyA', 'c.666G>C'): ['SRR1723521'],
-#     #          ('thyA', 'p.Pro3Ala'): ['SRR1723521'],
-#     #          ('ald', 'c.-32T>C'): ['SRR1723521'],
-#     #          ('embC', 'c.2781C>T'): ['SRR1723521'],
-#     #          ('embA', 'c.228C>T'): ['SRR1723521'],
-#     #          ('gid', 'c.615T>C'): ['SRR1723521'],
-#     #          ('gid', 'p.Glu92Asp'): ['SRR1723521']})
-#     global_variants[(var["gene"],var["change"])].append(s)
-#     # defaultdict(list,
-#     #         {('katG', 'p.Ser315Thr'): ['lineage2.2.1'],
-#     #          ('gyrA', 'p.Glu21Gln'): ['lineage2.2.1'],
-#     #          ('gyrA', 'p.Ser95Thr'): ['lineage2.2.1'],
-#     #          ('gyrA', 'p.Gly668Asp'): ['lineage2.2.1'],
-#     #          ('fgd1', 'c.960T>C'): ['lineage2.2.1'],
-#     #          ('mshA', 'p.Ala187Val'): ['lineage2.2.1'],
-#     #          ('rpoB', 'c.3225T>C'): ['lineage2.2.1'],
-#     #          ('rpsL', 'c.-165T>C'): ['lineage2.2.1'],
-#     #          ('rpsA', 'c.636A>C'): ['lineage2.2.1'],
-#     #          ('tlyA', 'c.33A>G'): ['lineage2.2.1'],
-#     #          ('katG', 'p.Arg463Leu'): ['lineage2.2.1'],
-#     #          ('ahpC', 'c.-101A>G'): ['lineage2.2.1'],
-#     #          ('thyA', 'c.666G>C'): ['lineage2.2.1'],
-#     #          ('thyA', 'p.Pro3Ala'): ['lineage2.2.1'],
-#     #          ('ald', 'c.-32T>C'): ['lineage2.2.1'],
-#     #          ('embC', 'c.2781C>T'): ['lineage2.2.1'],
-#     #          ('embA', 'c.228C>T'): ['lineage2.2.1'],
-#     #          ('gid', 'c.615T>C'): ['lineage2.2.1'],
-#     #          ('gid', 'p.Glu92Asp'): ['lineage2.2.1']})
-#     global_variant_lineages[(var["gene"],var["change"])].append(data["sublin"])
-# # defaultdict(list, {'Pre-MDR': ['SRR1723521']})
-# global_drtypes[data["drtype"]].append(s)
-
-# meta = {}
-# for row in csv.DictReader(open(metadata_file)):
-#     meta[row["wgs_id"]] = row
-
-# # ---
-
-
-# # def calculate_stats(gene,change,drug,dr_pos,project_freq):
-
-
-# # for drtype in ["Sensitive","Pre-MDR","MDR","Pre-XDR","XDR","Other"]:
-# #     samps = global_drtypes[drtype]
-# #     res[drtype+"_freq"] = sum([1 for s in samps if s in g_samples])/len(samps)
-# # return res
-
-
-# results = []
-# # for gene,change,drug in tqdm(project_variants):
-
-# # gene = 'katG'
-# # change = 'p.Ser315Thr'
-# # drug = 'isoniazid'
-
-# gene = 'gid'
-# change = 'p.Glu92Asp' 
-# drug = 'NA'
-
-
-# project_freq = len(project_variants[(gene,change,drug)])
-
-# if gene not in gene2drugs:
-#     results.append({"gene":gene, 
-#         "change":change, 
-#         "drug":"NA", 
-#         "dr_pos":"No",
-#         "project_freq":project_freq,
-#         "global_freq":"NA",
-#         "drug_resistant_%":"NA"})
-
-
-# # if drug=="NA": 
-# possible_drugs = gene2drugs[gene]
-# # for d in possible_drugs:
-
-# # ---------------------------
-# # calculate_stats() function
-# # ---------------------------
-# # def   calculate_stats(gene,change,drug,dr_pos,project_freq):
-# # var = calculate_stats(gene,change,d   ,"No"  ,project_freq)
-# d = possible_drugs[0]
-# dr_pos = "No"
-
-# g_samples = set(global_variants[(gene,change)])
-# global_dsts = [int(meta[s][d]) for s in g_samples if meta[s][d]!="NA"] if d in list(list(meta.values())[0]) else []
-# res = {
-#     "gene":gene,
-#     "change":change,
-#     "drug":drug,
-#     "dr_pos":dr_pos,
-#     "project_freq":project_freq,
-#     "global_N":len(g_samples),
-#     "drug_resistant_%":"%.2f" % (sum(global_dsts)/len(global_dsts)) if len(global_dsts)!=0 else "NA"
-# }
-
-
-
-# for drtype in ["Sensitive","Pre-MDR","MDR","Pre-XDR","XDR","Other"]:
-#     samps = global_drtypes[drtype]
-#     res[drtype+"_freq"] = sum([1 for s in samps if s in g_samples])/len(samps) if len(samps) > 0 else 0
-
-#     var["lineages"] = resolve_lineages(Counter(global_variant_lineages[(gene,change)]))
-#     var["num_lineages"] = len(var["lineages"])
-#     results.append(var)
-
-
-# # else:
-# #     var = calculate_stats(gene,change,drug,"Yes",project_freq)
-# #     var["lineages"] = resolve_lineages(Counter(global_variant_lineages[(gene,change)]))
-# #     var["num_lineages"] = len(var["lineages"])
-# #     results.append(var)
 
 
 
