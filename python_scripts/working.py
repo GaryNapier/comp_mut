@@ -78,12 +78,18 @@ for mut in tbdb_dict['ahpC']:
 # Concat known ahpc and ahpc from GLM results
 all_ahpc_list = list(ahpc_dict.keys()) + known_ahpc
 
+# Make list of katG mutationa to exclude
+# "katG Arg463Leu was excluded from this calculation since it has been reported as not associated with isoniazid resistance" - https://www.nature.com/articles/s41598-018-21378-x
+# -> The Susceptibility of Mycobacterium tuberculosis to Isoniazid and the Arg->Leu Mutation at Codon 463 of katG Are Not Associated - https://journals.asm.org/doi/10.1128/JCM.39.4.1591-1594.2001
+
+katg_exclude = ["p.Arg463Leu"]
+
 # ---------------------------------------------------------------------
 # Find which samples have any ahpC mutation 
 # - either known from the tbdb file or novel from the ahpC GLM results
 # ---------------------------------------------------------------------
 
-ahpc_katg_dict = defaultdict(dict)
+ahpc_dict = defaultdict(dict)
 for samp in tqdm(meta_dict):
 
     # Open the json file for the sample
@@ -95,21 +101,21 @@ for samp in tqdm(meta_dict):
 
     # Including 'any()' statement to stop loop creating dictionary entry of empty lists
     # Only include samples which have at least one: 
-    #  ahpc, > 0.7 freq, and at least one ahpc mutation is either DR-associated (known) or one of the mutations from the GLM results
+    # ahpc, > 0.7 freq, and at least one ahpc mutation is either DR-associated (known) or one of the mutations from the GLM results
     if any((var['gene'] == 'ahpC' and var['freq'] >= 0.7 and var['change'] in all_ahpc_list) for var in data["dr_variants"] + data["other_variants"]):
 
         # Get DST data for sample
         inh_dst = meta_dict[samp]['isoniazid']
 
         # Create empty list per id
-        ahpc_katg_dict[samp] = {}
+        ahpc_dict[samp] = {}
 
-        ahpc_katg_dict[samp]['metadata'] = {'wgs_id':samp,
+        ahpc_dict[samp]['metadata'] = {'wgs_id':samp,
         'inh_dst':inh_dst,
         'lineage':data['sublin'],
         'drtype':data['drtype']}
 
-        ahpc_katg_dict[samp]['mutations'] = []
+        ahpc_dict[samp]['mutations'] = []
 
         for var in data["dr_variants"] + data["other_variants"]:
 
@@ -117,13 +123,13 @@ for samp in tqdm(meta_dict):
             # ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
             # katG: non-syn, >0.7 freq, mutation is unknown
             # if (var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7) or (var['gene'] == 'katG' and var['type'] != 'synonymous' and var['freq'] >= 0.7 and 'drugs' not in var.keys()):
-            if (var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7) or (var['gene'] == 'katG' and var['type'] != 'synonymous' and var['freq'] >= 0.7):
+            if var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7:
 
                 # Set default value for drugs if no entry in the list of dictionaries
                 var.setdefault('drugs', 'unknown')
 
                 # Append the dictionary to the list
-                ahpc_katg_dict[samp]['mutations'].append({'gene':var['gene'],
+                ahpc_dict[samp]['mutations'].append({'gene':var['gene'],
                 'change':var['change'],
                 'type':var['type'],
                 'freq':var['freq'], 
@@ -132,6 +138,35 @@ for samp in tqdm(meta_dict):
                 continue
     else:
         continue
+
+ahpc_katg_dict = defaultdict(dict)
+for samp in ahpc_dict:
+    # Open the json file for the sample
+    data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+
+    if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 and 'drugs' not in var.keys() for var in data["dr_variants"] + data["other_variants"]):
+
+        for var in data["dr_variants"] + data["other_variants"]:
+            
+            # if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 and 'drugs' not in var.keys():
+            if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 and 'drugs' not in var.keys():
+        
+                # Set default value for drugs if no entry in the list of dictionaries
+                var.setdefault('drugs', 'unknown')
+
+                # Append the dictionary to the list
+                ahpc_dict[samp]['mutations'].append({'gene':var['gene'],
+                'change':var['change'],
+                'type':var['type'],
+                'freq':var['freq'], 
+                'drugs':var['drugs']})
+            else:
+                continue
+        ahpc_katg_dict[samp] = ahpc_dict[samp]
+    else:
+        continue
+
+
 
 
 # Data structure:
@@ -148,9 +183,7 @@ for samp in tqdm(meta_dict):
 #                'change': 'p.Ser315Thr',
 #                'type': 'missense',
 #                'freq': 1.0,
-#                'drugs': [{'type': 'drug',
-#                  'drug': 'isoniazid',
-#                  'confidence': 'high'}]}]}, 
+#                'drugs': 'unknown'}]}, 
 # 'ID_2': {'metadata': {'wgs_id':'ID_1',
 #         'inh_dst':1,
 #         'lineage':'lin1',
@@ -164,29 +197,7 @@ for samp in tqdm(meta_dict):
 #                'change': 'p.Ser315Thr',
 #                'type': 'missense',
 #                'freq': 1.0,
-#                'drugs': [{'type': 'drug',
-#                  'drug': 'isoniazid',
-#                  'confidence': 'high'}]}]}}
-
-
-
-# Filter to samples with unknown katG
-unknown_katg_dict = {}
-test = []
-for samp in ahpc_katg_dict:
-    if any((var['gene'] == 'katG' and var['drugs'] == 'unknown') for var in ahpc_katg_dict[samp]['mutations']):
-        for var in ahpc_katg_dict[samp]['mutations']:
-            if (var['gene'] == 'katG' and var['drugs'] == 'unknown') or var['gene'] == 'katG' and :
-
-
-
-
-
-
-
-
-
-
+#                'drugs': 'unknown' }]}}
 
 
 
