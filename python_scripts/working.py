@@ -8,6 +8,7 @@ import csv
 import pathogenprofiler as pp
 import tbprofiler
 from csv import DictReader
+from collections import Counter
 
 # def main(args):
 
@@ -85,19 +86,15 @@ all_ahpc_list = list(ahpc_dict.keys()) + known_ahpc
 katg_exclude = ["p.Arg463Leu"]
 
 # ---------------------------------------------------------------------
-# Find which samples have any ahpC mutation 
-# - either known from the tbdb file or novel from the ahpC GLM results
+# Pull unknown mutations from samples with ahpC mutations
 # ---------------------------------------------------------------------
 
+# Get samples with ahpC mutations
 ahpc_dict = defaultdict(dict)
 for samp in tqdm(meta_dict):
 
     # Open the json file for the sample
     data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
-
-    # Test
-    # data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, 'SRR6046149', suffix))))
-    # [x for x in data["dr_variants"] + data["other_variants"] if x['gene'] in ['ahpC','katG']]
 
     # Including 'any()' statement to stop loop creating dictionary entry of empty lists
     # Only include samples which have at least one: 
@@ -119,16 +116,13 @@ for samp in tqdm(meta_dict):
 
         for var in data["dr_variants"] + data["other_variants"]:
 
-            # Only include:
-            # ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
-            # katG: non-syn, >0.7 freq, mutation is unknown
-            # if (var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7) or (var['gene'] == 'katG' and var['type'] != 'synonymous' and var['freq'] >= 0.7 and 'drugs' not in var.keys()):
+            # Pull ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
             if var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7:
 
                 # Set default value for drugs if no entry in the list of dictionaries
                 var.setdefault('drugs', 'unknown')
 
-                # Append the dictionary to the list
+                # Append the dictionary to the mutations list
                 ahpc_dict[samp]['mutations'].append({'gene':var['gene'],
                 'change':var['change'],
                 'type':var['type'],
@@ -139,22 +133,23 @@ for samp in tqdm(meta_dict):
     else:
         continue
 
+# Loop over samples with ahpC mutations and get their unknown katG mutations. Skip those with none. 
 ahpc_katg_dict = defaultdict(dict)
 for samp in ahpc_dict:
     # Open the json file for the sample
     data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
 
+    # Only continue the loop if there is at least one meeting the criteria
     if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 and 'drugs' not in var.keys() for var in data["dr_variants"] + data["other_variants"]):
 
         for var in data["dr_variants"] + data["other_variants"]:
-            
-            # if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 and 'drugs' not in var.keys():
+            # Pull katG mutaions: non-syn, >0.7 freq, mutation is unknown
             if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 and 'drugs' not in var.keys():
         
                 # Set default value for drugs if no entry in the list of dictionaries
                 var.setdefault('drugs', 'unknown')
 
-                # Append the dictionary to the list
+                # Append the dictionary to the list of ahpC mutations
                 ahpc_dict[samp]['mutations'].append({'gene':var['gene'],
                 'change':var['change'],
                 'type':var['type'],
@@ -162,14 +157,12 @@ for samp in ahpc_dict:
                 'drugs':var['drugs']})
             else:
                 continue
+        # Add the whole dict entry to the new dict
         ahpc_katg_dict[samp] = ahpc_dict[samp]
     else:
         continue
 
-
-
-
-# Data structure:
+# Data structure is now:
 # x = {'ID_1': {'metadata': {'wgs_id':'ID_1',
 #         'inh_dst':1,
 #         'lineage':'lin1',
@@ -199,18 +192,46 @@ for samp in ahpc_dict:
 #                'freq': 1.0,
 #                'drugs': 'unknown' }]}}
 
-
-
-
 # ------------------
 # Process mutations
 # ------------------
 
-# Get set of unique mutations
-# mutations_set = []
-# for key in mutations_dict:
-#     mutations_set.append(mutations_dict[key]['change'])
-# mutations_set = set(mutations_set)
+# Get set of unique katG mutations
+katg_mutations_set = []
+for samp in ahpc_katg_dict:
+    mut_list = ahpc_katg_dict[samp]['mutations']
+    # katg_mutations_set.append([mut['change'] for mut in mut_list if mut['gene'] == 'katG'])
+    katg_mutations_set.append([mut['change'] for mut in mut_list if mut['gene'] == 'katG'])
+
+# CHECK
+# x = []
+# for mut in katg_mutations_set:
+#     x.append(len(mut))
+# sum(x) = 205
+
+# Pull out the sublists from the list (God-damn you Python...)
+katg_mutations_set = [item for sublist in katg_mutations_set for item in sublist]
+# CHECK - len(katg_mutations_set) = 205
+
+# Sort
+katg_mutations_set.sort()
+
+# Make a table of the katG mutations
+katg_table = Counter(katg_mutations_set)
+
+# Get unique
+katg_mutations_set = set(katg_mutations_set)
+
+# len(katg_mutations_set) = 143
+
+# Make a dict of samples with the katg mutations
+katg_samps_dict = {k:[] for k in katg_mutations_set}
+for samp in ahpc_katg_dict:
+    for var in ahpc_katg_dict[samp]['mutations']:
+        if var['gene'] == 'katG':
+            katg_samps_dict[var['change']].append(samp)
+
+        
 
 
 
