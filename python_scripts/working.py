@@ -133,7 +133,48 @@ for samp in tqdm(meta_dict):
     else:
         continue
 
-# Loop over samples with ahpC mutations and get their unknown katG mutations. Skip those with none. 
+
+
+
+
+
+
+
+
+# BEFORE LOOPING OVER AND PULLING KATG, NEED TO FILTER - (either known katG or something else like fabG1)
+
+
+data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, 'SRR2099977', suffix))))
+
+x = data["dr_variants"] + data["other_variants"] 
+
+for var in x:
+    for v in var:
+        print(v)
+
+[v for v in var for var in x]
+
+any(v['drug'] == 'isoniazid' for v in var['drugs'] for var in x if 'drugs' in var.keys())
+
+for var in data["dr_variants"] + data["other_variants"]:
+    # [v for v in var['drugs'] if 'drugs' in var.keys()]
+    if 'drugs' in var.keys():
+        for v in var['drugs']:
+            print(v['drug'])
+
+
+
+
+
+
+
+
+
+
+
+
+# Loop over samples with ahpC mutations and get their unknown katG mutations. 
+# Skip those with no katG mutations and those which already have an isoniazid mutation (either known katG or something else like fabG1). 
 ahpc_katg_dict = defaultdict(dict)
 for samp in ahpc_dict:
     # Open the json file for the sample
@@ -161,6 +202,14 @@ for samp in ahpc_dict:
         ahpc_katg_dict[samp] = ahpc_dict[samp]
     else:
         continue
+
+
+
+
+
+
+
+
 
 # Data structure is now:
 # x = {'ID_1': {'metadata': {'wgs_id':'ID_1',
