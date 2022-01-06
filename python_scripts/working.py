@@ -12,6 +12,46 @@ from collections import Counter
 import requests
 from contextlib import closing
 
+def reformat_mutations(x):
+    aa_short2long = {
+    'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'Q': 'Gln',
+    'E': 'Glu', 'G': 'Gly', 'H': 'His', 'I': 'Ile', 'L': 'Leu', 'K': 'Lys',
+    'M': 'Met', 'F': 'Phe', 'P': 'Pro', 'S': 'Ser', 'T': 'Thr', 'W': 'Trp',
+    'Y': 'Tyr', 'V': 'Val', '*': '*', '-': '-'
+    }
+    re_obj = re.search("([0-9]+)([A-Z\*])>([0-9]+)([A-Z\*])",x)
+    if re_obj:
+        codon_num = int(re_obj.group(1))
+        ref = aa_short2long[re_obj.group(2)]
+        alt = aa_short2long[re_obj.group(4)]
+        return "p.%s%s%s" % (ref,codon_num,alt)
+    else:
+        return None
+
+def invert_dict(d):
+    inverse = dict()
+    for key in d:
+        # Go through the list that is saved in the dict:
+        for item in d[key]:
+            # Check if in the inverted dict the key exists
+            if item not in inverse:
+                # If not create a new list
+                inverse[item] = [key]
+            else:
+                inverse[item].append(key)
+    return inverse
+
+def get_counts(in_dict, data_key):
+    data_dict = {k:[] for k in in_dict.keys()}
+    for mut in in_dict:
+        for samp in in_dict[mut]:
+            data_dict[mut].append(ahpc_dict[samp]['metadata'][data_key])
+
+    data_counts = {k:[] for k in in_dict.keys()}
+    for mut in data_dict:
+        data_counts[mut] = dict(Counter(data_dict[mut]))
+    return data_counts
+
 # def main(args):
 
 # mutations_file = args.mutations_file
@@ -39,14 +79,14 @@ suffix = ".results.json"
 # -------------
 
 # Read in ahpc GLM results file
-ahpc_dict = {}
+ahpc_glm_dict = {}
 with open(ahpc_glm_results_file, 'r') as f:
     ahpc_reader = csv.DictReader(f)
     # Get the header name of the ahpC mutations
     ahpc_mutation_header = ahpc_reader.fieldnames[0].split(',')[0]
     for row in ahpc_reader:
         # Make the id the key, but also recapitulate the id in the key-values by including everything
-        ahpc_dict[row[ahpc_mutation_header]] = row
+        ahpc_glm_dict[row[ahpc_mutation_header]] = row
 
 
 # Read in metadata
@@ -83,12 +123,6 @@ with closing(requests.get(fst_results_url, stream=True)) as r:
             fst_dict[row['Gene']] = []
             fst_dict[row['Gene']].append(row)
 
-
-
-
-
-
-
 # -------------
 # Wrangle data 
 # -------------
@@ -99,17 +133,30 @@ for mut in tbdb_dict['ahpC']:
     known_ahpc.append(mut['Mutation'])
 
 # Concat known ahpc and ahpc from GLM results
-all_ahpc_list = list(ahpc_dict.keys()) + known_ahpc
+unknown_ahpc = list(ahpc_glm_dict.keys())
+all_ahpc_list = unknown_ahpc + known_ahpc
+
+# Get list of lineage-specific katG mutations
+lin_katg = []
+for var in fst_dict['katG']:
+    lin_katg.append(reformat_mutations(var['aa_pos']))
+
+# Clean up
+lin_katg = [mutation for mutation in lin_katg if mutation is not None]
 
 # Make list of katG mutationa to exclude
 # "katG Arg463Leu was excluded from this calculation since it has been reported as not associated with isoniazid resistance" - https://www.nature.com/articles/s41598-018-21378-x
 # -> The Susceptibility of Mycobacterium tuberculosis to Isoniazid and the Arg->Leu Mutation at Codon 463 of katG Are Not Associated - https://journals.asm.org/doi/10.1128/JCM.39.4.1591-1594.2001
 
-katg_exclude = ["p.Arg463Leu"]
+katg_exclude = ["p.Arg463Leu"] + lin_katg
 
-# ---------------------------------------------------------------------
-# Pull unknown mutations from samples with ahpC mutations
-# ---------------------------------------------------------------------
+
+
+
+
+# --------------------
+# Pull ahpC mutations
+# --------------------
 
 # Get samples with ahpC mutations
 ahpc_dict = defaultdict(dict)
@@ -153,6 +200,59 @@ for samp in tqdm(meta_dict):
     else:
         continue
 
+
+
+
+
+
+
+
+# ----------------------
+# Classify unknown ahpC
+# ----------------------
+
+# TB-Profiler
+
+
+
+# Make a dictionary with the unknown mutations as keys and the samples as values
+unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
+for samp in ahpc_dict:
+    for var in ahpc_dict[samp]['mutations']:
+        if var['change'] in unknown_ahpc:
+            unknown_ahpc_samps_dict[var['change']].append(samp)
+
+# Invert the dict
+# unknown_ahpc_samps_dict_inv = invert_dict(unknown_ahpc_samps_dict)
+
+# DR types - only or mainly from sensitive 
+ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, 'drtype')
+# Lineage counts - mutation is only from one (or two) lineages
+ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, 'lineage')
+
+# No/little katG co-occurence
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ----------------------------
+# Pull unknown katG mutations
+# ----------------------------
 
 # Find samples with any known katG in the ahpC list
 samps_with_known_katg = []
@@ -227,9 +327,6 @@ for samp in ahpc_dict:
 #                'type': 'missense',
 #                'freq': 1.0,
 #                'drugs': 'unknown' }]}}
-
-
-
 
 
 # ------------------
