@@ -11,6 +11,82 @@ from csv import DictReader
 from collections import Counter
 import requests
 from contextlib import closing
+import re
+
+
+def csv_to_dict(file):
+
+    # If csv has unique rows for each entry of interest (e.g. sample), use this function
+
+    # e.g. 
+
+    # sample, lineage, DR_status
+    # S1, lin1, XDR
+    # S2, lin3, MDR
+    # S3, lin4, sensitive
+    # ->
+    # {'S1': {'sample':'S1', 'lineage':'lin1', 'DR_status':'XDR'}, 
+    # 'S2': {'sample':'S2', 'lineage':'lin3', 'DR_status':'MDR'},
+    # 'S3': {'sample':'S3', 'lineage':'lin4', 'DR_status':'sensitive'}}
+
+    reader = csv.DictReader(file)
+    key = reader.fieldnames[0]
+    out_dict = {}
+    for row in reader:
+        # Make the id the key, but also put the id in the key-values by including everything
+        out_dict[row[key]] = row
+    return out_dict
+
+def csv_to_dict_multi(file):
+    # If the csv file contains multiple rows for the key of interest ('Gene' in the example below), use this function
+    
+    # Convert from e.g.:
+
+    # Gene,Mutation,Drug,Confers,Interaction,Literature
+    # gyrB,p.Glu540Asp,moxifloxacin,resistance,,10.1128/AAC.00825-17;10.1128/JCM.06860-11
+    # pncA,p.Thr100Ile,pyrazinamide,resistance,,10.1128/JCM.01214-17
+    # pncA,p.Thr160Ala,pyrazinamide,resistance,,10.1128/JCM.01214-17
+    # gid,p.Gly73Ala,streptomycin,resistance,,10.1128/AAC.02175-18
+    # gid,p.Leu79Ser,streptomycin,resistance,,10.1128/AAC.02175-18
+    # gid,p.Leu108Arg,streptomycin,resistance,,10.1128/AAC.02175-18
+
+    # to:
+
+    # 'rpoC': [{'Gene': 'rpoC',
+    #    'Mutation': 'p.Asp485Asn',
+    #    'Drug': 'rifampicin',
+    #    'Confers': 'resistance',
+    #    'Interaction': '',
+    #    'Literature': ''},
+    #   {'Gene': 'rpoC',
+    #    'Mutation': 'p.Asp735Asn',
+    #    'Drug': 'rifampicin',
+    #    'Confers': 'resistance',
+    #    'Interaction': '',
+    #    'Literature': ''},...
+    # 'rpsL': [{'Gene': 'rpsL',
+    #    'Mutation': 'p.Arg86Pro',
+    #    'Drug': 'streptomycin',
+    #    'Confers': 'resistance',
+    #    'Interaction': '',
+    #    'Literature': ''},
+    #   {'Gene': 'rpsL',
+    #    'Mutation': 'p.Arg86Trp',
+    #    'Drug': 'streptomycin',
+    #    'Confers': 'resistance',
+    #    'Interaction': '',
+    #    'Literature': ''},... etc
+
+    reader = csv.DictReader(file)
+    key = reader.fieldnames[0]
+    out_dict = {}
+    for row in reader:
+        if row[key] in out_dict.keys():
+            out_dict[row[key]].append(row)
+        else:
+            out_dict[row[key]] = []
+            out_dict[row[key]].append(row)
+    return out_dict
 
 def reformat_mutations(x):
     aa_short2long = {
@@ -41,6 +117,13 @@ def invert_dict(d):
                 inverse[item].append(key)
     return inverse
 
+
+
+
+
+
+
+
 def get_counts(in_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
     for mut in in_dict:
@@ -51,6 +134,17 @@ def get_counts(in_dict, data_key):
     for mut in data_dict:
         data_counts[mut] = dict(Counter(data_dict[mut]))
     return data_counts
+
+
+
+
+
+
+
+
+
+
+
 
 # def main(args):
 
@@ -68,60 +162,31 @@ metadata_file = "../metadata/tb_data_18_02_2021.csv"
 tbdb_file = "../tbdb/tbdb.csv"
 tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
 fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
-metadata_id_key = "wgs_id"
+# metadata_id_key = "wgs_id"
 suffix = ".results.json"
-
-# test_file = 'metadata/head_metadata.csv'
-
 
 # -------------
 # READ IN DATA
 # -------------
 
 # Read in ahpc GLM results file
-ahpc_glm_dict = {}
 with open(ahpc_glm_results_file, 'r') as f:
-    ahpc_reader = csv.DictReader(f)
-    # Get the header name of the ahpC mutations
-    ahpc_mutation_header = ahpc_reader.fieldnames[0].split(',')[0]
-    for row in ahpc_reader:
-        # Make the id the key, but also recapitulate the id in the key-values by including everything
-        ahpc_glm_dict[row[ahpc_mutation_header]] = row
+    ahpc_glm_dict = csv_to_dict(f)
 
 
 # Read in metadata
-meta_dict = {}
 with open(metadata_file) as mf:
-    metadata_reader = csv.DictReader(mf)
-    for row in metadata_reader:
-        # Make the id the key, but also recapitulate the id in the key-values by including everything
-        meta_dict[row[metadata_id_key]] = row
-
+    meta_dict = csv_to_dict(mf)
 
 # Read in tbdb file
-tbdb_dict = {}
 with open(tbdb_file, 'r') as f:
-    tbdb_reader = csv.DictReader(f)
-    for row in tbdb_reader:
-        if row['Gene'] in tbdb_dict.keys():
-            tbdb_dict[row['Gene']].append(row)
-        else:
-            tbdb_dict[row['Gene']] = []
-            tbdb_dict[row['Gene']].append(row)
-
+    tbdb_dict = csv_to_dict_multi(f)
 
 # Read in list of lineage-specific mutations (Fst = 1)
 # See - https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python
-fst_dict = {}
 with closing(requests.get(fst_results_url, stream=True)) as r:
     f = (line.decode('utf-8') for line in r.iter_lines())
-    fst_reader = csv.DictReader(f, delimiter=',', quotechar='"')
-    for row in fst_reader:
-        if row['Gene'] in fst_dict.keys():
-            fst_dict[row['Gene']].append(row)
-        else:
-            fst_dict[row['Gene']] = []
-            fst_dict[row['Gene']].append(row)
+    fst_dict = csv_to_dict_multi(f)
 
 # -------------
 # Wrangle data 
@@ -149,9 +214,6 @@ lin_katg = [mutation for mutation in lin_katg if mutation is not None]
 # -> The Susceptibility of Mycobacterium tuberculosis to Isoniazid and the Arg->Leu Mutation at Codon 463 of katG Are Not Associated - https://journals.asm.org/doi/10.1128/JCM.39.4.1591-1594.2001
 
 katg_exclude = ["p.Arg463Leu"] + lin_katg
-
-
-
 
 
 # --------------------
@@ -207,13 +269,11 @@ for samp in tqdm(meta_dict):
 
 
 
-# ----------------------
-# Classify unknown ahpC
-# ----------------------
+# ---------------------------------
+# Classify unknown ahpC and filter 
+# ---------------------------------
 
-# TB-Profiler
-
-
+# TB-Profiler checks
 
 # Make a dictionary with the unknown mutations as keys and the samples as values
 unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
@@ -230,19 +290,10 @@ ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, 'drtype')
 # Lineage counts - mutation is only from one (or two) lineages
 ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, 'lineage')
 
-# No/little katG co-occurence
+# [No/little katG co-occurence] -???
 
-
-
-
-
-
-
-
-
-
-
-
+# Check global freq of INH DST for each unknown mutation
+ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
 
 
 
@@ -297,7 +348,6 @@ for samp in ahpc_dict:
 
 # len(ahpc_katg_dict) = 153
 
-
 # Data structure is now:
 # x = {'ID_1': {'metadata': {'wgs_id':'ID_1',
 #         'inh_dst':1,
@@ -329,15 +379,14 @@ for samp in ahpc_dict:
 #                'drugs': 'unknown' }]}}
 
 
-# ------------------
-# Process mutations
-# ------------------
+# -----------------------------------------
+# Process katG mutations - get basic stats 
+# -----------------------------------------
 
 # Get set of unique katG mutations
 katg_mutations_set = []
 for samp in ahpc_katg_dict:
     mut_list = ahpc_katg_dict[samp]['mutations']
-    # katg_mutations_set.append([mut['change'] for mut in mut_list if mut['gene'] == 'katG'])
     katg_mutations_set.append([mut['change'] for mut in mut_list if mut['gene'] == 'katG'])
 
 # CHECK
@@ -369,6 +418,13 @@ for samp in ahpc_katg_dict:
             katg_samps_dict[var['change']].append(samp)
 
         
+
+# ------------------------------------------------------------------------------
+# Pull all samples that have the unknown katGs (i.e. regardless of ahpC status)
+# ------------------------------------------------------------------------------
+
+
+
 
 
 
