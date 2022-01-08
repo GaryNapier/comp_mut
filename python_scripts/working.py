@@ -117,13 +117,6 @@ def invert_dict(d):
                 inverse[item].append(key)
     return inverse
 
-
-
-
-
-
-
-
 def get_counts(in_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
     for mut in in_dict:
@@ -134,17 +127,6 @@ def get_counts(in_dict, data_key):
     for mut in data_dict:
         data_counts[mut] = dict(Counter(data_dict[mut]))
     return data_counts
-
-
-
-
-
-
-
-
-
-
-
 
 # def main(args):
 
@@ -324,11 +306,11 @@ for samp in ahpc_dict:
         data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
 
         # Only continue the loop if there is at least one meeting the katG criteria
-        if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 for var in data['other_variants']):
+        if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and not any(x in var['change'] for x in ['del','ins', '*']) and var['freq'] >= 0.7 for var in data['other_variants']):
 
             for var in data['other_variants']:
                 # Pull katG mutaions: non-syn, >0.7 freq, mutation is unknown
-                if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7:
+                if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and not any(x in var['change'] for x in ['del','ins', '*']) and var['freq'] >= 0.7:
             
                     # Set default value for drugs if no entry in the list of dictionaries
                     var.setdefault('drugs', 'unknown')
@@ -379,6 +361,11 @@ for samp in ahpc_dict:
 #                'drugs': 'unknown' }]}}
 
 
+
+
+
+
+
 # -----------------------------------------
 # Process katG mutations - get basic stats 
 # -----------------------------------------
@@ -417,14 +404,54 @@ for samp in ahpc_katg_dict:
         if var['gene'] == 'katG':
             katg_samps_dict[var['change']].append(samp)
 
-        
+# len = 110
+
+
+
 
 # ------------------------------------------------------------------------------
 # Pull all samples that have the unknown katGs (i.e. regardless of ahpC status)
 # ------------------------------------------------------------------------------
 
+all_katg = {}
+for samp in tqdm(meta_dict):
+
+    data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+
+    if any((var['gene'] == 'katG' and var['change'] in katg_samps_dict and var['freq'] >= 0.7) for var in data["other_variants"]):
+
+        # Create empty list per id
+        all_katg[samp] = {}
+
+        all_katg[samp]['metadata'] = {'wgs_id':samp,
+        'inh_dst':meta_dict[samp]['isoniazid'],
+        'lineage':data['sublin'],
+        'country_code':meta_dict[samp]['country_code'],
+        'drtype':data['drtype']}
+
+        all_katg[samp]['mutations'] = []
+
+        for var in data["other_variants"]:
+
+            # Pull ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
+            if var['gene'] == 'katG' and var['change'] in katg_samps_dict and var['freq'] >= 0.7:
+
+                # Set default value for drugs if no entry in the list of dictionaries
+                var.setdefault('drugs', 'unknown')
+
+                # Append the dictionary to the mutations list
+                all_katg[samp]['mutations'].append({'gene':var['gene'],
+                'change':var['change'],
+                'type':var['type'],
+                'freq':var['freq'], 
+                'drugs':var['drugs']})
+            else:
+                continue
+    else:
+        continue
 
 
+# len = 326
 
 
 
