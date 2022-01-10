@@ -14,6 +14,22 @@ from contextlib import closing
 import re
 
 
+def flat_list(mylist):
+    return [item for sublist in mylist for item in sublist]
+
+def invert_dict(d):
+    inverse = dict()
+    for key in d:
+        # Go through the list that is saved in the dict:
+        for item in d[key]:
+            # Check if in the inverted dict the key exists
+            if item not in inverse:
+                # If not create a new list
+                inverse[item] = [key]
+            else:
+                inverse[item].append(key)
+    return inverse
+
 def csv_to_dict(file):
 
     # If csv has unique rows for each entry of interest (e.g. sample), use this function
@@ -104,18 +120,7 @@ def reformat_mutations(x):
     else:
         return None
 
-def invert_dict(d):
-    inverse = dict()
-    for key in d:
-        # Go through the list that is saved in the dict:
-        for item in d[key]:
-            # Check if in the inverted dict the key exists
-            if item not in inverse:
-                # If not create a new list
-                inverse[item] = [key]
-            else:
-                inverse[item].append(key)
-    return inverse
+
 
 def get_counts(in_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
@@ -127,6 +132,24 @@ def get_counts(in_dict, data_key):
     for mut in data_dict:
         data_counts[mut] = dict(Counter(data_dict[mut]))
     return data_counts
+
+
+def get_unique_mutations(in_dict, gene):
+    # Pull all mutations from a certain gene and take unique
+    mutations_set = []
+    for samp in in_dict:
+        mut_list = in_dict[samp]['mutations']
+        mutations_set.append(mut['change'] for mut in mut_list if mut['gene'] == gene)
+    # Convert to flat list 
+    mutations_set = flat_list(mutations_set)
+    # Sort
+    mutations_set.sort()
+    # Make a table (before converting to a set)
+    table = Counter(mutations_set)
+    # Get unique
+    mutations_set = set(mutations_set)
+    return (table, mutations_set)
+
 
 # def main(args):
 
@@ -170,6 +193,21 @@ with closing(requests.get(fst_results_url, stream=True)) as r:
     f = (line.decode('utf-8') for line in r.iter_lines())
     fst_dict = csv_to_dict_multi(f)
 
+
+# Read in all the json data 
+all_data = {}
+for samp in tqdm(meta_dict):
+    tmp = []
+    # Open the json file for the sample
+    tmp_data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+    for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
+        if var['gene'] not in ('ahpC', 'katG'): continue
+        if var['freq'] < 0.7: continue
+        tmp.append(var)
+    if len(tmp) > 0:
+        all_data[samp] = tmp
+
+
 # -------------
 # Wrangle data 
 # -------------
@@ -207,7 +245,9 @@ ahpc_dict = defaultdict(dict)
 for samp in tqdm(meta_dict):
 
     # Open the json file for the sample
-    data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+    # data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+    data = all_data[samp]
+
 
     # Including 'any()' statement to stop loop creating dictionary entry of empty lists
     # Only include samples which have at least one: 
@@ -280,6 +320,8 @@ ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
 
 
 
+# FILTERS
+
 
 
 
@@ -306,11 +348,11 @@ for samp in ahpc_dict:
         data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
 
         # Only continue the loop if there is at least one meeting the katG criteria
-        if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and not any(x in var['change'] for x in ['del','ins', '*']) and var['freq'] >= 0.7 for var in data['other_variants']):
+        if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 for var in data['other_variants']):
 
             for var in data['other_variants']:
                 # Pull katG mutaions: non-syn, >0.7 freq, mutation is unknown
-                if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and not any(x in var['change'] for x in ['del','ins', '*']) and var['freq'] >= 0.7:
+                if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7:
             
                     # Set default value for drugs if no entry in the list of dictionaries
                     var.setdefault('drugs', 'unknown')
@@ -370,32 +412,8 @@ for samp in ahpc_dict:
 # Process katG mutations - get basic stats 
 # -----------------------------------------
 
-# Get set of unique katG mutations
-katg_mutations_set = []
-for samp in ahpc_katg_dict:
-    mut_list = ahpc_katg_dict[samp]['mutations']
-    katg_mutations_set.append([mut['change'] for mut in mut_list if mut['gene'] == 'katG'])
+katg_table, katg_mutations_set = get_unique_mutations(ahpc_katg_dict, 'katG')
 
-# CHECK
-# x = []
-# for mut in katg_mutations_set:
-#     x.append(len(mut))
-# sum(x) = 205
-
-# Pull out the sublists from the list (God-damn you Python...)
-katg_mutations_set = [item for sublist in katg_mutations_set for item in sublist]
-# CHECK - len(katg_mutations_set) = 205
-
-# Sort
-katg_mutations_set.sort()
-
-# Make a table of the katG mutations
-katg_table = Counter(katg_mutations_set)
-
-# Get unique
-katg_mutations_set = set(katg_mutations_set)
-
-# len(katg_mutations_set) = 143
 
 # Make a dict of samples with the katg mutations
 katg_samps_dict = {k:[] for k in katg_mutations_set}
@@ -403,6 +421,24 @@ for samp in ahpc_katg_dict:
     for var in ahpc_katg_dict[samp]['mutations']:
         if var['gene'] == 'katG':
             katg_samps_dict[var['change']].append(samp)
+
+
+
+
+
+
+def invert_dict(d):
+    inverse = dict()
+    for key in d:
+        # Go through the list that is saved in the dict:
+        for item in d[key]:
+            # Check if in the inverted dict the key exists
+            if item not in inverse:
+                # If not create a new list
+                inverse[item] = [key]
+            else:
+                inverse[item].append(key)
+    return inverse
 
 # len = 110
 
@@ -449,6 +485,7 @@ for samp in tqdm(meta_dict):
                 continue
     else:
         continue
+
 
 
 # len = 326
