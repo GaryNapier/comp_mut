@@ -193,8 +193,7 @@ with closing(requests.get(fst_results_url, stream=True)) as r:
     f = (line.decode('utf-8') for line in r.iter_lines())
     fst_dict = csv_to_dict_multi(f)
 
-
-# Read in all the json data 
+# Read in all the json data for (samples with) ahpC/katG only (>0.7 freq) and the metadata for those samples
 all_data = {}
 for samp in tqdm(meta_dict):
     tmp = []
@@ -204,15 +203,25 @@ for samp in tqdm(meta_dict):
         if var['gene'] not in ('ahpC', 'katG'): continue
         if var['freq'] < 0.7: continue
         tmp.append(var)
+    # If sample meets criteria above, then tmp list will not be empty
     if len(tmp) > 0:
-        all_data[samp] = tmp
+        # Create empty dict for next two entries
+        all_data[samp] = {}
+        # Append metadata dict
+        all_data[samp]['metadata'] = {'wgs_id':samp,
+    'inh_dst':meta_dict[samp]['isoniazid'],
+    'lineage':tmp_data['sublin'],
+    'country_code':meta_dict[samp]['country_code'],
+    'drtype':tmp_data['drtype']}
+        # Append mutations dict
+        all_data[samp]['mutations'] = tmp
 
 
 # -------------
 # Wrangle data 
 # -------------
 
-# Find KNOWN ahpC mutations form tbdb
+# Find KNOWN ahpC mutations from tbdb
 known_ahpc = []
 for mut in tbdb_dict['ahpC']:
     known_ahpc.append(mut['Mutation'])
@@ -242,47 +251,28 @@ katg_exclude = ["p.Arg463Leu"] + lin_katg
 
 # Get samples with ahpC mutations
 ahpc_dict = defaultdict(dict)
-for samp in tqdm(meta_dict):
+# for samp in tqdm(meta_dict):
+for samp in tqdm(all_data):
 
-    # Open the json file for the sample
-    # data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
     data = all_data[samp]
+    tmp_ahpc_mutations = []
+    for var in data['mutations']:
 
-
-    # Including 'any()' statement to stop loop creating dictionary entry of empty lists
-    # Only include samples which have at least one: 
-    # ahpc, > 0.7 freq, and at least one ahpc mutation is either DR-associated (known) or one of the mutations from the GLM results
-    if any((var['gene'] == 'ahpC' and var['freq'] >= 0.7 and var['change'] in all_ahpc_list) for var in data["dr_variants"] + data["other_variants"]):
-
-        # Create empty list per id
+        # Pull ahpC: mutation is known or from GLM list (previously unknown)
+        if var['gene'] != 'ahpC': continue
+        if var['change'] not in all_ahpc_list: continue
+        # Set drugs value if unknown
+        if 'drugs' not in var: var['drugs'] = 'unknown'
+        
+        # Append the mutations
+        tmp_ahpc_mutations.append(var)
+        
+    if len(tmp_ahpc_mutations) > 0:
         ahpc_dict[samp] = {}
+        ahpc_dict[samp]['metadata'] = all_data[samp]['metadata']
+        ahpc_dict[samp]['mutations'] = tmp_ahpc_mutations
 
-        ahpc_dict[samp]['metadata'] = {'wgs_id':samp,
-        'inh_dst':meta_dict[samp]['isoniazid'],
-        'lineage':data['sublin'],
-        'country_code':meta_dict[samp]['country_code'],
-        'drtype':data['drtype']}
-
-        ahpc_dict[samp]['mutations'] = []
-
-        for var in data["dr_variants"] + data["other_variants"]:
-
-            # Pull ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
-            if var['gene'] == 'ahpC' and var['change'] in all_ahpc_list and var['freq'] >= 0.7:
-
-                # Set default value for drugs if no entry in the list of dictionaries
-                var.setdefault('drugs', 'unknown')
-
-                # Append the dictionary to the mutations list
-                ahpc_dict[samp]['mutations'].append({'gene':var['gene'],
-                'change':var['change'],
-                'type':var['type'],
-                'freq':var['freq'], 
-                'drugs':var['drugs']})
-            else:
-                continue
-    else:
-        continue
+# len - 563
 
 
 
@@ -290,12 +280,12 @@ for samp in tqdm(meta_dict):
 
 
 
-
-# ---------------------------------
-# Classify unknown ahpC and filter 
-# ---------------------------------
-
-# TB-Profiler checks
+# ---------------------------------------------------------------------
+# Classify UNKNOWN ahpC and filter 
+# GLM is only first step in identifying 'interesting' ahpC mutations
+# Need to check against tbprofiler results for each mutation 
+# e.g. if the mutation is lineage specific, then filter out
+# ---------------------------------------------------------------------
 
 # Make a dictionary with the unknown mutations as keys and the samples as values
 unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
@@ -303,9 +293,6 @@ for samp in ahpc_dict:
     for var in ahpc_dict[samp]['mutations']:
         if var['change'] in unknown_ahpc:
             unknown_ahpc_samps_dict[var['change']].append(samp)
-
-# Invert the dict
-# unknown_ahpc_samps_dict_inv = invert_dict(unknown_ahpc_samps_dict)
 
 # DR types - only or mainly from sensitive 
 ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, 'drtype')
@@ -320,7 +307,29 @@ ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
 
 
 
+
+
+
 # FILTERS
+
+
+# DR type
+
+x = {'MDR': 15, 'Pre-MDR': 20, 'Pre-XDR': 8, 'XDR': 1, 'Other': 1}
+
+if 'Sensitive' not in x:
+    x['Sensitive'] = 0
+
+
+sum_non_sens = sum(x[item] for item in x if item != 'Sensitive')
+
+if sum_non_sens > 0:
+
+
+
+
+
+
 
 
 
@@ -424,21 +433,6 @@ for samp in ahpc_katg_dict:
 
 
 
-
-
-
-def invert_dict(d):
-    inverse = dict()
-    for key in d:
-        # Go through the list that is saved in the dict:
-        for item in d[key]:
-            # Check if in the inverted dict the key exists
-            if item not in inverse:
-                # If not create a new list
-                inverse[item] = [key]
-            else:
-                inverse[item].append(key)
-    return inverse
 
 # len = 110
 
