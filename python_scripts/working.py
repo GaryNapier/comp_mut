@@ -120,8 +120,6 @@ def reformat_mutations(x):
     else:
         return None
 
-
-
 def get_counts(in_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
     for mut in in_dict:
@@ -132,7 +130,6 @@ def get_counts(in_dict, data_key):
     for mut in data_dict:
         data_counts[mut] = dict(Counter(data_dict[mut]))
     return data_counts
-
 
 def get_unique_mutations(in_dict, gene):
     # Pull all mutations from a certain gene and take unique
@@ -150,6 +147,61 @@ def get_unique_mutations(in_dict, gene):
     mutations_set = set(mutations_set)
     return (table, mutations_set)
 
+def is_dict(in_dict):
+    if not isinstance(in_dict, dict):
+        raise Exception('is_dict() function: input is not a dictionary') 
+
+def dr_filter(in_dict):
+
+    # Test the proportion of sensitive DR types to all other DR types
+    # If the majority are sensitive, then 'reject' (0) or 'accept' (1) 
+    # Take a dictionary of DR type counts like this:
+    # {'MDR': 15, 'Pre-MDR': 20, 'Pre-XDR': 8, 'XDR': 1, 'Other': 1}
+    # If only 'Sensitive' in the dict the return accept = 0 
+    # If 'Sensitive' is not in the counts then accept = 1
+    # Else test the proportions
+
+    is_dict(in_dict)
+
+    if all('Sensitive' in x for x in in_dict):
+        accept = 0
+        return accept
+
+    if 'Sensitive' not in in_dict:
+        accept = 1
+        return accept
+
+    sum_non_sens = sum(in_dict[item] for item in in_dict if item != 'Sensitive')
+
+    proportion = in_dict['Sensitive'] / (in_dict['Sensitive'] + sum_non_sens)
+
+    if proportion >= 0.5: 
+        accept = 0 
+    else:
+        accept = 1
+
+    return accept
+
+def lin_filter(in_dict):
+    is_dict(in_dict)
+    lin_filter_dict = {}
+    for mutation in in_dict:
+        if len(ahpc_lin_counts[mutation]) > 1:
+            lin_filter_dict[mutation] = 1
+        else:
+            lin_filter_dict[mutation] = 0
+    return lin_filter_dict
+
+def dst_filter(in_dict):
+    is_dict(in_dict)
+    proportion = in_dict['1'] / (in_dict['0'] + in_dict['1'])
+
+    if proportion < 0.5:
+        accept = 0
+    else:
+        accept = 1
+
+    return accept
 
 # def main(args):
 
@@ -210,7 +262,8 @@ for samp in tqdm(meta_dict):
         # Append metadata dict
         all_data[samp]['metadata'] = {'wgs_id':samp,
     'inh_dst':meta_dict[samp]['isoniazid'],
-    'lineage':tmp_data['sublin'],
+    'main_lin': tmp_data['main_lin'],
+    'sublin':tmp_data['sublin'],
     'country_code':meta_dict[samp]['country_code'],
     'drtype':tmp_data['drtype']}
         # Append mutations dict
@@ -296,12 +349,11 @@ for samp in ahpc_dict:
 
 # DR types - only or mainly from sensitive 
 ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, 'drtype')
+
 # Lineage counts - mutation is only from one (or two) lineages
-ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, 'lineage')
+ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, 'main_lin')
 
-# [No/little katG co-occurence] -???
-
-# Check global freq of INH DST for each unknown mutation
+# DST counts
 ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
 
 
@@ -313,20 +365,23 @@ ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
 # FILTERS
 
 
-# DR type
+# DR type filter
+ahpc_dr_filter = {}
+for mutation in ahpc_drtype_counts:
+    ahpc_dr_filter[mutation] = dr_filter(ahpc_drtype_counts[mutation])
 
-x = {'MDR': 15, 'Pre-MDR': 20, 'Pre-XDR': 8, 'XDR': 1, 'Other': 1}
+# Lineage filter
+ahpc_lin_filter = lin_filter(ahpc_lin_counts)
 
-if 'Sensitive' not in x:
-    x['Sensitive'] = 0
-
-
-sum_non_sens = sum(x[item] for item in x if item != 'Sensitive')
-
-if sum_non_sens > 0:
+# DST filter
+ahpc_dst_filter = {}
+for mutation in ahpc_drtype_counts:
+    ahpc_dst_filter[mutation] = dst_filter(ahpc_dst_counts[mutation])
 
 
 
+
+# Put together and add up scores
 
 
 
