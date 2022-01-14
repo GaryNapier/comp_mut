@@ -217,7 +217,8 @@ def dst_filter(in_dict):
 ahpc_glm_results_file = "metadata/ahpc_model_results.csv"
 metadata_file = "../metadata/tb_data_18_02_2021.csv"
 tbdb_file = "../tbdb/tbdb.csv"
-tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
+# tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
+tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results'
 fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
 # metadata_id_key = "wgs_id"
 suffix = ".results.json"
@@ -249,8 +250,18 @@ with closing(requests.get(fst_results_url, stream=True)) as r:
 all_data = {}
 for samp in tqdm(meta_dict):
     tmp = []
-    # Open the json file for the sample
-    tmp_data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+
+    try:
+        # Open the json file for the sample
+        # tmp_data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+        tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/', samp, suffix))))
+    except:
+        try:
+            tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results', samp, suffix))))
+        except:
+            pass
+    
+    
     for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
         if var['gene'] not in ('ahpC', 'katG'): continue
         if var['freq'] < 0.7: continue
@@ -356,14 +367,7 @@ ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, 'main_lin')
 # DST counts
 ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
 
-
-
-
-
-
-
-# FILTERS
-
+# FILTER UNKNOWN
 
 # DR type filter
 ahpc_dr_filter = {}
@@ -375,13 +379,24 @@ ahpc_lin_filter = lin_filter(ahpc_lin_counts)
 
 # DST filter
 ahpc_dst_filter = {}
-for mutation in ahpc_drtype_counts:
+for mutation in ahpc_dst_counts:
     ahpc_dst_filter[mutation] = dst_filter(ahpc_dst_counts[mutation])
 
-
-
-
 # Put together and add up scores
+# Remove from ahpc mutations list if 0 
+
+filter_dict = {}
+for mutation in unknown_ahpc_samps_dict:
+    filter_dict[mutation] = [ahpc_dr_filter[mutation], ahpc_lin_filter[mutation], ahpc_dst_filter[mutation]]
+    if sum(filter_dict[mutation]) < len(filter_dict[mutation]):
+        all_ahpc_list.remove(mutation)
+
+# Remove from dict
+for samp in list(ahpc_dict):
+    if all(x['change'] not in all_ahpc_list for x in ahpc_dict[samp]['mutations']):
+        del ahpc_dict[samp]
+
+
 
 
 
