@@ -12,113 +12,7 @@ from collections import Counter
 import requests
 from contextlib import closing
 import re
-
-
-def flat_list(mylist):
-    return [item for sublist in mylist for item in sublist]
-
-def invert_dict(d):
-    inverse = dict()
-    for key in d:
-        # Go through the list that is saved in the dict:
-        for item in d[key]:
-            # Check if in the inverted dict the key exists
-            if item not in inverse:
-                # If not create a new list
-                inverse[item] = [key]
-            else:
-                inverse[item].append(key)
-    return inverse
-
-def csv_to_dict(file):
-
-    # If csv has unique rows for each entry of interest (e.g. sample), use this function
-
-    # e.g. 
-
-    # sample, lineage, DR_status
-    # S1, lin1, XDR
-    # S2, lin3, MDR
-    # S3, lin4, sensitive
-    # ->
-    # {'S1': {'sample':'S1', 'lineage':'lin1', 'DR_status':'XDR'}, 
-    # 'S2': {'sample':'S2', 'lineage':'lin3', 'DR_status':'MDR'},
-    # 'S3': {'sample':'S3', 'lineage':'lin4', 'DR_status':'sensitive'}}
-
-    reader = csv.DictReader(file)
-    key = reader.fieldnames[0]
-    out_dict = {}
-    for row in reader:
-        # Make the id the key, but also put the id in the key-values by including everything
-        out_dict[row[key]] = row
-    return out_dict
-
-def csv_to_dict_multi(file):
-    # If the csv file contains multiple rows for the key of interest ('Gene' in the example below), use this function
-    
-    # Convert from e.g.:
-
-    # Gene,Mutation,Drug,Confers,Interaction,Literature
-    # gyrB,p.Glu540Asp,moxifloxacin,resistance,,10.1128/AAC.00825-17;10.1128/JCM.06860-11
-    # pncA,p.Thr100Ile,pyrazinamide,resistance,,10.1128/JCM.01214-17
-    # pncA,p.Thr160Ala,pyrazinamide,resistance,,10.1128/JCM.01214-17
-    # gid,p.Gly73Ala,streptomycin,resistance,,10.1128/AAC.02175-18
-    # gid,p.Leu79Ser,streptomycin,resistance,,10.1128/AAC.02175-18
-    # gid,p.Leu108Arg,streptomycin,resistance,,10.1128/AAC.02175-18
-
-    # to:
-
-    # 'rpoC': [{'Gene': 'rpoC',
-    #    'Mutation': 'p.Asp485Asn',
-    #    'Drug': 'rifampicin',
-    #    'Confers': 'resistance',
-    #    'Interaction': '',
-    #    'Literature': ''},
-    #   {'Gene': 'rpoC',
-    #    'Mutation': 'p.Asp735Asn',
-    #    'Drug': 'rifampicin',
-    #    'Confers': 'resistance',
-    #    'Interaction': '',
-    #    'Literature': ''},...
-    # 'rpsL': [{'Gene': 'rpsL',
-    #    'Mutation': 'p.Arg86Pro',
-    #    'Drug': 'streptomycin',
-    #    'Confers': 'resistance',
-    #    'Interaction': '',
-    #    'Literature': ''},
-    #   {'Gene': 'rpsL',
-    #    'Mutation': 'p.Arg86Trp',
-    #    'Drug': 'streptomycin',
-    #    'Confers': 'resistance',
-    #    'Interaction': '',
-    #    'Literature': ''},... etc
-
-    reader = csv.DictReader(file)
-    key = reader.fieldnames[0]
-    out_dict = {}
-    for row in reader:
-        if row[key] in out_dict.keys():
-            out_dict[row[key]].append(row)
-        else:
-            out_dict[row[key]] = []
-            out_dict[row[key]].append(row)
-    return out_dict
-
-def reformat_mutations(x):
-    aa_short2long = {
-    'A': 'Ala', 'R': 'Arg', 'N': 'Asn', 'D': 'Asp', 'C': 'Cys', 'Q': 'Gln',
-    'E': 'Glu', 'G': 'Gly', 'H': 'His', 'I': 'Ile', 'L': 'Leu', 'K': 'Lys',
-    'M': 'Met', 'F': 'Phe', 'P': 'Pro', 'S': 'Ser', 'T': 'Thr', 'W': 'Trp',
-    'Y': 'Tyr', 'V': 'Val', '*': '*', '-': '-'
-    }
-    re_obj = re.search("([0-9]+)([A-Z\*])>([0-9]+)([A-Z\*])",x)
-    if re_obj:
-        codon_num = int(re_obj.group(1))
-        ref = aa_short2long[re_obj.group(2)]
-        alt = aa_short2long[re_obj.group(4)]
-        return "p.%s%s%s" % (ref,codon_num,alt)
-    else:
-        return None
+from python_scripts.utils import *
 
 def get_counts(in_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
@@ -146,10 +40,6 @@ def get_unique_mutations(in_dict, gene):
     # Get unique
     mutations_set = set(mutations_set)
     return (table, mutations_set)
-
-def is_dict(in_dict):
-    if not isinstance(in_dict, dict):
-        raise Exception('is_dict() function: input is not a dictionary') 
 
 def dr_filter(in_dict):
 
@@ -231,7 +121,6 @@ suffix = ".results.json"
 with open(ahpc_glm_results_file, 'r') as f:
     ahpc_glm_dict = csv_to_dict(f)
 
-
 # Read in metadata
 with open(metadata_file) as mf:
     meta_dict = csv_to_dict(mf)
@@ -260,7 +149,6 @@ for samp in tqdm(meta_dict):
             tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results', samp, suffix))))
         except:
             pass
-    
     
     for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
         if var['gene'] not in ('ahpC', 'katG'): continue
@@ -338,12 +226,6 @@ for samp in tqdm(all_data):
 
 # len - 563
 
-
-
-
-
-
-
 # ---------------------------------------------------------------------
 # Classify UNKNOWN ahpC and filter 
 # GLM is only first step in identifying 'interesting' ahpC mutations
@@ -397,13 +279,6 @@ for samp in list(ahpc_dict):
         del ahpc_dict[samp]
 
 
-
-
-
-
-
-
-
 # ----------------------------
 # Pull unknown katG mutations
 # ----------------------------
@@ -411,8 +286,8 @@ for samp in list(ahpc_dict):
 # Find samples with any known katG in the ahpC list
 samps_with_known_katg = []
 for samp in ahpc_dict:
-    data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
-    if any(var['gene'] == 'katG' for var in data['dr_variants']):
+    data = all_data[samp]
+    if any(var['gene'] == 'katG' and var['drugs'] != 'unknown' for var in data['mutations'] if 'drugs' in var.keys()):
         samps_with_known_katg.append(samp)
         # len = 301
 
@@ -424,75 +299,30 @@ for samp in ahpc_dict:
     if samp in samps_with_known_katg:
         continue
     else:
-        data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+        data = all_data[samp]
 
-        # Only continue the loop if there is at least one meeting the katG criteria
-        if any(var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7 for var in data['other_variants']):
+        for var in data['mutations']:
 
-            for var in data['other_variants']:
-                # Pull katG mutaions: non-syn, >0.7 freq, mutation is unknown
-                if var['gene'] == 'katG' and var['type'] != 'synonymous' and var['change'] not in katg_exclude and var['freq'] >= 0.7:
-            
-                    # Set default value for drugs if no entry in the list of dictionaries
-                    var.setdefault('drugs', 'unknown')
+            if var['gene'] != 'katG': continue
+            if var['gene'] == 'synonymous': continue
+            if var['change'] in katg_exclude: continue
+            if var['freq'] < 0.7: continue
+        
+            # Set default value for drugs if no entry in the list of dictionaries
+            var.setdefault('drugs', 'unknown')
+            ahpc_dict[samp]['mutations'].append(var)
 
-                    # Append the dictionary to the list of ahpC mutations
-                    ahpc_dict[samp]['mutations'].append({'gene':var['gene'],
-                    'change':var['change'],
-                    'type':var['type'],
-                    'freq':var['freq'], 
-                    'drugs':var['drugs']})
-                else:
-                    continue
-            # Add the whole dict entry to the new dict
-            ahpc_katg_dict[samp] = ahpc_dict[samp]
-        else:
-            continue
+        # Add the whole dict entry to the new dict
+        ahpc_katg_dict[samp] = ahpc_dict[samp]
+        
 
 # len(ahpc_katg_dict) = 153
-
-# Data structure is now:
-# x = {'ID_1': {'metadata': {'wgs_id':'ID_1',
-#         'inh_dst':1,
-#         'lineage':'lin1',
-#         'drtype':'XDR'}, 
-# 	'mutations': [{'gene': 'ahpC',
-#                'change': 'c.-72C>T',
-#                'type': 'non_coding',
-#                'freq': 1.0,
-#                'drugs': 'unknown'}, 
-# 		{'gene': 'katG',
-#                'change': 'p.Ser315Thr',
-#                'type': 'missense',
-#                'freq': 1.0,
-#                'drugs': 'unknown'}]}, 
-# 'ID_2': {'metadata': {'wgs_id':'ID_2',
-#         'inh_dst':1,
-#         'lineage':'lin1',
-#         'drtype':'XDR'}, 
-# 	'mutations': [{'gene': 'ahpC',
-#                'change': 'c.-72C>T',
-#                'type': 'non_coding',
-#                'freq': 1.0,
-#                'drugs': [isoniazid]}, 
-# 		{'gene': 'katG',
-#                'change': 'p.Ser315Thr',
-#                'type': 'missense',
-#                'freq': 1.0,
-#                'drugs': 'unknown' }]}}
-
-
-
-
-
-
 
 # -----------------------------------------
 # Process katG mutations - get basic stats 
 # -----------------------------------------
 
 katg_table, katg_mutations_set = get_unique_mutations(ahpc_katg_dict, 'katG')
-
 
 # Make a dict of samples with the katg mutations
 katg_samps_dict = {k:[] for k in katg_mutations_set}
@@ -501,63 +331,37 @@ for samp in ahpc_katg_dict:
         if var['gene'] == 'katG':
             katg_samps_dict[var['change']].append(samp)
 
-
-
-
 # len = 110
-
-
-
 
 # ------------------------------------------------------------------------------
 # Pull all samples that have the unknown katGs (i.e. regardless of ahpC status)
 # ------------------------------------------------------------------------------
 
 all_katg = {}
-for samp in tqdm(meta_dict):
+for samp in tqdm(all_data):
+    data = all_data[samp]
+    tmp = []
+    for var in data["mutations"]:
 
-    data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
+        # Pull ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
+        if var['gene'] != 'katG': continue
+        if var['change'] not in katg_samps_dict: continue
+        if var['freq'] < 0.7: continue
 
-    if any((var['gene'] == 'katG' and var['change'] in katg_samps_dict and var['freq'] >= 0.7) for var in data["other_variants"]):
-
-        # Create empty list per id
+        # Set default value for drugs if no entry in the list of dictionaries
+        var.setdefault('drugs', 'unknown')
+        tmp.append(var)
+    
+    if len(tmp) > 0:
         all_katg[samp] = {}
-
-        all_katg[samp]['metadata'] = {'wgs_id':samp,
-        'inh_dst':meta_dict[samp]['isoniazid'],
-        'lineage':data['sublin'],
-        'country_code':meta_dict[samp]['country_code'],
-        'drtype':data['drtype']}
-
-        all_katg[samp]['mutations'] = []
-
-        for var in data["other_variants"]:
-
-            # Pull ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
-            if var['gene'] == 'katG' and var['change'] in katg_samps_dict and var['freq'] >= 0.7:
-
-                # Set default value for drugs if no entry in the list of dictionaries
-                var.setdefault('drugs', 'unknown')
-
-                # Append the dictionary to the mutations list
-                all_katg[samp]['mutations'].append({'gene':var['gene'],
-                'change':var['change'],
-                'type':var['type'],
-                'freq':var['freq'], 
-                'drugs':var['drugs']})
-            else:
-                continue
-    else:
-        continue
-
-
+        all_katg[samp]['metadata'] = all_data[samp]['metadata']
+        all_katg[samp]['mutations'] = tmp
 
 # len = 326
 
-
-
-
-
+# -----------------------------
+# Get basic stats for all katG
+# -----------------------------
 
 # parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
