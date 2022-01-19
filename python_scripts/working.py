@@ -14,11 +14,11 @@ from contextlib import closing
 import re
 from python_scripts.utils import *
 
-def get_counts(in_dict, data_key):
+def get_counts(in_dict, ref_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
     for mut in in_dict:
         for samp in in_dict[mut]:
-            data_dict[mut].append(ahpc_dict[samp]['metadata'][data_key])
+            data_dict[mut].append(ref_dict[samp]['metadata'][data_key])
 
     data_counts = {k:[] for k in in_dict.keys()}
     for mut in data_dict:
@@ -76,13 +76,33 @@ def lin_filter(in_dict):
     is_dict(in_dict)
     lin_filter_dict = {}
     for mutation in in_dict:
-        if len(ahpc_lin_counts[mutation]) > 1:
+        if len(in_dict[mutation]) > 1:
             lin_filter_dict[mutation] = 1
         else:
             lin_filter_dict[mutation] = 0
     return lin_filter_dict
 
 def dst_filter(in_dict):
+
+    if all(x == 'NA' for x in in_dict.keys()):
+        accept = 1
+        return accept
+
+    if all(x == '1' for x in in_dict.keys()):
+        accept = 1
+        return accept
+
+    if all(x == '0' for x in in_dict.keys()):
+        accept = 0
+        return accept
+
+    # Avoid key errors - add keys if not there and only have combination of '0' & 'NA' or '1' & 'NA'
+    if '0' not in in_dict.keys() and 'NA' in in_dict.keys():
+        in_dict['0'] = 0
+
+    if '1' not in in_dict.keys() and 'NA' in in_dict.keys():
+        in_dict['1'] = 0
+
     is_dict(in_dict)
     proportion = in_dict['1'] / (in_dict['0'] + in_dict['1'])
 
@@ -92,6 +112,7 @@ def dst_filter(in_dict):
         accept = 1
 
     return accept
+
 
 # def main(args):
 
@@ -112,6 +133,21 @@ tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results'
 fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
 # metadata_id_key = "wgs_id"
 suffix = ".results.json"
+
+# TOTAL BULLSHIT
+standardise_drtype = {
+    "Sensitive":"Sensitive",
+    "Pre-MDR":"Pre-MDR-TB",
+    "HR-TB":"Pre-MDR-TB",
+    "RR-TB":"Pre-MDR-TB",
+    "MDR":"MDR-TB",
+    "MDR-TB":"MDR-TB",
+    "Pre-XDR":"Pre-XDR-TB",
+    "Pre-XDR-TB":"Pre-XDR-TB",
+    "XDR":"XDR-TB",
+    "XDR-TB":"XDR-TB",
+    "Other":"Other"
+}
 
 # -------------
 # READ IN DATA
@@ -159,15 +195,16 @@ for samp in tqdm(meta_dict):
         # Create empty dict for next two entries
         all_data[samp] = {}
         # Append metadata dict
-        all_data[samp]['metadata'] = {'wgs_id':samp,
-    'inh_dst':meta_dict[samp]['isoniazid'],
-    'main_lin': tmp_data['main_lin'],
-    'sublin':tmp_data['sublin'],
-    'country_code':meta_dict[samp]['country_code'],
-    'drtype':tmp_data['drtype']}
+        all_data[samp]['metadata'] = {
+            'wgs_id':samp,
+            'inh_dst':meta_dict[samp]['isoniazid'],
+            'main_lin': tmp_data['main_lin'],
+            'sublin':tmp_data['sublin'],
+            'country_code':meta_dict[samp]['country_code'],
+            'drtype':standardise_drtype[tmp_data['drtype']]
+            }
         # Append mutations dict
         all_data[samp]['mutations'] = tmp
-
 
 # -------------
 # Wrangle data 
@@ -226,12 +263,24 @@ for samp in tqdm(all_data):
 
 # len - 563
 
+# test_samps = []
+# for samp in ahpc_dict:
+#     print(len(ahpc_dict[samp]))
+#     if len(ahpc_dict[samp]) < 2:
+#         test_samps.append(samp)
+
 # ---------------------------------------------------------------------
 # Classify UNKNOWN ahpC and filter 
 # GLM is only first step in identifying 'interesting' ahpC mutations
 # Need to check against tbprofiler results for each mutation 
 # e.g. if the mutation is lineage specific, then filter out
 # ---------------------------------------------------------------------
+
+
+
+
+
+
 
 # Make a dictionary with the unknown mutations as keys and the samples as values
 unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
@@ -241,13 +290,17 @@ for samp in ahpc_dict:
             unknown_ahpc_samps_dict[var['change']].append(samp)
 
 # DR types - only or mainly from sensitive 
-ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, 'drtype')
+ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'drtype')
 
 # Lineage counts - mutation is only from one (or two) lineages
-ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, 'main_lin')
+ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'sublin')
+
+# Aggregate lin counts
+for mut in ahpc_lin_counts:
+    ahpc_lin_counts[mut] = resolve_lineages(ahpc_lin_counts[mut])
 
 # DST counts
-ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, 'inh_dst')
+ahpc_dst_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'inh_dst')
 
 # FILTER UNKNOWN
 
@@ -278,7 +331,6 @@ for samp in list(ahpc_dict):
     if all(x['change'] not in all_ahpc_list for x in ahpc_dict[samp]['mutations']):
         del ahpc_dict[samp]
 
-
 # ----------------------------
 # Pull unknown katG mutations
 # ----------------------------
@@ -304,7 +356,7 @@ for samp in ahpc_dict:
         for var in data['mutations']:
 
             if var['gene'] != 'katG': continue
-            if var['gene'] == 'synonymous': continue
+            if var['gene'] == 'synonymous_variant': continue
             if var['change'] in katg_exclude: continue
             if var['freq'] < 0.7: continue
         
@@ -315,7 +367,6 @@ for samp in ahpc_dict:
         # Add the whole dict entry to the new dict
         ahpc_katg_dict[samp] = ahpc_dict[samp]
         
-
 # len(ahpc_katg_dict) = 153
 
 # -----------------------------------------
@@ -358,6 +409,74 @@ for samp in tqdm(all_data):
         all_katg[samp]['mutations'] = tmp
 
 # len = 326
+
+# ---------------------------
+# Get stats and filter katGs
+# ---------------------------
+
+all_katg_table, all_katg_mutations_set = get_unique_mutations(all_katg, 'katG')
+
+# Make a dictionary with the unknown mutations as keys and the samples as values
+all_katg_samps_dict = {}
+for samp in all_katg:
+    for var in all_katg[samp]['mutations']:
+        if var['change'] not in all_katg_samps_dict:
+            all_katg_samps_dict[var['change']] = [samp]
+        else:
+            all_katg_samps_dict[var['change']].append(samp)
+
+# DR types - only or mainly from sensitive 
+katg_drtype_counts = get_counts(all_katg_samps_dict, all_katg, 'drtype')
+
+# Lineage counts - mutation is only from one (or two) lineages
+katg_lin_counts = get_counts(all_katg_samps_dict, all_katg, 'sublin')
+# Aggregate lineages
+for mut in katg_lin_counts:
+    katg_lin_counts[mut] = resolve_lineages(katg_lin_counts[mut])
+
+# DST counts
+katg_dst_counts = get_counts(all_katg_samps_dict, all_katg, 'inh_dst')
+
+# FILTER KATG
+
+# DR
+katg_dr_filter = {}
+for mutation in katg_drtype_counts:
+    katg_dr_filter[mutation] = dr_filter(katg_drtype_counts[mutation])
+
+# Lin
+katg_lin_filter = lin_filter(katg_lin_counts)
+
+# DST
+katg_dst_filter = {}
+for mutation in katg_dst_counts:
+    katg_dst_filter[mutation] = dst_filter(katg_dst_counts[mutation])
+
+# Put together and add up scores
+# Remove from katG mutations list if 0 
+
+all_katg_mutations_list = list(all_katg_mutations_set)
+katg_filter_dict = {}
+for mutation in all_katg_samps_dict:
+    katg_filter_dict[mutation] = [katg_dr_filter[mutation], katg_lin_filter[mutation], katg_dst_filter[mutation]]
+    if sum(katg_filter_dict[mutation]) < len(katg_filter_dict[mutation]):
+        all_katg_mutations_list.remove(mutation)
+
+# Remove from dict
+for samp in list(all_katg):
+    if all(x['change'] not in all_katg_mutations_list for x in all_katg[samp]['mutations']):
+        del all_katg[samp]
+
+
+# Invert again
+all_katg_samps_dict = {}
+for samp in all_katg:
+    for var in all_katg[samp]['mutations']:
+        if var['change'] not in all_katg_samps_dict:
+            all_katg_samps_dict[var['change']] = [samp]
+        else:
+            all_katg_samps_dict[var['change']].append(samp)
+
 
 # -----------------------------
 # Get basic stats for all katG
