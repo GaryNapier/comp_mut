@@ -181,10 +181,11 @@ for samp in tqdm(meta_dict):
         # tmp_data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
         tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/', samp, suffix))))
     except:
-        try:
-            tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results', samp, suffix))))
-        except:
-            pass
+        pass
+        # try:
+        #     # tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results', samp, suffix))))
+        # except:
+        #     pass
     
     for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
         if var['gene'] not in ('ahpC', 'katG'): continue
@@ -209,6 +210,19 @@ for samp in tqdm(meta_dict):
 # -------------
 # Wrangle data 
 # -------------
+
+# Find mixed samples 
+mixed_samp_lin_dict = {}
+for samp in all_data:
+    lin = all_data[samp]['metadata']['main_lin']
+    sublin = all_data[samp]['metadata']['sublin']
+    if ";" in lin+sublin:
+        mixed_samp_lin_dict[samp] = {'lin': lin, 'sublin': sublin}
+
+# Remove from data[?]
+for samp in list(all_data):
+    if samp in mixed_samp_lin_dict:
+        del all_data[samp]
 
 # Find KNOWN ahpC mutations from tbdb
 known_ahpc = []
@@ -275,12 +289,6 @@ for samp in tqdm(all_data):
 # Need to check against tbprofiler results for each mutation 
 # e.g. if the mutation is lineage specific, then filter out
 # ---------------------------------------------------------------------
-
-
-
-
-
-
 
 # Make a dictionary with the unknown mutations as keys and the samples as values
 unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
@@ -394,7 +402,7 @@ for samp in tqdm(all_data):
     tmp = []
     for var in data["mutations"]:
 
-        # Pull ahpC: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
+        # Pull katG: non-syn, >0.7 freq, mutation is known or from GLM list (previously unknown)
         if var['gene'] != 'katG': continue
         if var['change'] not in katg_samps_dict: continue
         if var['freq'] < 0.7: continue
@@ -462,11 +470,17 @@ for mutation in all_katg_samps_dict:
     if sum(katg_filter_dict[mutation]) < len(katg_filter_dict[mutation]):
         all_katg_mutations_list.remove(mutation)
 
-# Remove from dict
+# Remove from dict if all the mutations for the sample are not in the edited list 
 for samp in list(all_katg):
     if all(x['change'] not in all_katg_mutations_list for x in all_katg[samp]['mutations']):
         del all_katg[samp]
 
+# Remove the remaining mutations that are not in the list 
+# (i.e. some samples will have one mutation in the all_katg_mutations_list and one that was just removed)
+for samp in all_katg:
+    for var in list(all_katg[samp]['mutations']):
+        if var['change'] not in all_katg_mutations_list:
+            all_katg[samp]['mutations'].remove(var)
 
 # Invert again
 all_katg_samps_dict = {}
@@ -476,11 +490,6 @@ for samp in all_katg:
             all_katg_samps_dict[var['change']] = [samp]
         else:
             all_katg_samps_dict[var['change']].append(samp)
-
-
-# -----------------------------
-# Get basic stats for all katG
-# -----------------------------
 
 # parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
