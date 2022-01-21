@@ -188,7 +188,7 @@ for samp in tqdm(meta_dict):
         #     pass
     
     for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
-        if var['gene'] not in ('ahpC', 'katG'): continue
+        if var['gene'] not in ('ahpC', 'katG', 'fabG1'): continue
         if var['freq'] < 0.7: continue
         tmp.append(var)
     # If sample meets criteria above, then tmp list will not be empty
@@ -490,6 +490,29 @@ for samp in all_katg:
             all_katg_samps_dict[var['change']] = [samp]
         else:
             all_katg_samps_dict[var['change']].append(samp)
+
+
+# -------------------------
+# Co-occurrence with fabG1
+# -------------------------
+
+# Attach fabG1 to katG
+all_katg_fabg1 = all_katg
+for samp in all_katg:
+    for var in all_data[samp]['mutations']:
+        if var['gene'] == 'fabG1':
+            all_katg_fabg1[samp]['mutations'].append(var)
+
+
+# Invert, but need tuple of gene and mutation
+
+# e.g. 
+# (katG, <mut x>): ['samp1', 'samp2']
+
+
+
+
+
 
 # parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 # parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
