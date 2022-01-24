@@ -178,14 +178,9 @@ for samp in tqdm(meta_dict):
 
     try:
         # Open the json file for the sample
-        # tmp_data = json.load(open(pp.filecheck("%s/%s%s" % (tbprofiler_results_dir, samp, suffix))))
         tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/', samp, suffix))))
     except:
         pass
-        # try:
-        #     # tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results', samp, suffix))))
-        # except:
-        #     pass
     
     for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
         if var['gene'] not in ('ahpC', 'katG', 'fabG1'): continue
@@ -497,17 +492,52 @@ for samp in all_katg:
 # -------------------------
 
 # Attach fabG1 to katG
-all_katg_fabg1 = all_katg
+all_katg_fabg = all_katg
 for samp in all_katg:
     for var in all_data[samp]['mutations']:
         if var['gene'] == 'fabG1':
-            all_katg_fabg1[samp]['mutations'].append(var)
+            all_katg_fabg[samp]['mutations'].append(var)
 
 
-# Invert, but need tuple of gene and mutation
+# Get all samples with fabG1 co-occurence
+fabg_samps_katg_mutations = {}
+for samp in all_katg_fabg:
+    if any(x['gene'] == 'fabG1' for x in all_katg_fabg[samp]['mutations']):
+        fabg_samps_katg_mutations[samp] = []
+        for var in all_katg_fabg[samp]['mutations']:
+            if var['gene'] == 'katG':
+                fabg_samps_katg_mutations[samp].append(var['change'])
+# Invert
+fabg_samps_katg_mutations_inv = invert_dict_listed(fabg_samps_katg_mutations)
 
-# e.g. 
-# (katG, <mut x>): ['samp1', 'samp2']
+
+# Which samples do NOT have a fabG1 mutation which do have those katG mutations which co-occur with a fabG1 mutation?
+katg_samps_no_fabg = {}
+for samp in all_katg_fabg:
+    if not any(x['gene'] == 'fabG1' for x in all_katg_fabg[samp]['mutations']):
+        katg_samps_no_fabg[samp] = [] 
+        for var in all_katg_fabg[samp]['mutations']:
+            katg_samps_no_fabg[samp].append(var['change'])
+katg_samps_no_fabg_inv = invert_dict_listed(katg_samps_no_fabg)
+
+# Counts 
+fabg_samps_katg_mutations_cnt = {}
+for mut in fabg_samps_katg_mutations_inv:
+    fabg_samps_katg_mutations_cnt[mut] = len(fabg_samps_katg_mutations_inv[mut])
+
+katg_samps_no_fabg_cnt = {}
+for mut in katg_samps_no_fabg_inv:
+    katg_samps_no_fabg_cnt[mut] = len(katg_samps_no_fabg_inv[mut])
+
+
+
+# Proportions
+katg_fabg_prop = {}
+for mut in fabg_samps_katg_mutations_cnt:
+    if mut in katg_samps_no_fabg_cnt:
+        katg_fabg_prop[mut] = round(fabg_samps_katg_mutations_cnt[mut] / (katg_samps_no_fabg_cnt[mut] + fabg_samps_katg_mutations_cnt[mut]), 3)
+
+
 
 
 
@@ -523,7 +553,6 @@ for samp in all_katg:
 
 # args = parser.parse_args()
 # args.func(args)
-
 
 
 
