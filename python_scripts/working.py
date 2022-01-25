@@ -113,6 +113,15 @@ def dst_filter(in_dict):
 
     return accept
 
+def invert_tb_dict(in_dict):
+    inv_dict = {}
+    for samp in in_dict:
+        for var in in_dict[samp]['mutations']:
+            if var['change'] not in inv_dict:
+                inv_dict[var['change']] = [samp]
+            else:
+                inv_dict[var['change']].append(samp)
+    return inv_dict
 
 # def main(args):
 
@@ -236,12 +245,20 @@ for var in fst_dict['katG']:
 # Clean up
 lin_katg = [mutation for mutation in lin_katg if mutation is not None]
 
-# Make list of katG mutationa to exclude
+# Make list of katG mutations to exclude
+
 # "katG Arg463Leu was excluded from this calculation since it has been reported as not associated with isoniazid resistance" - https://www.nature.com/articles/s41598-018-21378-x
 # -> The Susceptibility of Mycobacterium tuberculosis to Isoniazid and the Arg->Leu Mutation at Codon 463 of katG Are Not Associated - https://journals.asm.org/doi/10.1128/JCM.39.4.1591-1594.2001
 
 katg_exclude = ["p.Arg463Leu"] + lin_katg
 
+# MTBseq: a comprehensive pipeline for whole genome sequence analysis of Mycobacterium tuberculosis complex isolates Kohl 2018:
+# https://peerj.com/articles/5895/
+# https://github.com/ngs-fzb/MTBseq_source/blob/master/var/res/MTB_Resistance_Mediating.txt
+
+# katG	p.Trp300Cys
+
+katg_exclude = katg_exclude + ['p.Trp300Cys']
 
 # --------------------
 # Pull ahpC mutations
@@ -249,7 +266,6 @@ katg_exclude = ["p.Arg463Leu"] + lin_katg
 
 # Get samples with ahpC mutations
 ahpc_dict = defaultdict(dict)
-# for samp in tqdm(meta_dict):
 for samp in tqdm(all_data):
 
     data = all_data[samp]
@@ -270,13 +286,7 @@ for samp in tqdm(all_data):
         ahpc_dict[samp]['metadata'] = all_data[samp]['metadata']
         ahpc_dict[samp]['mutations'] = tmp_ahpc_mutations
 
-# len - 563
-
-# test_samps = []
-# for samp in ahpc_dict:
-#     print(len(ahpc_dict[samp]))
-#     if len(ahpc_dict[samp]) < 2:
-#         test_samps.append(samp)
+# len - 456
 
 # ---------------------------------------------------------------------
 # Classify UNKNOWN ahpC and filter 
@@ -344,7 +354,7 @@ for samp in ahpc_dict:
     data = all_data[samp]
     if any(var['gene'] == 'katG' and var['drugs'] != 'unknown' for var in data['mutations'] if 'drugs' in var.keys()):
         samps_with_known_katg.append(samp)
-        # len = 301
+        # len = 257
 
 # Loop over samples with ahpC mutations and get their unknown katG mutations. 
 ahpc_katg_dict = defaultdict(dict)
@@ -370,7 +380,7 @@ for samp in ahpc_dict:
         # Add the whole dict entry to the new dict
         ahpc_katg_dict[samp] = ahpc_dict[samp]
         
-# len(ahpc_katg_dict) = 153
+# len(ahpc_katg_dict) = 199
 
 # -----------------------------------------
 # Process katG mutations - get basic stats 
@@ -385,7 +395,7 @@ for samp in ahpc_katg_dict:
         if var['gene'] == 'katG':
             katg_samps_dict[var['change']].append(samp)
 
-# len = 110
+# len = 129
 
 # ------------------------------------------------------------------------------
 # Pull all samples that have the unknown katGs (i.e. regardless of ahpC status)
@@ -411,7 +421,7 @@ for samp in tqdm(all_data):
         all_katg[samp]['metadata'] = all_data[samp]['metadata']
         all_katg[samp]['mutations'] = tmp
 
-# len = 326
+# len = 160
 
 # ---------------------------
 # Get stats and filter katGs
@@ -420,13 +430,15 @@ for samp in tqdm(all_data):
 all_katg_table, all_katg_mutations_set = get_unique_mutations(all_katg, 'katG')
 
 # Make a dictionary with the unknown mutations as keys and the samples as values
-all_katg_samps_dict = {}
-for samp in all_katg:
-    for var in all_katg[samp]['mutations']:
-        if var['change'] not in all_katg_samps_dict:
-            all_katg_samps_dict[var['change']] = [samp]
-        else:
-            all_katg_samps_dict[var['change']].append(samp)
+# all_katg_samps_dict = {}
+# for samp in all_katg:
+#     for var in all_katg[samp]['mutations']:
+#         if var['change'] not in all_katg_samps_dict:
+#             all_katg_samps_dict[var['change']] = [samp]
+#         else:
+#             all_katg_samps_dict[var['change']].append(samp)
+
+all_katg_samps_dict = invert_tb_dict(all_katg)
 
 # DR types - only or mainly from sensitive 
 katg_drtype_counts = get_counts(all_katg_samps_dict, all_katg, 'drtype')
@@ -478,14 +490,15 @@ for samp in all_katg:
             all_katg[samp]['mutations'].remove(var)
 
 # Invert again
-all_katg_samps_dict = {}
-for samp in all_katg:
-    for var in all_katg[samp]['mutations']:
-        if var['change'] not in all_katg_samps_dict:
-            all_katg_samps_dict[var['change']] = [samp]
-        else:
-            all_katg_samps_dict[var['change']].append(samp)
+# all_katg_samps_dict = {}
+# for samp in all_katg:
+#     for var in all_katg[samp]['mutations']:
+#         if var['change'] not in all_katg_samps_dict:
+#             all_katg_samps_dict[var['change']] = [samp]
+#         else:
+#             all_katg_samps_dict[var['change']].append(samp)
 
+all_katg_samps_dict = invert_tb_dict(all_katg)
 
 # -------------------------
 # Co-occurrence with fabG1
@@ -498,7 +511,6 @@ for samp in all_katg:
         if var['gene'] == 'fabG1':
             all_katg_fabg[samp]['mutations'].append(var)
 
-
 # Get all samples with fabG1 co-occurence
 fabg_samps_katg_mutations = {}
 for samp in all_katg_fabg:
@@ -509,7 +521,6 @@ for samp in all_katg_fabg:
                 fabg_samps_katg_mutations[samp].append(var['change'])
 # Invert
 fabg_samps_katg_mutations_inv = invert_dict_listed(fabg_samps_katg_mutations)
-
 
 # Which samples do NOT have a fabG1 mutation which do have those katG mutations which co-occur with a fabG1 mutation?
 katg_samps_no_fabg = {}
@@ -529,8 +540,6 @@ katg_samps_no_fabg_cnt = {}
 for mut in katg_samps_no_fabg_inv:
     katg_samps_no_fabg_cnt[mut] = len(katg_samps_no_fabg_inv[mut])
 
-
-
 # Proportions
 katg_fabg_prop = {}
 for mut in fabg_samps_katg_mutations_cnt:
@@ -538,6 +547,20 @@ for mut in fabg_samps_katg_mutations_cnt:
         katg_fabg_prop[mut] = round(fabg_samps_katg_mutations_cnt[mut] / (katg_samps_no_fabg_cnt[mut] + fabg_samps_katg_mutations_cnt[mut]), 3)
 
 
+# Compare to p.Ser315Thr - get proportion of samples with p.Ser315Thr that don't have a fabG1
+
+
+Ser315Thr_fabg_samps = []
+Ser315Thr_no_fabg_samps = []
+for samp in all_data:
+    mutations = all_data[samp]['mutations']
+    if any((x['gene'] == 'katG' and x['change'] == 'p.Ser315Thr') and any(x['gene'] == 'fabG1' for x in mutations) for x in mutations):
+        Ser315Thr_fabg_samps.append(samp)
+    if any((x['gene'] == 'katG' and x['change'] == 'p.Ser315Thr') and not any(x['gene'] == 'fabG1' for x in mutations) for x in mutations):
+        Ser315Thr_no_fabg_samps.append(samp)
+
+Ser315Thr_fabg_prop = round(len(Ser315Thr_fabg_samps) / (len(Ser315Thr_fabg_samps) + len(Ser315Thr_no_fabg_samps)), 3)
+# 0.158
 
 
 
