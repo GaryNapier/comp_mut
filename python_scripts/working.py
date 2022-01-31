@@ -13,6 +13,8 @@ import requests
 from contextlib import closing
 import re
 from python_scripts.utils import *
+from python_scripts.tb_data import tb_data
+
 
 def get_counts(in_dict, ref_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
@@ -138,12 +140,14 @@ ahpc_glm_results_file = "metadata/ahpc_model_results.csv"
 metadata_file = "../metadata/tb_data_18_02_2021.csv"
 tbdb_file = "../tbdb/tbdb.csv"
 # tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
-tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results'
+# tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results'
+tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
 fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
 # metadata_id_key = "wgs_id"
 suffix = ".results.json"
+genes = ('ahpC', 'katG', 'fabG1')
 
-# TOTAL BULLSHIT
+# New WHO DR types
 standardise_drtype = {
     "Sensitive":"Sensitive",
     "Pre-MDR":"Pre-MDR-TB",
@@ -181,35 +185,7 @@ with closing(requests.get(fst_results_url, stream=True)) as r:
     fst_dict = csv_to_dict_multi(f)
 
 # Read in all the json data for (samples with) ahpC/katG only (>0.7 freq) and the metadata for those samples
-all_data = {}
-for samp in tqdm(meta_dict):
-    tmp = []
-
-    try:
-        # Open the json file for the sample
-        tmp_data = json.load(open(pp.filecheck("%s/%s%s" % ('/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/', samp, suffix))))
-    except:
-        pass
-    
-    for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
-        if var['gene'] not in ('ahpC', 'katG', 'fabG1'): continue
-        if var['freq'] < 0.7: continue
-        tmp.append(var)
-    # If sample meets criteria above, then tmp list will not be empty
-    if len(tmp) > 0:
-        # Create empty dict for next two entries
-        all_data[samp] = {}
-        # Append metadata dict
-        all_data[samp]['metadata'] = {
-            'wgs_id':samp,
-            'inh_dst':meta_dict[samp]['isoniazid'],
-            'main_lin': tmp_data['main_lin'],
-            'sublin':tmp_data['sublin'],
-            'country_code':meta_dict[samp]['country_code'],
-            'drtype':standardise_drtype[tmp_data['drtype']]
-            }
-        # Append mutations dict
-        all_data[samp]['mutations'] = tmp
+all_data = tb_data(tbprofiler_results_dir, suffix, meta_dict, genes).all_data
 
 # -------------
 # Wrangle data 
@@ -545,6 +521,19 @@ katg_fabg_prop = {}
 for mut in fabg_samps_katg_mutations_cnt:
     if mut in katg_samps_no_fabg_cnt:
         katg_fabg_prop[mut] = round(fabg_samps_katg_mutations_cnt[mut] / (katg_samps_no_fabg_cnt[mut] + fabg_samps_katg_mutations_cnt[mut]), 3)
+
+
+
+
+
+
+
+# Take all_katg_samps_dict - aggregate samples - how many have fabG1?
+
+
+
+
+
 
 
 # Compare to p.Ser315Thr - get proportion of samples with p.Ser315Thr that don't have a fabG1
