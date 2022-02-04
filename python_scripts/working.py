@@ -13,14 +13,94 @@ import requests
 from contextlib import closing
 import re
 from python_scripts.utils import *
-from python_scripts.tb_data import tb_data
 
+# 'SAMEA2534433'
+
+
+# def tb_data(filename, suffix, meta_dict, genes, drtype_dict):
+
+#     # Read in all the json data for samples with given genes only (>0.7 freq); combine with the metadata for those samples
+#     all_data = {}
+
+#     for samp in tqdm(meta_dict):
+#         tmp = []
+#         file = "%s/%s%s" % (filename, samp, suffix)
+#         if os.path.isfile(file):
+#             # Open the json file for the sample, skip if can't find
+#             tmp_data = json.load(open(file))
+
+#         for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
+#         # for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
+#             if var['gene'] not in genes: continue
+#             if var['freq'] < 0.7: continue
+#             tmp.append(var)
+            
+#         # If sample meets criteria above, then tmp list will not be empty
+#         if len(tmp) > 0:
+#         # if len(tmp) > 0:
+#             # Create empty dict for next two entries
+#             all_data[samp] = {}
+#             # Append metadata dict
+#             all_data[samp]['metadata'] = {
+#                 'wgs_id':samp,
+#                 'inh_dst':meta_dict[samp]['isoniazid'],
+#                 'main_lin': tmp_data['main_lin'],
+#                 # 'main_lin': tmp_data['main_lin'],
+#                 'sublin':tmp_data['sublin'],
+#                 # 'sublin':tmp_data['sublin'],
+#                 'country_code':meta_dict[samp]['country_code'],
+#                 'drtype':drtype_dict[tmp_data['drtype']]
+#                 # 'drtype':standardise_drtype[tmp_data['drtype']]
+#                 }
+#             # Append mutations dict
+#             all_data[samp]['mutations'] = tmp
+
+#     # Find mixed samples
+#     mixed_samp_lin_dict = {}
+#     for samp in all_data:
+#         lin = all_data[samp]['metadata']['main_lin']
+#         sublin = all_data[samp]['metadata']['sublin']
+#         if ";" in lin+sublin:
+#             mixed_samp_lin_dict[samp] = {'lin': lin, 'sublin': sublin}
+
+#     # Remove from data
+#     for samp in list(all_data):
+#         if samp in mixed_samp_lin_dict:
+#             del all_data[samp]
+
+#     return all_data
+
+
+
+def get_vars_exclude(vars_exclude_file):
+
+    # URL below is the results of all Fst = 1 variants from https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-020-00817-3
+    fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
+    # See https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python for pulling data from url
+    with closing(requests.get(fst_results_url, stream=True)) as r:
+        f = (line.decode('utf-8') for line in r.iter_lines())
+        fst_dict = csv_to_dict_multi(f)
+    
+    lin_specific_variants = []
+    for gene in fst_dict:
+        if gene in genes:
+            for var in fst_dict[gene]:
+                lin_specific_variants.append( tuple( [ gene, reformat_mutations(var['aa_pos']) ] ) )
+
+    # Read in variants to be excluded
+    vars_exclude = []
+    for l in open(vars_exclude_file):
+        vars_exclude.append(tuple(l.strip().split(',')))
+
+    # Concat
+    vars_exclude = vars_exclude + lin_specific_variants 
+    return vars_exclude
 
 def get_counts(in_dict, ref_dict, data_key):
     data_dict = {k:[] for k in in_dict.keys()}
     for mut in in_dict:
         for samp in in_dict[mut]:
-            data_dict[mut].append(ref_dict[samp]['metadata'][data_key])
+            data_dict[mut].append(ref_dict[samp][data_key])
 
     data_counts = {k:[] for k in in_dict.keys()}
     for mut in data_dict:
@@ -125,6 +205,55 @@ def invert_tb_dict(in_dict):
                 inv_dict[var['change']].append(samp)
     return inv_dict
 
+def tb_data(filename, suffix, samps_list, genes, vars_exclude):
+    # Read in all the json data for samples with given genes only (>0.7 freq), non-syn
+    all_data = defaultdict(list)
+    meta_dict = defaultdict(dict)
+
+    for samp in tqdm(samps_list):
+        # Load file for each samp
+        file = "%s/%s%s" % (filename, samp, suffix)
+        if os.path.isfile(file):
+            # Open the json file for the sample, skip if can't find
+            tmp_data = json.load(open(file))
+            # Remove mixed samps
+            if ";" in tmp_data['sublin']: continue
+            # Get metadata
+            meta_dict[samp] = {
+                'wgs_id':samp,
+                # 'inh_dst':meta_dict[samp]['isoniazid'],
+                'main_lin':tmp_data['main_lin'],
+                'sublin':tmp_data['sublin'],
+                # 'country_code':meta_dict[samp]['country_code'],
+                'drtype':standardise_drtype[tmp_data['drtype']]}
+
+            # Loop over all variants of interest
+            for var in tmp_data["dr_variants"] + tmp_data["other_variants"]:
+                if var['gene'] not in genes: continue
+                if var['freq'] < 0.7: continue
+                if var['type'] == 'synonymous_variant': continue
+                # Store key as tuple of gene and mutation and append the sample. Ignore if in exclude list.
+                key = (var['gene'], var['change'])
+                if key in vars_exclude: continue
+                all_data[key].append(samp)
+
+    # Remove single samples
+    for var in list(all_data):
+        if len(all_data[var]) < 2:
+            del all_data[var]
+
+    return (all_data, meta_dict)
+
+def merge_metadata(meta_dict, meta_dict_csv, drug_of_interest):
+    # Merge metadata from metadata csv file and from json data (tb_data() function)
+    # Need country code and DST for drug of interest
+
+    for samp in meta_dict:
+        meta_dict[samp]['dst'] = meta_dict_csv[samp][drug_of_interest]
+        meta_dict[samp]['country_code'] = meta_dict_csv[samp]['country_code']
+    return meta_dict
+
+
 # def main(args):
 
 # mutations_file = args.mutations_file
@@ -139,130 +268,136 @@ def invert_tb_dict(in_dict):
 ahpc_glm_results_file = "metadata/ahpc_model_results.csv"
 metadata_file = "../metadata/tb_data_18_02_2021.csv"
 tbdb_file = "../tbdb/tbdb.csv"
+drtypes_file = "../pipeline/db/dr_types.json"
 # tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
 # tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/gatk/results'
 tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
-fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
 # metadata_id_key = "wgs_id"
 suffix = ".results.json"
 genes = ('ahpC', 'katG', 'fabG1')
-
-# New WHO DR types
-standardise_drtype = {
-    "Sensitive":"Sensitive",
-    "Pre-MDR":"Pre-MDR-TB",
-    "HR-TB":"Pre-MDR-TB",
-    "RR-TB":"Pre-MDR-TB",
-    "MDR":"MDR-TB",
-    "MDR-TB":"MDR-TB",
-    "Pre-XDR":"Pre-XDR-TB",
-    "Pre-XDR-TB":"Pre-XDR-TB",
-    "XDR":"XDR-TB",
-    "XDR-TB":"XDR-TB",
-    "Other":"Other"
-}
+vars_exclude_file = 'metadata/var_exclude_katg_comp_mut.csv'
+drug_of_interest = 'isoniazid'
 
 # -------------
 # READ IN DATA
 # -------------
 
+# ----------------------------------------------------
+# NEED TO CHANGE VAR NAMES TO SOMETHING GENERALISABLE
+# ----------------------------------------------------
+
 # Read in ahpc GLM results file
 with open(ahpc_glm_results_file, 'r') as f:
     ahpc_glm_dict = csv_to_dict(f)
 
+# Convert to list of tuples
+ahpc_glm_list = [('ahpC', var) for var in list(ahpc_glm_dict)]
+
+# ----------------------------------------------------
+# NEED TO CHANGE VAR NAMES TO SOMETHING GENERALISABLE
+# ----------------------------------------------------
+
 # Read in metadata
 with open(metadata_file) as mf:
-    meta_dict = csv_to_dict(mf)
+    meta_dict_csv = csv_to_dict(mf)
+
+# Pull samples
+samples = list(meta_dict_csv.keys())
 
 # Read in tbdb file
 with open(tbdb_file, 'r') as f:
     tbdb_dict = csv_to_dict_multi(f)
 
-# Read in list of lineage-specific mutations (Fst = 1)
-# See - https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python
-with closing(requests.get(fst_results_url, stream=True)) as r:
-    f = (line.decode('utf-8') for line in r.iter_lines())
-    fst_dict = csv_to_dict_multi(f)
+# Read in DR types from json
+standardise_drtype = json.load(open(drtypes_file))
+
+# Read in variants to exclude
+vars_exclude = get_vars_exclude(vars_exclude_file)
 
 # Read in all the json data for (samples with) ahpC/katG only (>0.7 freq) and the metadata for those samples
-all_data = tb_data(tbprofiler_results_dir, suffix, meta_dict, genes).all_data
+all_data, meta_dict = tb_data(tbprofiler_results_dir, suffix, samples, genes, vars_exclude)
+
+
+
+# TESTING
+# file = "%s/%s%s" % (tbprofiler_results_dir, 'SAMEA2534433', suffix)
+# data = json.load(open(file))
+
+# DR TYPES - how to load?
+
+
 
 # -------------
 # Wrangle data 
 # -------------
 
-# Find mixed samples 
-mixed_samp_lin_dict = {}
-for samp in all_data:
-    lin = all_data[samp]['metadata']['main_lin']
-    sublin = all_data[samp]['metadata']['sublin']
-    if ";" in lin+sublin:
-        mixed_samp_lin_dict[samp] = {'lin': lin, 'sublin': sublin}
+meta_dict = merge_metadata(meta_dict, meta_dict_csv, drug_of_interest)
 
-# Remove from data[?]
-for samp in list(all_data):
-    if samp in mixed_samp_lin_dict:
-        del all_data[samp]
+
 
 # Find KNOWN ahpC mutations from tbdb
-known_ahpc = []
-for mut in tbdb_dict['ahpC']:
-    known_ahpc.append(mut['Mutation'])
+# known_ahpc = []
+# for mut in tbdb_dict['ahpC']:
+#     known_ahpc.append(mut['Mutation'])
 
-# Concat known ahpc and ahpc from GLM results
-unknown_ahpc = list(ahpc_glm_dict.keys())
-all_ahpc_list = unknown_ahpc + known_ahpc
+# # Concat known ahpc and ahpc from GLM results
+# unknown_ahpc = list(ahpc_glm_dict.keys())
+# all_ahpc_list = unknown_ahpc + known_ahpc
 
-# Get list of lineage-specific katG mutations
-lin_katg = []
-for var in fst_dict['katG']:
-    lin_katg.append(reformat_mutations(var['aa_pos']))
 
-# Clean up
-lin_katg = [mutation for mutation in lin_katg if mutation is not None]
 
-# Make list of katG mutations to exclude
 
-# "katG Arg463Leu was excluded from this calculation since it has been reported as not associated with isoniazid resistance" - https://www.nature.com/articles/s41598-018-21378-x
-# -> The Susceptibility of Mycobacterium tuberculosis to Isoniazid and the Arg->Leu Mutation at Codon 463 of katG Are Not Associated - https://journals.asm.org/doi/10.1128/JCM.39.4.1591-1594.2001
+# # Get list of lineage-specific katG mutations
+# lin_katg = []
+# for var in fst_dict['katG']:
+#     lin_katg.append(reformat_mutations(var['aa_pos']))
 
-katg_exclude = ["p.Arg463Leu"] + lin_katg
+# # Clean up
+# lin_katg = [mutation for mutation in lin_katg if mutation is not None]
 
-# MTBseq: a comprehensive pipeline for whole genome sequence analysis of Mycobacterium tuberculosis complex isolates Kohl 2018:
-# https://peerj.com/articles/5895/
-# https://github.com/ngs-fzb/MTBseq_source/blob/master/var/res/MTB_Resistance_Mediating.txt
+# # Make list of katG mutations to exclude
 
-# katG	p.Trp300Cys
+# # "katG Arg463Leu was excluded from this calculation since it has been reported as not associated with isoniazid resistance" - https://www.nature.com/articles/s41598-018-21378-x
+# # -> The Susceptibility of Mycobacterium tuberculosis to Isoniazid and the Arg->Leu Mutation at Codon 463 of katG Are Not Associated - https://journals.asm.org/doi/10.1128/JCM.39.4.1591-1594.2001
 
-katg_exclude = katg_exclude + ['p.Trp300Cys']
+# katg_exclude = ["p.Arg463Leu"] + lin_katg
+
+# # MTBseq: a comprehensive pipeline for whole genome sequence analysis of Mycobacterium tuberculosis complex isolates Kohl 2018:
+# # https://peerj.com/articles/5895/
+# # https://github.com/ngs-fzb/MTBseq_source/blob/master/var/res/MTB_Resistance_Mediating.txt
+
+# katg_exclude = katg_exclude + ['p.Trp300Cys']
 
 # --------------------
 # Pull ahpC mutations
 # --------------------
 
-# Get samples with ahpC mutations
-ahpc_dict = defaultdict(dict)
-for samp in tqdm(all_data):
+# # Get samples with ahpC mutations
+# ahpc_dict = defaultdict(dict)
+# for samp in tqdm(all_data):
 
-    data = all_data[samp]
-    tmp_ahpc_mutations = []
-    for var in data['mutations']:
+#     data = all_data[samp]
+#     tmp_ahpc_mutations = []
+#     for var in data['mutations']:
 
-        # Pull ahpC: mutation is known or from GLM list (previously unknown)
-        if var['gene'] != 'ahpC': continue
-        if var['change'] not in all_ahpc_list: continue
-        # Set drugs value if unknown
-        if 'drugs' not in var: var['drugs'] = 'unknown'
+#         # Pull ahpC: mutation is known or from GLM list (previously unknown)
+#         if var['gene'] != 'ahpC': continue
+#         if var['change'] not in all_ahpc_list: continue
+#         # Set drugs value if unknown
+#         if 'drugs' not in var: var['drugs'] = 'unknown'
         
-        # Append the mutations
-        tmp_ahpc_mutations.append(var)
+#         # Append the mutations
+#         tmp_ahpc_mutations.append(var)
         
-    if len(tmp_ahpc_mutations) > 0:
-        ahpc_dict[samp] = {}
-        ahpc_dict[samp]['metadata'] = all_data[samp]['metadata']
-        ahpc_dict[samp]['mutations'] = tmp_ahpc_mutations
+#     if len(tmp_ahpc_mutations) > 0:
+#         ahpc_dict[samp] = {}
+#         ahpc_dict[samp]['metadata'] = all_data[samp]['metadata']
+#         ahpc_dict[samp]['mutations'] = tmp_ahpc_mutations
 
 # len - 456
+
+
+
 
 # ---------------------------------------------------------------------
 # Classify UNKNOWN ahpC and filter 
@@ -272,14 +407,28 @@ for samp in tqdm(all_data):
 # ---------------------------------------------------------------------
 
 # Make a dictionary with the unknown mutations as keys and the samples as values
-unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
-for samp in ahpc_dict:
-    for var in ahpc_dict[samp]['mutations']:
-        if var['change'] in unknown_ahpc:
-            unknown_ahpc_samps_dict[var['change']].append(samp)
+# unknown_ahpc_samps_dict = {k:[] for k in unknown_ahpc}
+# for samp in ahpc_dict:
+#     for var in ahpc_dict[samp]['mutations']:
+#         if var['change'] in unknown_ahpc:
+#             unknown_ahpc_samps_dict[var['change']].append(samp)
+
+
+
+
+
+meta = {}
+for row in tqdm(csv.DictReader(open(metadata_file))):
+    print(row)
+    if os.path.isfile(json_file(row['wgs_id'])):
+        meta[row['wgs_id']] = row
+
+
 
 # DR types - only or mainly from sensitive 
-ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'drtype')
+# ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'drtype')
+ahpc_glm_samps = {var: all_data[var] for var in ahpc_glm_list}
+get_counts(ahpc_glm_samps, meta_dict, 'drtype')
 
 # Lineage counts - mutation is only from one (or two) lineages
 ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'sublin')
@@ -528,7 +677,12 @@ for mut in fabg_samps_katg_mutations_cnt:
 
 
 
-# Take all_katg_samps_dict - aggregate samples - how many have fabG1?
+# Take all_katg - aggregate samples - how many have fabG1?
+
+
+for samp in all_katg:
+
+
 
 
 
