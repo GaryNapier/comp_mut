@@ -416,19 +416,12 @@ meta_dict = merge_metadata(meta_dict, meta_dict_csv, drug_of_interest)
 
 
 
-
-meta = {}
-for row in tqdm(csv.DictReader(open(metadata_file))):
-    print(row)
-    if os.path.isfile(json_file(row['wgs_id'])):
-        meta[row['wgs_id']] = row
-
-
+# Subset all mutations-samples data to just the ahpC unknown
+ahpc_glm_samps = {var: all_data[var] for var in ahpc_glm_list}
 
 # DR types - only or mainly from sensitive 
 # ahpc_drtype_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'drtype')
-ahpc_glm_samps = {var: all_data[var] for var in ahpc_glm_list}
-get_counts(ahpc_glm_samps, meta_dict, 'drtype')
+ahpc_drtype_counts = get_counts(ahpc_glm_samps, meta_dict, 'drtype')
 
 # Lineage counts - mutation is only from one (or two) lineages
 ahpc_lin_counts = get_counts(unknown_ahpc_samps_dict, ahpc_dict, 'sublin')
