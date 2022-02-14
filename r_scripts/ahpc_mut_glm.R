@@ -29,6 +29,8 @@ option_list = list(
               help="input location and name of metadata file", metavar="character"),
   make_option(c("-u", "--mutations_data_file"), type="character", default=NULL,
               help="input location and name of mutations file", metavar="character"),
+  make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
+              help="e.g. isoniazid", metavar="character"),
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="input location and name of output file", metavar="character")
   );
@@ -58,11 +60,13 @@ mutations_data_path <- "~/Documents/comp_mut/metadata/"
 
 # For testing
 metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-ahpc_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+novel_comp_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+drug_of_interest <- "isoniazid"
 outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
 
 metadata_file <- opt$metadata_file
-ahpc_mut_file <- opt$mutations_data_file
+novel_comp_mut_file <- opt$mutations_data_file
+drug_of_interest <- opt$drug_of_interest
 outfile <- opt$outfile
 
 # -------------
@@ -71,46 +75,49 @@ outfile <- opt$outfile
 
 # Read in data
 metadata <- read.csv(metadata_file, header = T)
-ahpc_mut <- read.delim(ahpc_mut_file, sep = "\t", header = T)
+novel_comp_mutations <- read.delim(novel_comp_mut_file, sep = "\t", header = T)
 
 # --------
 # WRANGLE
 # --------
 
 # Subset metadata
-metadata <- metadata[, c("wgs_id", "genotypic_drtype", "main_lineage", "sub_lineage", "isoniazid")]
-names(metadata) <- c("wgs_id", "genotypic_drtype", "main_lineage", "sub_lineage", "inh_dst")
+metadata <- metadata[, c("wgs_id", "genotypic_drtype", "main_lineage", "sub_lineage", drug_of_interest)]
+# names(metadata) <- c("wgs_id", "genotypic_drtype", "main_lineage", "sub_lineage", "inh_dst")
 
-# Split out mutation results by mutation
-ahpc_mut_split <- split(ahpc_mut, ahpc_mut$change)
-ahpc_mut_split <- ahpc_mut_split[sapply(ahpc_mut_split, function(x){nrow(x) >= 10})]
+# Compensatory mutations gene
+comp_mut_gene <- unique(novel_comp_mutations$gene)
 
-# Make a list storing the binary values of whether the samples have the ahpc mutations or not
-meta_change_list <- matrix(nrow = nrow(metadata), ncol = length(ahpc_mut_split))
-for(i in seq(ahpc_mut_split)){
+# Split out mutation results by mutation - keep only if there are > 10 samples
+novel_comp_mutations_split <- split(novel_comp_mutations, novel_comp_mutations$change)
+novel_comp_mutations_split <- novel_comp_mutations_split[sapply(novel_comp_mutations_split, function(x){nrow(x) >= 10})]
+
+# Make a list storing the binary values of whether the samples have the novel comp mutations or not
+meta_change_list <- matrix(nrow = nrow(metadata), ncol = length(novel_comp_mutations_split))
+for(i in seq(novel_comp_mutations_split)){
   # meta_change_list[[i]] <- metadata
-  meta_change_list[,i] <- ifelse(metadata$wgs_id %in% ahpc_mut_split[[i]]$wgs_id, 1, 0)
+  meta_change_list[,i] <- ifelse(metadata$wgs_id %in% novel_comp_mutations_split[[i]]$wgs_id, 1, 0)
 }
 
 # cbind this data to the metadata
-metadata <- cbind(metadata, setNames(data.frame(meta_change_list), names(ahpc_mut_split)))
+metadata <- cbind(metadata, setNames(data.frame(meta_change_list), names(novel_comp_mutations_split)))
 # Tidy up the names otherwise the formulae in the glms can't handle the col names
 names(metadata) <- gsub(">", "_to_", names(metadata))
 names(metadata) <- gsub("-", "MINUS", names(metadata))
 
-# Do the same for the ahpc_mut_split list
-names(ahpc_mut_split) <- gsub(">", "_to_", names(ahpc_mut_split))
-names(ahpc_mut_split) <- gsub("-", "MINUS", names(ahpc_mut_split))
+# Do the same for the novel_comp_mutations_split list
+names(novel_comp_mutations_split) <- gsub(">", "_to_", names(novel_comp_mutations_split))
+names(novel_comp_mutations_split) <- gsub("-", "MINUS", names(novel_comp_mutations_split))
 
 # -------
 # MODELS
 # -------
 
 # Do the models 
-mutations <- names(ahpc_mut_split)
+mutations <- names(novel_comp_mutations_split)
 model_list <- list()
 for(i in seq(mutations)){
-  mod <- as.formula(sprintf("inh_dst ~ %s", mutations[i]))
+  mod <- as.formula(sprintf("%s ~ %s", drug_of_interest, mutations[i]))
   model_list[[i]] <- glm(formula = mod, data = metadata, family = binomial)
 }
 names(model_list) <- mutations
@@ -126,6 +133,7 @@ for(i in seq(model_list)){
   x <- broom::tidy(model_list[[i]])
   model_list_results <- data.frame(rbind(model_list_results, x))
 }
+# Take out the intercept
 model_list_results <- model_list_results[!(model_list_results[, "term"] == "(Intercept)"), ]
 model_list_results$p.value <- round_if(model_list_results$p.value)
 
@@ -134,7 +142,7 @@ model_list_results$p.value <- round_if(model_list_results$p.value)
 # Add main lineage as co-variate
 mut_plus_lin_model_list <- list()
 for(i in seq(mutations)){
-  mod <- as.formula(sprintf("inh_dst ~ main_lineage + %s", mutations[i]))
+  mod <- as.formula(sprintf("%s ~ main_lineage + %s", drug_of_interest, mutations[i]))
   mut_plus_lin_model_list[[i]] <- glm(formula = mod, data = metadata, family = binomial)
 }
 names(mut_plus_lin_model_list) <- mutations
@@ -153,7 +161,7 @@ for(i in seq(mut_plus_lin_model_list)){
 mut_plus_lin_model_list_results <- mut_plus_lin_model_list_results[!(mut_plus_lin_model_list_results[, "term"] == "(Intercept)"), ]
 mut_plus_lin_model_list_results$p.value <- round_if(mut_plus_lin_model_list_results$p.value)
 
-
+# Take out the lineages covariates
 mut_plus_lin_model_list_results <- mut_plus_lin_model_list_results[-(grep("lineage", 
                                                                           mut_plus_lin_model_list_results$term)), ]
 
@@ -193,6 +201,8 @@ models_results <- models_results[!(models_results[, "estimate_lin"] < 0), ]
 models_results$term <- gsub("_to_", ">", models_results$term)
 models_results$term <- gsub("MINUS", "-", models_results$term)
 models_results[, sapply(models_results, is.numeric)] <- round(num_cols(models_results), 3)
+models_results$gene <- rep(comp_mut_gene, nrow(models_results))
+
 
 write.csv(models_results, file = outfile, row.names = F, quote = F)
 
