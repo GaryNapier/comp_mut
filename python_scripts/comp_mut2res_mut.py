@@ -82,142 +82,147 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
 
 def main(args):
 
-potential_comp_mut_file = args.potential_comp_mut_file
-metadata_file = args.metadata_file
-tbdb_file = args.tbdb_file
-drtypes_file = args.drtypes_file
-comp_mut_file = args.comp_mut_file
-tbprofiler_results_dir = args.tbprofiler_results_dir
-vars_exclude_file = args.vars_exclude_file
-potential_res_mut_outfile = args.potential_res_mut_outfile
+    potential_comp_mut_file = args.potential_comp_mut_file
+    metadata_file = args.metadata_file
+    tbdb_file = args.tbdb_file
+    drtypes_file = args.drtypes_file
+    comp_mut_file = args.comp_mut_file
+    tbprofiler_results_dir = args.tbprofiler_results_dir
+    vars_exclude_file = args.vars_exclude_file
+    potential_res_mut_outfile = args.potential_res_mut_outfile
 
 
-# FILES
+    # FILES
 
-# potential_comp_mut_file = "metadata/ahpc_model_results.csv"
-# metadata_file = "../metadata/tb_data_18_02_2021.csv"
-# tbdb_file = "../tbdb/tbdb.csv"
-# drtypes_file = "../pipeline/db/dr_types.json"
-# comp_mut_file = '../pipeline/db/compensatory_mutations.csv'
-# tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
-# vars_exclude_file = 'metadata/var_exclude_katg_comp_mut.csv'
-# potential_res_mut_outfile = 'results/katg_potential_res_mut_stats.csv'
+    # potential_comp_mut_file = "metadata/ahpc_model_results.csv"
+    # metadata_file = "../metadata/tb_data_18_02_2021.csv"
+    # tbdb_file = "../tbdb/tbdb.csv"
+    # drtypes_file = "../pipeline/db/dr_types.json"
+    # comp_mut_file = '../pipeline/db/compensatory_mutations.csv'
+    # tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
+    # vars_exclude_file = 'metadata/var_exclude_katg_comp_mut.csv'
+    # potential_res_mut_outfile = 'results/katg_potential_res_mut_stats.csv'
 
-# VARIABLES
+    # VARIABLES
 
-suffix = args.suffix
-genes_file = args.genes_file
-drug_of_interest = args.drug_of_interest
-comp_mut_genes = str(args.comp_mut_genes)
+    suffix = args.suffix
+    genes_file = args.genes_file
+    drug_of_interest = args.drug_of_interest
+    comp_mut_genes = str(args.comp_mut_genes)
 
-# suffix = ".results.json"
-# genes = ('ahpC', 'katG', 'fabG1')
-# drug_of_interest = 'isoniazid'
-# comp_mut_genes = ('ahpC')
-
-
-# READ IN DATA
-
-# Read in ahpc GLM results file
-with open(potential_comp_mut_file, 'r') as f:
-    potential_comp_mut_dict = csv_to_dict(f)
-
-# Convert to list of tuples
-potential_comp_mut_list = [(comp_mut_genes, var) for var in list(potential_comp_mut_dict)]
-
-# Read in metadata
-with open(metadata_file) as mf:
-    meta_dict = csv_to_dict(mf)
-
-# Pull samples
-samples = list(meta_dict.keys())
-
-# Read in tbdb file
-with open(tbdb_file, 'r') as f:
-    tbdb_dict = csv_to_dict_multi(f)
-
-# Read in DR types from json
-standardise_drtype = json.load(open(drtypes_file))
-
-# Get known compensatory mutations of interest
-compensatory_mutations = defaultdict(set)
-for row in csv.DictReader(open(comp_mut_file)):
-    if row['Drug'] != drug_of_interest: continue
-    compensatory_mutations[row['Drug']].add((row['Gene'],row['Mutation']))
-    
-# Read in variants to exclude
-vars_exclude = get_vars_exclude(vars_exclude_file)
+    # suffix = ".results.json"
+    # genes = ('ahpC', 'katG', 'fabG1')
+    # drug_of_interest = 'isoniazid'
+    # comp_mut_genes = ('ahpC')
 
 
-# Read in all the json data for (samples with) ahpC/katG only (>0.7 freq) and the metadata for those samples
+    # READ IN DATA
 
-# Load mutation data using ('gene','change') as keys
-mutation2sample = defaultdict(set)
-sample2mutation = defaultdict(set)
-resistance_mutations = defaultdict(set)
-for s in tqdm(samples):
-    file = "%s/%s%s" % (tbprofiler_results_dir, s, suffix)
-    if os.path.isfile(file):
-        data = json.load(open(file))
-        # Skip mixed samps
-        if ';' in data['sublin']: continue
+    # Read in ahpc GLM results file
+    with open(potential_comp_mut_file, 'r') as f:
+        potential_comp_mut_dict = csv_to_dict(f)
 
-        meta_dict[s]['drtype'] = data['drtype']
-        meta_dict[s]['sublin'] = data['sublin']
+    # Convert to list of tuples
+    potential_comp_mut_list = [(comp_mut_genes, var) for var in list(potential_comp_mut_dict)]
+
+    # Read in metadata
+    with open(metadata_file) as mf:
+        meta_dict = csv_to_dict(mf)
+
+    # Pull samples
+    samples = list(meta_dict.keys())
+
+    # Read in tbdb file
+    with open(tbdb_file, 'r') as f:
+        tbdb_dict = csv_to_dict_multi(f)
+
+    # Read in DR types from json
+    standardise_drtype = json.load(open(drtypes_file))
+
+    # Get known compensatory mutations of interest
+    compensatory_mutations = defaultdict(set)
+    for row in csv.DictReader(open(comp_mut_file)):
+        if row['Drug'] != drug_of_interest: continue
+        compensatory_mutations[row['Drug']].add((row['Gene'],row['Mutation']))
         
-        # MAKE SURE THE FOR LOOP BELOW IS INDENTED IN LINE WITH if os.path.isfile(file):
-        # Otherwise adds sample s to mutation2sample etc
-    
-        for var in data['dr_variants'] + data['other_variants']:
-            if var['gene'] not in genes: continue
-            if var['freq'] < 0.7: continue
-            if var['type']=='synonymous_variant': continue
-            if (var['gene'], var['change']) in vars_exclude: continue
-            key = (var['gene'],var['change'])
-            mutation2sample[key].add(s)
-            sample2mutation[s].add(key)
-            if "drugs" in var:
-                for d in var["drugs"]:
-                    if key in compensatory_mutations[d["drug"]]: continue
-                    resistance_mutations[d["drug"]].add(key)
+    # Read in variants to exclude
+    vars_exclude = get_vars_exclude(vars_exclude_file)
 
-# Classify potential compensatory mutations and filter 
-# GLM is only first step in identifying 'interesting' compensatory mutations
-# Need to check against tbprofiler results for each mutation 
-# e.g. if the mutation is lineage specific, then filter out
+    # Read in genes file and store as set
+    genes = set([l.strip().split()[0] for l in open(genes_file)])
 
-potential_comp_mut_filtered, potential_comp_mut_stats = filter_vars(potential_comp_mut_list, mutation2sample, meta_dict, drug_of_interest)
 
-# Add the filtered potential compensatory mutations 
-# to the list of known compensatory mutations for the drug of interest
+    # Read in all the json data for (samples with) ahpC/katG only (>0.7 freq) and the metadata for those samples
 
-compensatory_mutations[drug_of_interest].update(potential_comp_mut_filtered)
+    # Load mutation data using ('gene','change') as keys
+    mutation2sample = defaultdict(set)
+    sample2mutation = defaultdict(set)
+    resistance_mutations = defaultdict(set)
+    for s in tqdm(samples):
+        file = "%s/%s%s" % (tbprofiler_results_dir, s, suffix)
+        if os.path.isfile(file):
+            data = json.load(open(file))
+            # Skip mixed samps
+            if ';' in data['sublin']: continue
 
-potential_resistance_mutations = set()
-for s in tqdm(samples):
-    # Get the comp, res and other variants for each sample in the full sample list
-    comp_var = [var for var in sample2mutation[s] if var in compensatory_mutations[drug_of_interest]]
-    res_var = [var for var in sample2mutation[s] if var in resistance_mutations[drug_of_interest]]
-    other_vars = [var for var in sample2mutation[s] if var not in compensatory_mutations[drug_of_interest] and var not in resistance_mutations[drug_of_interest]]
-    # If there is at least one comp variant and there are no (known) resistance variants
-    if len(comp_var)>0 and len(res_var)==0:
-        # If there are no 'other' variants print the sample and the comp variants
-        if len(other_vars)==0:
-            print("Sample, comp. variant")
-            print(s,comp_var)
-        # Store the 'other' vars as potential resistance variants
-        for var in other_vars:
-            potential_resistance_mutations.add(var)
+            meta_dict[s]['drtype'] = data['drtype']
+            meta_dict[s]['sublin'] = data['sublin']
+            
+            # MAKE SURE THE FOR LOOP BELOW IS INDENTED IN LINE WITH if os.path.isfile(file):
+            # Otherwise adds sample s to mutation2sample etc
+        
+            for var in data['dr_variants'] + data['other_variants']:
+                if var['gene'] not in genes: continue
+                if var['freq'] < 0.7: continue
+                if var['type']=='synonymous_variant': continue
+                if (var['gene'], var['change']) in vars_exclude: continue
+                key = (var['gene'],var['change'])
+                mutation2sample[key].add(s)
+                sample2mutation[s].add(key)
+                if "drugs" in var:
+                    for d in var["drugs"]:
+                        if key in compensatory_mutations[d["drug"]]: continue
+                        resistance_mutations[d["drug"]].add(key)
 
-# Filter the potential resistance variants in the same way as filtering the potential comp. variants
-potential_res_mut_filtered, potential_res_mut_stats = filter_vars(potential_resistance_mutations, mutation2sample, meta_dict, drug_of_interest)
+    # Classify potential compensatory mutations and filter 
+    # GLM is only first step in identifying 'interesting' compensatory mutations
+    # Need to check against tbprofiler results for each mutation 
+    # e.g. if the mutation is lineage specific, then filter out
 
-# Write stats dictionary to file:
-with open(potential_res_mut_outfile, 'w') as f:
-    writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
-    writer.writeheader()
-    for row in potential_res_mut_stats:
-        writer.writerow(potential_res_mut_stats[row])
+    potential_comp_mut_filtered, potential_comp_mut_stats = filter_vars(potential_comp_mut_list, mutation2sample, meta_dict, drug_of_interest)
+
+    # Add the filtered potential compensatory mutations 
+    # to the list of known compensatory mutations for the drug of interest
+
+    compensatory_mutations[drug_of_interest].update(potential_comp_mut_filtered)
+
+    potential_resistance_mutations = set()
+    for s in tqdm(samples):
+        # Get the comp, res and other variants for each sample in the full sample list
+        comp_var = [var for var in sample2mutation[s] if var in compensatory_mutations[drug_of_interest]]
+        res_var = [var for var in sample2mutation[s] if var in resistance_mutations[drug_of_interest]]
+        other_vars = [var for var in sample2mutation[s] if var not in compensatory_mutations[drug_of_interest] and var not in resistance_mutations[drug_of_interest]]
+        # If there is at least one comp variant and there are no (known) resistance variants
+        if len(comp_var)>0 and len(res_var)==0:
+            # If there are no 'other' variants print the sample and the comp variants
+            if len(other_vars)==0:
+                print("Sample, comp. variant")
+                print(s,comp_var)
+            # Store the 'other' vars as potential resistance variants
+            for var in other_vars:
+                potential_resistance_mutations.add(var)
+
+    # Filter the potential resistance variants in the same way as filtering the potential comp. variants
+    potential_res_mut_filtered, potential_res_mut_stats = filter_vars(potential_resistance_mutations, mutation2sample, meta_dict, drug_of_interest)
+
+    # Write stats dictionary to file:
+    with open(potential_res_mut_outfile, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
+        writer.writeheader()
+        for row in potential_res_mut_stats:
+            writer.writerow(potential_res_mut_stats[row])
+
+
 
 parser = argparse.ArgumentParser(description='get novel potential resistance mutations from computational mutations',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
