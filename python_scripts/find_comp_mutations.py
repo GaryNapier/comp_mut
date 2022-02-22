@@ -19,6 +19,8 @@ def main(args):
 
     # tbprofiler_results_location = 'tbprofiler_pakistan_results/'
     metadata_file = args.metadata_file
+    comp_mut_file = args.comp_mut_file
+    comp_mut_file = "../pipeline/db/compensatory_mutations.csv"
     drug_of_interest = args.drug_of_interest
     id_key = args.id_key
     tbprofiler_results_location = args.tbp_results
@@ -38,6 +40,12 @@ def main(args):
             # Make the id the key, but also recapitulate the id in the key-values by including everything
             meta_dict[row[id_key]] = row
 
+    # Get known compensatory mutations of interest
+    compensatory_mutations = defaultdict(set)
+    for row in csv.DictReader(open(comp_mut_file)):
+        if row['Drug'] != drug_of_interest: continue
+        compensatory_mutations[row['Drug']].add((row['Gene'],row['Mutation']))
+
     # json_files_list = ["{}{}".format(tbprofiler_results_location, i) for i in os.listdir(tbprofiler_results_location)]
 
     # mutations_dict = {}
@@ -50,10 +58,11 @@ def main(args):
         dst = meta_dict[samp][drug_of_interest]
         lins = [lin['lin'] for lin in data['lineage']]
         lin = lins[len(lins) - 1] # I hate Python!
+        
         for var in data["dr_variants"] + data["other_variants"]:
 
             # if var["gene"] == "ahpC" and var['type'] != 'synonymous' and "drugs" not in var and var["freq"] >= 0.7:
-            if var["gene"] == "ahpC" and var['type'] != 'synonymous_variant' and "drugs" not in var and var["freq"] >= 0.7:
+            if var['type'] != 'synonymous_variant' and "drugs" not in var and var["freq"] >= 0.7:
 
                 mutations_dict[samp] = {'wgs_id': samp,
                 'drtype':data["drtype"],
@@ -75,6 +84,7 @@ def main(args):
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
+parser.add_argument('--comp-mut-file', default = '', type = str, help = 'csv of all known compensatory mutations; https://github.com/GaryNapier/pipeline/blob/main/db/compensatory_mutations.csv')
 parser.add_argument('--drug-of-interest', default = '', type = str, help = 'drug associated with the compensatory mutations')
 parser.add_argument('--id-key', default = '', type = str, help = 'column name in metadata file with sample ids')
 parser.add_argument('--tbp-results', default="results/",type=str,help='tbprofiler results directory (json files)')
