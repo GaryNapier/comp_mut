@@ -1,6 +1,6 @@
 #! /usr/bin/env python 
 
-# Find all ahpC mutations
+# Find all compensatory mutations for drug of interest mutations
 
 import json
 from collections import defaultdict, Counter
@@ -19,6 +19,7 @@ def main(args):
 
     # tbprofiler_results_location = 'tbprofiler_pakistan_results/'
     metadata_file = args.metadata_file
+    drug_of_interest = args.drug_of_interest
     id_key = args.id_key
     tbprofiler_results_location = args.tbp_results
     suffix = args.suffix
@@ -29,7 +30,7 @@ def main(args):
     # READ IN DATA
     # -------------
 
-    #  Read in metadata
+    # Read in metadata
     with open(metadata_file) as mf:
         metadata_reader = csv.DictReader(mf)
         meta_dict = {}
@@ -46,15 +47,13 @@ def main(args):
         # Open the json file for the sample
         data = json.load(open("%s%s%s" % (tbprofiler_results_location, samp, suffix)))
         # samp = data["id"]
-        inh_dst = meta_dict[samp]['isoniazid']
+        dst = meta_dict[samp][drug_of_interest]
         lins = [lin['lin'] for lin in data['lineage']]
         lin = lins[len(lins) - 1] # I hate Python!
         for var in data["dr_variants"] + data["other_variants"]:
-            # if "drugs" in var:
-            #     drugs = [drug['drug'] for drug in var['drugs']]
-            # else:
-            #     drugs = "unknown"
-            if var["gene"] == "ahpC" and var['type'] != 'synonymous' and "drugs" not in var and var["freq"] >= 0.7:
+
+            # if var["gene"] == "ahpC" and var['type'] != 'synonymous' and "drugs" not in var and var["freq"] >= 0.7:
+            if var["gene"] == "ahpC" and var['type'] != 'synonymous_variant' and "drugs" not in var and var["freq"] >= 0.7:
 
                 mutations_dict[samp] = {'wgs_id': samp,
                 'drtype':data["drtype"],
@@ -62,8 +61,8 @@ def main(args):
                 'gene':var["gene"],
                 'change':var["change"],
                 'freq':var["freq"], 
-                # 'drugs': drugs,   
-                'inh_dst': inh_dst}
+                'drugs': drugs,   
+                'dst': dst}
 
     fieldnames = tuple(next(iter(mutations_dict.values())).keys())
 
@@ -76,9 +75,10 @@ def main(args):
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
+parser.add_argument('--drug-of-interest', default = '', type = str, help = 'drug associated with the compensatory mutations')
 parser.add_argument('--id-key', default = '', type = str, help = 'column name in metadata file with sample ids')
-# parser.add_argument('--db',default="tbdb",type=str,help='prefix to bed file for locus-DR associations')
 parser.add_argument('--tbp-results', default="results/",type=str,help='tbprofiler results directory (json files)')
+# parser.add_argument('--db',default="tbdb",type=str,help='prefix to bed file for locus-DR associations')
 parser.add_argument('--suffix',default=".results.json",type=str,help='File suffix')
 parser.add_argument('--outfile',default="ahpc_variants.txt",type=str,help='name of output file')
 parser.set_defaults(func=main)
