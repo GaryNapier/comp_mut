@@ -52,7 +52,7 @@ print(str(opt))
 
 # For testing
 metadata_path <- "~/Documents/metadata/"
-mutations_data_path <- "~/Documents/comp_mut/metadata/"
+mutations_data_path <- "~/Documents/comp_mut/results/"
 
 # ------
 # FILES
@@ -60,9 +60,9 @@ mutations_data_path <- "~/Documents/comp_mut/metadata/"
 
 # For testing
 metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-novel_comp_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+novel_comp_mut_file <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_data.txt")
 drug_of_interest <- "isoniazid"
-outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
+outfile <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_model_results.csv")
 
 metadata_file <- opt$metadata_file
 novel_comp_mut_file <- opt$mutations_data_file
