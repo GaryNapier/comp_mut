@@ -65,7 +65,7 @@ drug_of_interest <- "isoniazid"
 outfile <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_model_results.csv")
 
 metadata_file <- opt$metadata_file
-novel_comp_mut_file <- opt$mutations_data_file
+novel_comp_mut_file <- opt$novel_comp_mut_data_file
 drug_of_interest <- opt$drug_of_interest
 outfile <- opt$outfile
 
