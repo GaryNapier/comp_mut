@@ -27,7 +27,7 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 option_list = list(
   make_option(c("-m", "--metadata_file"), type="character", default=NULL,
               help="input location and name of metadata file", metavar="character"),
-  make_option(c("-u", "--mutations_data_file"), type="character", default=NULL,
+  make_option(c("-u", "--novel_comp_mut_data_file"), type="character", default=NULL,
               help="input location and name of mutations file", metavar="character"),
   make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
               help="e.g. isoniazid", metavar="character"),
