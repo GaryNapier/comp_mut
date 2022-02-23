@@ -10,12 +10,15 @@ import sys
 import csv
 import pathogenprofiler as pp
 import tbprofiler
+from tqdm import tqdm
 
 # -----
 # ARGS
 # -----
 
 def main(args):
+
+    print(args)
 
     # tbprofiler_results_location = 'tbprofiler_pakistan_results/'
     metadata_file = args.metadata_file
@@ -54,26 +57,27 @@ def main(args):
     # Pull novel comp mutations
     mutations_dict = defaultdict(dict)
     # for file in json_files_list:
-    for samp in meta_dict:
+    for samp in tqdm(meta_dict):
         # Open the json file for the sample
-        data = json.load(open("%s%s%s" % (tbprofiler_results_location, samp, suffix)))
-        # samp = data["id"]
-        dst = meta_dict[samp][drug_of_interest]
-        lins = [lin['lin'] for lin in data['lineage']]
-        lin = lins[len(lins) - 1] # I hate Python!
-        
-        for var in data["dr_variants"] + data["other_variants"]:
-            # Save mutation if in genes for drug of interest, is non-synonymous, does NOT already have a known drug association and is >0.7 freq
-            if var["gene"] in genes and var['type'] != 'synonymous_variant' and "drugs" not in var and var["freq"] >= 0.7:
+        file = "%s/%s%s" % (tbprofiler_results_location, samp, suffix)
+        if os.path.isfile(file):
+            data = json.load(open(file))
+            dst = meta_dict[samp][drug_of_interest]
+            lins = [lin['lin'] for lin in data['lineage']]
+            lin = lins[len(lins) - 1] # I hate Python!
+            
+            for var in data["dr_variants"] + data["other_variants"]:
+                # Save mutation if in genes for drug of interest, is non-synonymous, does NOT already have a known drug association and is >0.7 freq
+                if var["gene"] in genes and var['type'] != 'synonymous_variant' and "drugs" not in var and var["freq"] >= 0.7:
 
-                mutations_dict[samp] = {'wgs_id': samp,
-                'drtype':data["drtype"],
-                'lineage':lin,
-                'gene':var["gene"],
-                'change':var["change"],
-                'freq':var["freq"], 
-                'drugs': drugs,   
-                'dst': dst}
+                    mutations_dict[samp] = {'wgs_id': samp,
+                    'drtype':data["drtype"],
+                    'lineage':lin,
+                    'gene':var["gene"],
+                    'change':var["change"],
+                    'freq':var["freq"], 
+                    'drugs': drug_of_interest,   
+                    'dst': dst}
 
     fieldnames = tuple(next(iter(mutations_dict.values())).keys())
 
