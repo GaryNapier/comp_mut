@@ -34,8 +34,6 @@ drug_of_interest = 'isoniazid'
 # file = "%s/%s%s" % (tbprofiler_results_dir, 'SAMEA2534433', suffix)
 # data = json.load(open(file))
 
-
-
 # ------------------------------------------------------------
 # KATG - Co-occurrence with fabG1 and comparison to Ser315Thr
 # ------------------------------------------------------------
@@ -64,8 +62,6 @@ for var in potential_res_mut_filtered:
 
 # co_gene_samps = [mutation2sample[var] for var in co_gene_vars]
 
-
-
 # Take all_katg - aggregate samples - how many have fabG1?
 
 
@@ -83,3 +79,76 @@ for samp in all_data:
 
 Ser315Thr_fabg_prop = round(len(Ser315Thr_fabg_samps) / (len(Ser315Thr_fabg_samps) + len(Ser315Thr_no_fabg_samps)), 3)
 # 0.158
+
+
+# ================================================================================
+
+
+# find_novel_comp_mutations.py edits
+
+# Need to pull comp mutations data from jsons using the drug of interest as input
+# Take the comp mutations file, get the genes by filtering the drug of interest col 
+
+
+
+# ================================================================================
+
+
+# Need to get all the genes associated with isoniazid
+
+import json
+from collections import defaultdict, Counter
+import argparse
+import os
+from tqdm import tqdm
+import sys
+import csv
+import pathogenprofiler as pp
+import tbprofiler
+from csv import DictReader
+from collections import Counter
+import requests
+from contextlib import closing
+import re
+from python_scripts.utils import *
+
+drug_of_interest = 'isoniazid'
+
+
+tbdb_file = "../tbdb/tbdb.csv"
+# Read in tbdb file
+with open(tbdb_file, 'r') as f:
+    tbdb_dict = csv_to_dict_multi(f, 'Drug')
+
+
+for drug in tbdb_dict:
+    print(tbdb_dict[drug])
+
+
+set([l.strip().split()[0] for l in open(genes_file)])
+
+
+
+
+
+
+
+fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
+# See https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python for pulling data from url
+with closing(requests.get(fst_results_url, stream=True)) as r:
+    f = (line.decode('utf-8') for line in r.iter_lines())
+    fst_dict = csv_to_dict_multi(f)
+
+lin_specific_variants = []
+for gene in fst_dict:
+    if gene in genes:
+        for var in fst_dict[gene]:
+            lin_specific_variants.append( tuple( [ gene, reformat_mutations(var['aa_pos']) ] ) )
+
+# Read in variants to be excluded
+vars_exclude = []
+for l in open(vars_exclude_file):
+    vars_exclude.append(tuple(l.strip().split(',')))
+
+# Concat
+vars_exclude = vars_exclude + lin_specific_variants 
