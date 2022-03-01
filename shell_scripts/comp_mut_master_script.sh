@@ -40,7 +40,7 @@ main_tb_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 known_comp_mut_file=${database_dir}compensatory_mutations.csv 
 tbdb_file=${tbdb_dir}tbdb.csv
 dr_types_file=${database_dir}dr_types.json
-vars_exclude_file=${local_metadata_dir}var_exclude_katg_comp_mut.csv
+vars_exclude_file=${local_metadata_dir}var_exclude_comp_mut.csv
 
 # Created files
 head_metadata_file=${main_metadata_dir}head_metadata.csv # testing
@@ -82,22 +82,23 @@ Rscript r_scripts/filter_novel_comp_mut.R \
 --outfile ${novel_comp_mut_model_results_file} 
 fi
 
-# -----------------------------------------------------------
-# Filter potential novel compensatory mutations with tbprofiler critera (n lineages, proportion of samples drug resistant, proportion of samples DST resistant)
-# 
-# -----------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+# Filter potential novel compensatory mutations with tbprofiler critera 
+# (n lineages, proportion of samples drug resistant, proportion of samples DST resistant)
+# ----------------------------------------------------------------------------------------
 
-python python/comp_mut2res_mut.py \
-
+if [ ! -f ${potential_res_mutations_outfile} ]; then
+echo " --- GETTING POTENTIAL NEW RESISTANCE MUTATIONS FOR ${drug_of_interest}; RUNNING python_scripts/comp_mut2res_mut.py --- "
+python python_scripts/comp_mut2res_mut.py \
+--drug-of-interest ${drug_of_interest} \
 --potential-comp-mut-file ${novel_comp_mut_model_results_file} \
 --metadata-file ${main_tb_metadata_file} \
 --tbdb-file ${tbdb_file} \
---drtypes-file ${dr_types_file} \ 
+--drtypes-file ${dr_types_file} \
 --known-comp-mut-file ${known_comp_mut_file} \
 --tbprofiler-results-dir ${tbp_results_dir} \
 --vars-exclude-file ${vars_exclude_file} \
---potential-res-mut-outfile ${potential_res_mutations_outfile} \
---drug-of-interest ${drug_of_interest}
-
-# --comp-mut-genes 
+--potential-res-mut-outfile ${potential_res_mutations_outfile}
+fi
+ 
 
