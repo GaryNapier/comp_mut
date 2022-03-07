@@ -51,7 +51,8 @@ novel_comp_mut_data_file=${results_dir}${drug_of_interest}_novel_comp_mut_data.t
 # filter_comp_mut.R files
 novel_comp_mut_model_results_file=${results_dir}${drug_of_interest}_novel_comp_mut_model_results.csv
 # comp_mut2res_mut.py files
-potential_res_mutations_outfile=${results_dir}${drug_of_interest}_potential_res_mutations.csv
+potential_res_mut_stats_file=${results_dir}potential_res_mut_stats.csv
+potential_res_mut_samples_file=${results_dir}potential_res_mut_samps.csv
 
 
 # ---------------------------------------------------
@@ -87,7 +88,6 @@ fi
 # (n lineages, proportion of samples drug resistant, proportion of samples DST resistant)
 # ----------------------------------------------------------------------------------------
 
-if [ ! -f ${potential_res_mutations_outfile} ]; then
 echo " --- GETTING POTENTIAL NEW RESISTANCE MUTATIONS FOR ${drug_of_interest}; RUNNING python_scripts/comp_mut2res_mut.py --- "
 python python_scripts/comp_mut2res_mut.py \
 --drug-of-interest ${drug_of_interest} \
@@ -98,7 +98,8 @@ python python_scripts/comp_mut2res_mut.py \
 --known-comp-mut-file ${known_comp_mut_file} \
 --tbprofiler-results-dir ${tbp_results_dir} \
 --vars-exclude-file ${vars_exclude_file} \
---potential-res-mut-outfile ${potential_res_mutations_outfile}
-fi
+--potential-res-mut-stats-file ${potential_res_mut_stats_file} \
+--potential-res-mut-samples-file ${potential_res_mut_samples_file}
+
  
 

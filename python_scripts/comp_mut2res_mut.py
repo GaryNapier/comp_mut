@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 
+import sys
+import pathogenprofiler as pp
 import json
 from collections import defaultdict, Counter
 import argparse
 import os
 from tqdm import tqdm
-import sys
 import csv
-import pathogenprofiler as pp
-import tbprofiler
-from csv import DictReader
 from collections import Counter
 import requests
 from contextlib import closing
-import re
 from python_scripts.utils import *
 
 
@@ -52,7 +49,8 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
 
     # Get stats for each variant
     stats_dict = defaultdict(dict)
-    variants_passed = set()
+#     variants_passed = set()
+    variants_passed = defaultdict(dict)
     # for var in variants:
     for var in variants:
 
@@ -67,8 +65,14 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
 
         # Filter and add to dict
         if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and num_lins > 1:
-            variants_passed.add(var)
-            stats_dict[var] = {'var': var, 
+                
+            variants_passed[var] = {'drug': drug_of_interest, 
+                                   'gene': var[0], 
+                                   'mutation': var[1],
+                                   'samples': samps}
+            
+            stats_dict[var] = {'drug': drug_of_interest, 
+                               'var': var, 
                                'gene': var[0], 
                                'mutation': var[1],
                                'n_samps' : len(samps), 
@@ -79,10 +83,9 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
     return (variants_passed, stats_dict)
 
 
-
 def main(args):
 
-# FILES
+    # FILES
 
     potential_comp_mut_file = args.potential_comp_mut_file
     metadata_file = args.metadata_file
@@ -91,7 +94,8 @@ def main(args):
     known_comp_mut_file = args.known_comp_mut_file
     tbprofiler_results_dir = args.tbprofiler_results_dir
     vars_exclude_file = args.vars_exclude_file
-    potential_res_mut_outfile = args.potential_res_mut_outfile
+    potential_res_mut_stats_file = args.potential_res_mut_stats_file
+    potential_res_mut_samples_file = args.potential_res_mut_samples_file
 
     # FILES
 
@@ -102,7 +106,8 @@ def main(args):
     # known_comp_mut_file = '../pipeline/db/compensatory_mutations.csv'
     # tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
     # vars_exclude_file = 'metadata/var_exclude_comp_mut.csv'
-    # potential_res_mut_outfile = 'results/isoniazid_potential_res_mut_stats.csv'
+    # potential_res_mut_stats_file = 'results/potential_res_mut_stats.csv'
+    # potential_res_mut_samples_file = 'results/potential_res_mut_samps.csv'
 
     # VARIABLES
 
@@ -151,6 +156,10 @@ def main(args):
     for var in tbdb_dict[drug_of_interest]:
         genes.add(var['Gene'])
 
+    # Concat with genes from known and potential resistance mutations
+    genes = genes.union(set([var[0] for var in compensatory_mutations[drug_of_interest]]))
+    genes = genes.union(set([var[0] for var in potential_comp_mut_list]))
+
     # Read in all the json data for (samples with) mutations in drug-of-interest genes only (>0.7 freq) and the metadata for those samples
 
     # Load mutation data using ('gene','change') as keys
@@ -182,10 +191,10 @@ def main(args):
                 if "drugs" in var:
                     for d in var["drugs"]:
                         if d["drug"] not in drug_of_interest: continue
-                        if key in compensatory_mutations[d["drug"]]: continue
+                        if key in compensatory_mutations[d["drug"]] or key in potential_comp_mut_list: continue
                         resistance_mutations[d["drug"]].add(key)
 
-    # Classify potential compensatory mutations and filter 
+    # Classify potential compensatory mutations and filter
     # GLM models (filter_novel_comp_mut.R) is only first step in identifying 'interesting' compensatory mutations
     # Need to check against tbprofiler results for each mutation 
     # e.g. if the mutation is lineage specific, then filter out
@@ -216,14 +225,64 @@ def main(args):
     # Filter the potential resistance variants in the same way as filtering the potential comp. variants
     potential_res_mut_filtered, potential_res_mut_stats = filter_vars(potential_resistance_mutations, mutation2sample, meta_dict, drug_of_interest)
 
-    x = 10
-    
+    # Check potential resistance mutations have been found, quit if not
+    print()
+    print("FOUND %s POTENTIAL RESISTANCE MUTATIONS FOR %s" % (len(potential_res_mut_filtered), drug_of_interest))
+    print()
+
+    if len(potential_res_mut_filtered) == 0:
+        print()
+        print("NO POTENTIAL RESISTANCE MUTATIONS FOUND FOR %s; QUITTING SCRIPT" % drug_of_interest)
+        print()
+        sys.exit()
+
+
+    # WRITE FILES
+
+    # Write dictionary to file:
+    if os.path.isfile(potential_res_mut_samples_file):
+        with open(potential_res_mut_samples_file, 'a') as f:
+            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_filtered)))
+            for var in potential_res_mut_filtered:
+                samps = potential_res_mut_filtered[var]['samples']
+                for samp in samps:
+                    writer.writerow({'drug': potential_res_mut_filtered[var]['drug'],
+                        'gene': potential_res_mut_filtered[var]['gene'], 
+                        'mutation': potential_res_mut_filtered[var]['mutation'], 
+                        'samples': samp})
+            
+    else:
+        with open(potential_res_mut_samples_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_filtered)))
+            writer.writeheader()
+            for var in potential_res_mut_filtered:
+                samps = potential_res_mut_filtered[var]['samples']
+                for samp in samps:
+                    writer.writerow({'drug': potential_res_mut_filtered[var]['drug'],
+                        'gene': potential_res_mut_filtered[var]['gene'], 
+                        'mutation': potential_res_mut_filtered[var]['mutation'], 
+                        'samples': samp})
+
+    # Do sort uniq in case has been run on same drug before 
+    cmd = f'(head -n 1 {potential_res_mut_samples_file} && tail -n +2 {potential_res_mut_samples_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_samples_file}'
+    pp.run_cmd(cmd)
+
     # Write stats dictionary to file:
-    with open(potential_res_mut_outfile, 'w') as f:
-        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
-        writer.writeheader()
-        for row in potential_res_mut_stats:
-            writer.writerow(potential_res_mut_stats[row])
+    if os.path.isfile(potential_res_mut_stats_file):
+        with open(potential_res_mut_stats_file, 'a') as f:
+            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
+            for row in potential_res_mut_stats:
+                writer.writerow(potential_res_mut_stats[row])
+    else:
+        with open(potential_res_mut_stats_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
+            writer.writeheader()
+            for row in potential_res_mut_stats:
+                writer.writerow(potential_res_mut_stats[row])
+
+    # Do sort uniq in case has been run on same drug before 
+    cmd = f'(head -n 1 {potential_res_mut_stats_file} && tail -n +2 {potential_res_mut_stats_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_stats_file}'
+    pp.run_cmd(cmd)
 
 parser = argparse.ArgumentParser(description='get novel potential resistance mutations from compensatory mutations',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -235,7 +294,8 @@ parser.add_argument('--drtypes-file', default = '', type = str, help = 'json con
 parser.add_argument('--known-comp-mut-file', default = '', type = str, help = 'csv of all known compensatory mutations; https://github.com/GaryNapier/pipeline/blob/main/db/compensatory_mutations.csv')
 parser.add_argument('--tbprofiler-results-dir', default = '', type = str, help = 'directory of tbprofiler results containing one json per sample')
 parser.add_argument('--vars-exclude-file', default = '', type = str, help = 'csv of gene,mutation to exclude. No header')
-parser.add_argument('--potential-res-mut-outfile', default = '', type = str, help = 'name of output file of variants and their stats')
+parser.add_argument('--potential-res-mut-stats-file', default = '', type = str, help = 'name of output file of variants and their stats')
+parser.add_argument('--potential-res-mut-samples-file', default = '', type = str, help = 'name of output file of variants and their stats')
 parser.add_argument('--suffix', default = '.results.json', type = str, help = 'suffix of json files in tbprofiler_results_dir')
 
 parser.set_defaults(func=main)
