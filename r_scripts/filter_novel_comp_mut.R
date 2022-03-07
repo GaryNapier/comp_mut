@@ -27,7 +27,7 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 option_list = list(
   make_option(c("-m", "--metadata_file"), type="character", default=NULL,
               help="input location and name of metadata file", metavar="character"),
-  make_option(c("-u", "--mutations_data_file"), type="character", default=NULL,
+  make_option(c("-u", "--novel_comp_mut_data_file"), type="character", default=NULL,
               help="input location and name of mutations file", metavar="character"),
   make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
               help="e.g. isoniazid", metavar="character"),
@@ -52,7 +52,7 @@ print(str(opt))
 
 # For testing
 metadata_path <- "~/Documents/metadata/"
-mutations_data_path <- "~/Documents/comp_mut/metadata/"
+mutations_data_path <- "~/Documents/comp_mut/results/"
 
 # ------
 # FILES
@@ -60,12 +60,12 @@ mutations_data_path <- "~/Documents/comp_mut/metadata/"
 
 # For testing
 metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-novel_comp_mut_file <- paste0(mutations_data_path, "novel_ahpc_mutations.txt")
+novel_comp_mut_file <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_data.txt")
 drug_of_interest <- "isoniazid"
-outfile <- paste0(mutations_data_path, "ahpc_regression_results.csv")
+outfile <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_model_results.csv")
 
 metadata_file <- opt$metadata_file
-novel_comp_mut_file <- opt$mutations_data_file
+novel_comp_mut_file <- opt$novel_comp_mut_data_file
 drug_of_interest <- opt$drug_of_interest
 outfile <- opt$outfile
 
