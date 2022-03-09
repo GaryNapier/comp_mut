@@ -241,7 +241,7 @@ def main(args):
 
     # Write dictionary to file:
     if os.path.isfile(potential_res_mut_samples_file):
-        with open(potential_res_mut_samples_file, 'a') as f:
+        with open(potential_res_mut_samples_file, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_filtered)))
             for var in potential_res_mut_filtered:
                 samps = potential_res_mut_filtered[var]['samples']
@@ -252,7 +252,7 @@ def main(args):
                         'samples': samp})
             
     else:
-        with open(potential_res_mut_samples_file, 'w') as f:
+        with open(potential_res_mut_samples_file, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_filtered)))
             writer.writeheader()
             for var in potential_res_mut_filtered:
@@ -263,26 +263,37 @@ def main(args):
                         'mutation': potential_res_mut_filtered[var]['mutation'], 
                         'samples': samp})
 
+    # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
+    # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
+    cmd = "sed -i -e 's/\r//g' %s" % potential_res_mut_samples_file
+    pp.run_cmd(cmd)
+
     # Do sort uniq in case has been run on same drug before 
     cmd = f'(head -n 1 {potential_res_mut_samples_file} && tail -n +2 {potential_res_mut_samples_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_samples_file}'
     pp.run_cmd(cmd)
 
     # Write stats dictionary to file:
     if os.path.isfile(potential_res_mut_stats_file):
-        with open(potential_res_mut_stats_file, 'a') as f:
+        with open(potential_res_mut_stats_file, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
             for row in potential_res_mut_stats:
                 writer.writerow(potential_res_mut_stats[row])
     else:
-        with open(potential_res_mut_stats_file, 'w') as f:
+        with open(potential_res_mut_stats_file, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
             writer.writeheader()
             for row in potential_res_mut_stats:
                 writer.writerow(potential_res_mut_stats[row])
 
+    # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
+    # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
+    cmd = "sed -i -e 's/\r//g' %s" % potential_res_mut_stats_file
+    pp.run_cmd(cmd)
+
     # Do sort uniq in case has been run on same drug before 
     cmd = f'(head -n 1 {potential_res_mut_stats_file} && tail -n +2 {potential_res_mut_stats_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_stats_file}'
     pp.run_cmd(cmd)
+
 
 parser = argparse.ArgumentParser(description='get novel potential resistance mutations from compensatory mutations',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
