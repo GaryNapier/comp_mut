@@ -25,11 +25,16 @@ id_key=wgs_id
 
 # Existing directories
 tbp_results_dir=/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/
+vcf_remote=/mnt/storage7/jody/tb_ena/per_sample/
 main_metadata_dir=../metadata/
 local_metadata_dir=metadata/
 database_dir=../pipeline/db/
 tbdb_dir=../tbdb/
 results_dir=results/
+fasta_dir=fasta/
+newick_dir=newick/
+vcf_db=~/vcf/
+vcf_dir=vcf/
 
 # ------
 # Files
@@ -53,6 +58,16 @@ novel_comp_mut_model_results_file=${results_dir}${drug_of_interest}_novel_comp_m
 # comp_mut2res_mut.py files
 potential_res_mut_stats_file=${results_dir}potential_res_mut_stats.csv
 potential_res_mut_samples_file=${results_dir}potential_res_mut_samps.csv
+samples_for_vcf_file=${results_dir}${drug_of_interest}_res_mut_samps.txt
+
+# variant_calling_and_concat_gvcfs.sh
+gvcf_file_suffix=.g.vcf.gz 
+# variant_filtering.sh
+multi_samp_vcf=${vcf_dir}${drug_of_interest}.val.gt.g.vcf.gz
+filt_multi_samp_vcf_file=${vcf_dir}${drug_of_interest}.filt.val.gt.g.vcf.gz
+# vcf2fasta.sh
+# iqtree.sh
+fasta_file=${fasta_dir}/${drug_of_interest}.filt.val.gt.g.snps.fa
 
 
 # ---------------------------------------------------
@@ -101,5 +116,14 @@ python python_scripts/comp_mut2res_mut.py \
 --potential-res-mut-stats-file ${potential_res_mut_stats_file} \
 --potential-res-mut-samples-file ${potential_res_mut_samples_file}
 
- 
+# ----------------------------
+# Put the samples into a file
+# ----------------------------
 
+cat ${potential_res_mut_samples_file} | csvtk grep -f drug -p isoniazid | csvtk cut -f samples | tail -n+2 > ${samples_for_vcf_file}
+
+# ------
+# Trees
+# ------
+
+tree_pipeline.sh ${drug_of_interest} ${vcf_db} ${samples_for_vcf_file} ${vcf_dir} ${fasta_dir} ${newick_dir}
