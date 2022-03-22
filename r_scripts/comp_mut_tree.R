@@ -23,6 +23,7 @@
 
 library(optparse)
 library(phytools)
+library(ggplot2)
 library(ggtree)
 library(scales)
 library(gplots)
@@ -75,6 +76,7 @@ project_code_col_name <- 'drug'
 tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
 # resistance_mutations_file <- "results/potential_res_mut_samps.csv"
 metadata_file <- "results/potential_res_mut_samps.csv"
+outfile <- paste0("results/", project_code, "_tree.png")
 
 # Read in data ----
 
@@ -84,6 +86,11 @@ metadata <- read.csv(metadata_file, header = T)
 
 # Wrangle data ----
 
+drug_abv_table <- data.frame(drug_full_nm = c("isoniazid", "rifampicin"),
+                             drug_abv = c("INH", "RIF"))
+
+drug_abv <- drug_abv_table[drug_abv_table["drug_full_nm"] == project_code, "drug_abv"]
+
 # Midpoint root the tree
 tree_all_samps <- phytools::midpoint.root(tree_all_samps)
 n_samps <- length(tree_all_samps$tip.label)
@@ -91,20 +98,27 @@ n_samps <- length(tree_all_samps$tip.label)
 # Metadata
 # Subset metadata to just the project code rows
 metadata <- metadata[metadata[, project_code_col_name] == project_code, ]
+# Make ID rownames of metadata so heatmap strips work in ggtree
 row.names(metadata) <- metadata$wgs_id
 # Lineages - remove 'lineage' and convert to factor
 metadata$main_lineage <- factor(gsub('lineage', '', metadata$main_lineage))
 metadata$sublin <- factor(gsub('lineage', '', metadata$sublin))
+# Convert DST to factor
+metadata$dst <- as.factor(metadata$dst)
 
-
+# Get data for separate heatmap strips
 lin_data <- metadata[, "main_lineage", drop = F]
 dr_status_data <- metadata[, "drtype", drop = F]
 dr_data <- metadata[,'dst', drop = F]
-lin_data <- data.frame(apply(lin_data, 2, as.factor))
-dr_status_data <- data.frame(apply(dr_status_data, 2, as.factor))
-dr_data <- data.frame(apply(dst_data, 2, as.factor))
-# row.names(lin_data) <- metadata$wgs_id
-# row.names(dr_status_data) <- metadata$wgs_id
+
+# Change col headers to match legends 
+lin_data_lab <- "Lineage"
+dr_status_lab <- "DR status"
+dr_data_lab <- paste(drug_abv, "DST")
+
+colnames(lin_data) <- lin_data_lab
+colnames(dr_status_data) <- dr_status_lab
+colnames(dr_data) <- dr_data_lab
 
 # Colours
 alpha <- 0.9
@@ -128,14 +142,12 @@ legend_spec <- theme(legend.title = element_text(size = 9),
                      legend.key.size = unit(0.3, "cm"))
 
 max_dist <- castor::get_tree_span(tree_all_samps, as_edge_count=FALSE)$max_distance
-# min_dist <- castor::get_tree_span(tree_all_samps, as_edge_count=FALSE)$min_distance
-# offset <- max_dist
 
-# Make basic tree ----
+# Make tree ----
 
 ggtree_all_samps <- ggtree(tree_all_samps, 
-                           size = line_sz)+
-  coord_cartesian(ylim = y_lim)
+                           size = line_sz)
+  # coord_cartesian(ylim = y_lim)
 
 # Add lineage data 
 lin_hm <- gheatmap(ggtree_all_samps, lin_data, 
@@ -146,56 +158,69 @@ lin_hm <- gheatmap(ggtree_all_samps, lin_data,
                    colnames_offset_y = 1,
                    hjust = 0,
                    font.size = font_sz) +
-  # geom_vline(aes(xintercept = max_dist), col = "red")+
   # Add the custom colours defined above
   scale_fill_manual(values = lin_colours, breaks = names(lin_colours) ) +
   # Define the legend title
-  labs(fill = "Lineage")
+  labs(fill = lin_data_lab)
 
-ggtree_data <- ggplot_build(lin_hm)
-# pos <- unique(x$data[[3]]$x)
-wd <- unique(ggtree_data$data[[3]]$xmax)-unique(ggtree_data$data[[3]]$xmin)
+# Pull the width of the strip from the plot just created in order to set offset for next strips
+ggtree_data <- ggplot2::ggplot_build(lin_hm)
+os <- unique(ggtree_data$data[[3]]$xmax)-unique(ggtree_data$data[[3]]$xmin)
 
+# Need to do this bit of code before adding the next heatmap
+# See - See "7.3.1 Visualize tree with multiple associated matrix" https://yulab-smu.top/treedata-book/chapter7.html
 lin_hm <- lin_hm + ggnewscale::new_scale_fill() 
 
 # Add DR status
 dr_status_hm <- gheatmap(lin_hm, dr_status_data,
                          width = width,
-                         offset = wd,
+                         offset = os,
                          color = NULL,
                          colnames_position = "top",
                          colnames_angle = angle, 
                          colnames_offset_y = 1,
                          hjust = 0,
                          font.size = font_sz) +
-  # geom_vline(aes(xintercept = pos), col = "red")+
   scale_fill_manual(values = dr_status_colours, breaks = names(dr_status_colours) )+
-  labs(fill = "DR\nstatus")
-
-dr_status_hm
+  labs(fill = dr_status_lab)
 
 # Add DST data
 
-
 dr_status_hm <- dr_status_hm + ggnewscale::new_scale_fill() 
 
-gheatmap(dr_status_hm, dr_data,
+dr_data_hm <- gheatmap(dr_status_hm, dr_data, 
          # Increase offset
-         offset = wd*2,
-         width = width,
-         # Change color to black
-         # color = NULL,
-         color="black",
-         low="white", 
-         high="black", 
+         offset = os*2,
+         width = width, 
+         low="white", high="black", color="black", 
          colnames_position = "top",
          colnames_angle = angle, 
          colnames_offset_y = 1,
          hjust = 0,
-         font.size = 2.5) +
+         font.size = font_sz)+
   # Define colours
-  scale_fill_manual(values=c("white", "black"), labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
-  labs(fill = "Drug\nresistance")
+  scale_fill_manual(values=c("white", "black"), 
+                    labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
+  labs(fill = dr_data_lab)
+
+# Add the mutations labels
+final_tree <- dr_data_hm %<+% metadata + 
+  geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+              linetype = NULL,
+              align = T,
+              offset = os*3.5,
+              size = (n_samps*0.1)/font_sz)+
+  scale_colour_discrete(guide = "none")+
+  hexpand(.1, direction = 1) +
+  vexpand(.1)
+
+# Save
+ggsave(outfile, final_tree)
+
+
+
+
+
 
 
 
