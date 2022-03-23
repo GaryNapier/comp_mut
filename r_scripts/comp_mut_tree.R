@@ -52,18 +52,18 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 option_list = list(
   make_option(c("-t", "--tree_file"), type="character", default=NULL,
               help="path to tree file to be plotted", metavar="character"),
-  make_option(c("-m", "--metadata_file"), type="", default=NULL,
+  make_option(c("-m", "--metadata_file"), type="character", default=NULL,
               help="path to long-format metadata file containing columns:
               wgs_id (ids of samples),
               drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
               main_lineage (main lineage of each samp),
               drtype (Sensitive, pre-MDR, MDR etc),
               dst (binary col of drug susceptibility test corresponding to drug column)", 
-              metavar="character"),
+              metavar="character"), 
   make_option(c("-p", "--project_code"), type="character", default=NULL,
               help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"), 
   make_option(c("-c", "--column"), type="character", default=NULL,
-              help="column name in which project code occurs e.g. 'drug'", metavar="character"), 
+              help="column name in which project code occurs e.g. 'drug'", metavar="character"),
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="path and name of saved png", metavar="character")
 );
@@ -76,27 +76,19 @@ print(opt)
 print("---")
 print(str(opt))
 
-# setwd("~/Documents/comp_mut/")
-
 # Setup
-# project_code <- 'isoniazid'
 project_code <- opt$project_code
-# project_code_col_name <- 'drug'
 project_code_col_name <- opt$column
 
 # Files ----
 
-# tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
 tree_file <- opt$tree_file
-# metadata_file <- "results/potential_res_mut_samps.csv"
 metadata_file <- opt$metadata_file
-# outfile <- paste0("results/", project_code, "_tree.png")
 outfile <- opt$outfile
 
 # Read in data ----
 
 tree_all_samps <- read.newick(tree_file)
-# res_mut <- read.csv(resistance_mutations_file, header = T)
 metadata <- read.csv(metadata_file, header = T)
 
 # Wrangle data ----
