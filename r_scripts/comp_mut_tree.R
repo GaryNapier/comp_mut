@@ -8,16 +8,31 @@
 # Install ggtree - https://bioconductor.org/packages/release/bioc/html/ggtree.html (code: BiocManager::install("ggtree"))
 
 # Arguments to script:
+# tree-file - Newick file of tree to plot
+# metadata-file - Metadata file - long format e.g. 
+# wgs_id     drug      gene mutation    gene_mutation    main_lineage    sublin country_code     drtype  dst
+# ERR1034655 isoniazid katG p.Gly299Ser katG-p.Gly299Ser            4         4           bg     MDR-TB <NA>
+# ERR1035268 isoniazid katG p.Asp419Tyr katG-p.Asp419Tyr            4     4.3.2           br     MDR-TB    1
+# ERR1035337 isoniazid katG p.Tyr413Cys katG-p.Tyr413Cys            4   4.1.2.1           br     MDR-TB    1
+# project-code - Project code - project code on which to subset rows of metadata e.g. 'isoniazid'
+# column - column name in which project code occurs e.g. 'drug'
+# outfile - path and name of saved png
 
 # Input:
+# Newick file
+# Metadata file
 
 # Main steps:
+# Read in tree and metadata
+# Subset metadata to the rows with the specified project code 
+# Wrangle data ffor heatmap strips of lineage, DR status and DST
+# Plot tree in ggtree with the heatmap strips
+# Save as png
 
 # Output:
 
 # RUN:
-# Rscript r_scripts/<file_name>.R
-# Rscript r_scripts/<file_name>.R
+# Rscript r_scripts/comp_mut_tree.R <tree-file> <metadata-file> <project-code> <column> <outfile>
 
 # Setup ----
 
@@ -32,51 +47,52 @@ library(ggnewscale)
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
-# # Arguments ----
-# 
-# option_list = list(
-#   # EXAMPLE:
-#   # make_option(c("-t", "--template_file_name"), type="character", default=NULL,
-#   #             help="input template xml file", metavar="character"),
-#   
-#   make_option(c("-", "--"), type="", default=NULL, 
-#               help="", metavar="")
-# ); 
-# 
-# opt_parser = OptionParser(option_list=option_list);
-# opt = parse_args(opt_parser);
-# 
-# print("ARGUMENTS:")
-# print(opt)
-# print("---")
-# print(str(opt))
-# 
-# # Files ----
-# 
-# template_file <- opt$template_file_name
-# 
-# print("FILES:")
-# print(c(": ", ))
+# Arguments ----
 
-setwd("~/Documents/comp_mut/")
+option_list = list(
+  make_option(c("-t", "--tree-file"), type="character", default=NULL,
+              help="path to tree file to be plotted", metavar="character"),
+  make_option(c("-m", "--metadata-file"), type="", default=NULL,
+              help="path to long-format metadata file containing columns:
+              wgs_id (ids of samples),
+              drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
+              main_lineage (main lineage of each samp),
+              drtype (Sensitive, pre-MDR, MDR etc),
+              dst (binary col of drug susceptibility test corresponding to drug column)", 
+              metavar="character"),
+  make_option(c("-p", "--project-code"), type="character", default=NULL,
+              help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"), 
+  make_option(c("-c", "--column"), type="character", default=NULL,
+              help="column name in which project code occurs e.g. 'drug'", metavar="character"), 
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="path and name of saved png", metavar="character")
+);
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+print("ARGUMENTS:")
+print(opt)
+print("---")
+print(str(opt))
+
+# setwd("~/Documents/comp_mut/")
 
 # Setup
-circular <- T
-if(circular){
-  layout <- "circular"
-}else{
-  layout <- "rectangular"
-}
-
-project_code <- 'isoniazid'
-project_code_col_name <- 'drug'
+# project_code <- 'isoniazid'
+project_code <- opt$project_code
+# project_code_col_name <- 'drug'
+project_code_col_name <- opt$column
 
 # Files ----
 
-tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
+# tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
+tree_file <- opt$tree_file
 # resistance_mutations_file <- "results/potential_res_mut_samps.csv"
-metadata_file <- "results/potential_res_mut_samps.csv"
-outfile <- paste0("results/", project_code, "_tree.png")
+# metadata_file <- "results/potential_res_mut_samps.csv"
+metadata_file <- opt$metadata_file
+# outfile <- paste0("results/", project_code, "_tree.png")
+outfile <- opt$outfile
 
 # Read in data ----
 
@@ -113,7 +129,7 @@ dr_data <- metadata[,'dst', drop = F]
 
 # Change col headers to match legends 
 lin_data_lab <- "Lineage"
-dr_status_lab <- "DR status"
+dr_status_lab <- "DR type"
 dr_data_lab <- paste(drug_abv, "DST")
 
 colnames(lin_data) <- lin_data_lab
