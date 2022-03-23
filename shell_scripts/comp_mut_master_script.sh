@@ -59,15 +59,15 @@ novel_comp_mut_model_results_file=${results_dir}${drug_of_interest}_novel_comp_m
 potential_res_mut_stats_file=${results_dir}potential_res_mut_stats.csv
 potential_res_mut_samples_file=${results_dir}potential_res_mut_samps.csv
 samples_for_vcf_file=${results_dir}${drug_of_interest}_res_mut_samps.txt
-
-# variant_calling_and_concat_gvcfs.sh
+# tree_pipeline.sh files
 gvcf_file_suffix=.g.vcf.gz 
-# variant_filtering.sh
 multi_samp_vcf=${vcf_dir}${drug_of_interest}.val.gt.g.vcf.gz
 filt_multi_samp_vcf_file=${vcf_dir}${drug_of_interest}.filt.val.gt.g.vcf.gz
-# vcf2fasta.sh
-# iqtree.sh
 fasta_file=${fasta_dir}/${drug_of_interest}.filt.val.gt.g.snps.fa
+newick_file=${newick_dir}${drug_of_interest}.filt.val.gt.g.snps.fa.treefile 
+# comp_mut_tree.R
+tree_png=${results_dir}${drug_of_interest}_tree.png
+
 
 
 # ---------------------------------------------------
@@ -120,10 +120,22 @@ python python_scripts/comp_mut2res_mut.py \
 # Put the samples into a file
 # ----------------------------
 
-cat ${potential_res_mut_samples_file} | csvtk grep -f drug -p isoniazid | csvtk cut -f samples | tail -n+2 > ${samples_for_vcf_file}
+cat ${potential_res_mut_samples_file} | csvtk grep -f drug -p ${drug_of_interest} | csvtk cut -f wgs_id | tail -n+2 > ${samples_for_vcf_file}
 
 # ------
 # Trees
 # ------
 
+# Run tree pipeline to get newick tree file
+if [ ! -f ${newick_file} ]; then
 tree_pipeline.sh ${drug_of_interest} ${vcf_db} ${samples_for_vcf_file} ${vcf_dir} ${fasta_dir} ${newick_dir}
+fi
+
+# Plot tree and save as png
+Rscript r_scripts/comp_mut_tree.R \
+--tree_file ${newick_file} \
+--metadata_file ${potential_res_mut_samples_file} \
+--project_code ${drug_of_interest} \
+--column 'drug' \
+--outfile ${tree_png}
+
