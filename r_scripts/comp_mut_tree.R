@@ -50,9 +50,9 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 # Arguments ----
 
 option_list = list(
-  make_option(c("-t", "--tree-file"), type="character", default=NULL,
+  make_option(c("-t", "--tree_file"), type="character", default=NULL,
               help="path to tree file to be plotted", metavar="character"),
-  make_option(c("-m", "--metadata-file"), type="", default=NULL,
+  make_option(c("-m", "--metadata_file"), type="", default=NULL,
               help="path to long-format metadata file containing columns:
               wgs_id (ids of samples),
               drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
@@ -60,7 +60,7 @@ option_list = list(
               drtype (Sensitive, pre-MDR, MDR etc),
               dst (binary col of drug susceptibility test corresponding to drug column)", 
               metavar="character"),
-  make_option(c("-p", "--project-code"), type="character", default=NULL,
+  make_option(c("-p", "--project_code"), type="character", default=NULL,
               help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"), 
   make_option(c("-c", "--column"), type="character", default=NULL,
               help="column name in which project code occurs e.g. 'drug'", metavar="character"), 
@@ -88,7 +88,6 @@ project_code_col_name <- opt$column
 
 # tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
 tree_file <- opt$tree_file
-# resistance_mutations_file <- "results/potential_res_mut_samps.csv"
 # metadata_file <- "results/potential_res_mut_samps.csv"
 metadata_file <- opt$metadata_file
 # outfile <- paste0("results/", project_code, "_tree.png")
