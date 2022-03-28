@@ -49,42 +49,61 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 
 # Arguments ----
 
-option_list = list(
-  make_option(c("-t", "--tree_file"), type="character", default=NULL,
-              help="path to tree file to be plotted", metavar="character"),
-  make_option(c("-m", "--metadata_file"), type="character", default=NULL,
-              help="path to long-format metadata file containing columns:
-              wgs_id (ids of samples),
-              drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
-              main_lineage (main lineage of each samp),
-              drtype (Sensitive, pre-MDR, MDR etc),
-              dst (binary col of drug susceptibility test corresponding to drug column)", 
-              metavar="character"), 
-  make_option(c("-p", "--project_code"), type="character", default=NULL,
-              help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"), 
-  make_option(c("-c", "--column"), type="character", default=NULL,
-              help="column name in which project code occurs e.g. 'drug'", metavar="character"),
-  make_option(c("-o", "--outfile"), type="character", default=NULL,
-              help="path and name of saved png", metavar="character")
-);
+# option_list = list(
+#   make_option(c("-t", "--tree_file"), type="character", default=NULL,
+#               help="path to tree file to be plotted", metavar="character"),
+#   make_option(c("-m", "--metadata_file"), type="character", default=NULL,
+#               help="path to long-format metadata file containing columns:
+#               wgs_id (ids of samples),
+#               drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
+#               main_lineage (main lineage of each samp),
+#               drtype (Sensitive, pre-MDR, MDR etc),
+#               dst (binary col of drug susceptibility test corresponding to drug column)", 
+#               metavar="character"), 
+#   make_option(c("-p", "--project_code"), type="character", default=NULL,
+#               help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"), 
+#   make_option(c("-c", "--column"), type="character", default=NULL,
+#               help="column name in which project code occurs e.g. 'drug'", metavar="character"),
+#   make_option(c("-o", "--outfile"), type="character", default=NULL,
+#               help="path and name of saved png", metavar="character")
+# );
 
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
 
-print("ARGUMENTS:")
-print(opt)
-print("---")
-print(str(opt))
 
+# opt_parser = OptionParser(option_list=option_list);
+# opt = parse_args(opt_parser);
+# 
+# print("ARGUMENTS:")
+# print(opt)
+# print("---")
+# print(str(opt))
+# 
+# # Setup
+# project_code <- opt$project_code
+# project_code_col_name <- opt$column
+# 
+# # Files ----
+# 
+# tree_file <- opt$tree_file
+# metadata_file <- opt$metadata_file
+# outfile <- opt$outfile
+
+
+
+# TESTING TESTING TESTING TESTING TESTING TESTING 
+setwd("~/Documents/comp_mut/")
 # Setup
-project_code <- opt$project_code
-project_code_col_name <- opt$column
+project_code <- "isoniazid"
+project_code_col_name <- "drug"
 
 # Files ----
 
-tree_file <- opt$tree_file
-metadata_file <- opt$metadata_file
-outfile <- opt$outfile
+tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
+metadata_file <- "results/potential_res_mut_samps.csv"
+outfile <- paste0("results/", project_code, "_tree.png")
+# TESTING TESTING TESTING TESTING TESTING TESTING 
+
+
 
 # Read in data ----
 
@@ -153,8 +172,7 @@ max_dist <- castor::get_tree_span(tree_all_samps, as_edge_count=FALSE)$max_dista
 # Make tree ----
 
 ggtree_all_samps <- ggtree(tree_all_samps, 
-                           size = line_sz)+
-  geom_treescale()
+                           size = line_sz)
 
 # Add lineage data 
 lin_hm <- gheatmap(ggtree_all_samps, lin_data, 
@@ -210,7 +228,8 @@ dr_data_hm <- gheatmap(dr_status_hm, dr_data,
                     labels = c("Sensitive", "Resistant", "NA"), na.value = "grey")+
   labs(fill = dr_data_lab)
 
-# Add the mutations labels
+# Add the mutations labels, make adjustments to spacing and add scale
+# For adding tip labels which are not sample IDs, see - https://yulab-smu.top/treedata-book/faq.html
 final_tree <- dr_data_hm %<+% metadata + 
   geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
               linetype = NULL,
@@ -219,7 +238,8 @@ final_tree <- dr_data_hm %<+% metadata +
               size = (n_samps*0.1)/font_sz)+
   scale_colour_discrete(guide = "none")+
   hexpand(.1, direction = 1) +
-  vexpand(.1)
+  vexpand(.1)+
+  geom_treescale(y = -5)
 
 # Save
 ggsave(outfile, final_tree)
