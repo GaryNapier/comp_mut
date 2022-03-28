@@ -153,8 +153,8 @@ max_dist <- castor::get_tree_span(tree_all_samps, as_edge_count=FALSE)$max_dista
 # Make tree ----
 
 ggtree_all_samps <- ggtree(tree_all_samps, 
-                           size = line_sz)
-  # coord_cartesian(ylim = y_lim)
+                           size = line_sz)+
+  geom_treescale()
 
 # Add lineage data 
 lin_hm <- gheatmap(ggtree_all_samps, lin_data, 
