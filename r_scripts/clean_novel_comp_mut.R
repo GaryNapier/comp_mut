@@ -63,20 +63,12 @@ print(opt)
 print("---")
 print(str(opt))
 
-# Files ----
-
-template_file <- opt$template_file_name
-
-print("FILES:")
-print(c(": ", ))
-
-
-
 # TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING 
 # setwd("~/Documents/comp_mut/")
 # drug_of_interest <- 'isoniazid'
 # tc_file <- "results/isoniazid_tc.txt"
 # gn_results_file <- "results/isoniazid_novel_comp_mut_model_results.csv"
+# outfile <- "results/isoniazid_novel_comp_mut_merged.csv"
 # TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING 
 
 
@@ -93,8 +85,6 @@ tc_results <- tc_results[tc_results["waldp"] < 0.05, ]
 
 tc_results <- tc_results[, c("gene2", "pos2")]
 names(tc_results) <- c("gene", "change")
-
-odr(unique(tc_results))
 
 gn_results <- gn_results[, c("term", "gene")]
 gn_results <- gn_results[, c("gene", "term")]
