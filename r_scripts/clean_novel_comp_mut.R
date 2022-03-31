@@ -36,48 +36,56 @@
 
 # Setup ----
 
+TESTING <- 0
+
 library(optparse)
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
-# Arguments ----
-
-option_list = list(
-  # EXAMPLE:
-  # make_option(c("-t", "--template_file_name"), type="character", default=NULL,
-  #             help="input template xml file", metavar="character"),
-
-  make_option(c("-t", "--tc_file"), type="character", default=NULL,
-              help="file of results for drug of interest from TC", metavar="character"),
-  make_option(c("-g", "--gn_results_file"), type="character", default=NULL,
-              help="file of results for drug of interest from GN (filter_novel_comp_mut.R)", metavar="character"),
-  make_option(c("-o", "--outfile"), type="character", default=NULL,
-              help="name of outfile", metavar="character")
-);
-
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
-
-print("ARGUMENTS:")
-print(opt)
-print("---")
-print(str(opt))
-
+if (TESTING){
 # TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING 
-# setwd("~/Documents/comp_mut/")
-# drug_of_interest <- 'isoniazid'
-# tc_file <- "results/isoniazid_tc.txt"
-# gn_results_file <- "results/isoniazid_novel_comp_mut_model_results.csv"
+setwd("~/Documents/comp_mut/")
+drug_of_interest <- 'isoniazid'
+tc_file <- paste0("results/", drug_of_interest, "_tc.txt")
+gn_results_file <- paste0("results/", drug_of_interest, "_novel_comp_mut_model_results.csv")
+cm_file <- "../pipeline/db/compensatory_mutations.csv"
 # outfile <- "results/isoniazid_novel_comp_mut_merged.csv"
-# TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING 
+}else{
 
+  # Arguments ----
+  
+  option_list = list(
+    make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
+                help="drug of interest", metavar="character"),
+    make_option(c("-t", "--tc_file"), type="character", default=NULL,
+                help="file of results for drug of interest from TC", metavar="character"),
+    make_option(c("-g", "--gn_results_file"), type="character", default=NULL,
+                help="file of results for drug of interest from GN (filter_novel_comp_mut.R)", metavar="character"),
+    make_option(c("-c", "--cm_file"), type="character", default=NULL,
+                help="file of known compensatory mutations", metavar="character"),
+    make_option(c("-o", "--outfile"), type="character", default=NULL,
+                help="name of outfile", metavar="character")
+  );
+  
+  opt_parser = OptionParser(option_list=option_list);
+  opt = parse_args(opt_parser);
+  
+  print("ARGUMENTS:")
+  print(opt)
+  print("---")
+  print(str(opt))
+  
+  drug_of_interest <- opt$drug_of_interest
+  tc_file <- opt$tc_file
+  gn_results_file <- opt$gn_results_file
+  cm_file <- opt$cm_file
+  outfile <- opt$outfile
+}
 
-tc_file <- opt$tc_file
-gn_results_file <- opt$gn_results_file
-outfile <- opt$outfile
 
 tc_results <- read.table(tc_file, header = T)
 gn_results <- read.csv(gn_results_file, header = T)
+cm <- read.csv(cm_file, header = T)
 
 # Wrangle
 tc_results <- round_cols(tc_results)
@@ -93,8 +101,15 @@ names(gn_results) <- c("gene", "change")
 results <- unique(rbind(tc_results, gn_results))
 results <- odr(results)
 
-write.csv(results, file = outfile, quote = F, row.names = F)
+# Get genes for drug of interest in know CM list
+cm_genes <- unique(cm[cm["Drug"] == drug_of_interest, "Gene"])
 
+# Filter out any results that are not in the CM genes list
+results <- results[results[, "gene"] %in% cm_genes, ]
+
+if (!TESTING){
+  write.csv(results, file = outfile, quote = F, row.names = F)
+}
 
 
 
