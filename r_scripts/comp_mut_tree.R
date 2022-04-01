@@ -254,7 +254,7 @@ if (TESTING){
   final_tree
 }else{
   # Save
-  ggsave(outfile, final_tree, width = 1100, height = 700, units = "px")
+  ggsave(outfile, final_tree, width = 1100, height = 700, units = "mm")
 }
 
 
