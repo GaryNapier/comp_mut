@@ -49,8 +49,7 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
 
     # Get stats for each variant
     stats_dict = defaultdict(dict)
-#     variants_passed = set()
-    variants_passed = defaultdict(dict)
+    variants_passed = set()
     # for var in variants:
     for var in variants:
 
@@ -66,15 +65,12 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
         # Filter and add to dict
         if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and num_lins > 1:
                 
-            variants_passed[var] = {'drug': drug_of_interest, 
-                                   'gene': var[0], 
-                                   'mutation': var[1],
-                                   'samples': samps}
-            
+            variants_passed.add(var)
+
             stats_dict[var] = {'drug': drug_of_interest, 
-                               'var': var, 
                                'gene': var[0], 
                                'mutation': var[1],
+                               'gene_mutation': var[0] + '-' + var[1],
                                'n_samps' : len(samps), 
                                'dst_prop': dst_proportion, 
                                'dr_prop': sensitive_geno_proportion, 
@@ -116,12 +112,19 @@ def main(args):
 
     # READ IN DATA
 
-    # Read in GLM results file
+    # # Read in GLM results file
+    # with open(potential_comp_mut_file, 'r') as f:
+    #     potential_comp_mut_dict = csv_to_dict(f)
+
+    # Read in potential CM results file
     with open(potential_comp_mut_file, 'r') as f:
-        potential_comp_mut_dict = csv_to_dict(f)
+        reader = csv.DictReader(f)
+        potential_comp_mut_list = []
+        for row in reader:
+            potential_comp_mut_list.append((row['gene'], row['change']))
 
     # Convert to list of tuples
-    potential_comp_mut_list = [(potential_comp_mut_dict[var]['gene'], potential_comp_mut_dict[var]['term']) for var in list(potential_comp_mut_dict)]
+    # potential_comp_mut_list = [(potential_comp_mut_dict[var]['gene'], potential_comp_mut_dict[var]['change']) for var in list(potential_comp_mut_dict)]
 
     # Read in metadata
     with open(metadata_file) as mf:
@@ -133,6 +136,9 @@ def main(args):
     # Read in tbdb file
     with open(tbdb_file, 'r') as f:
         tbdb_dict = csv_to_dict_multi(f, 'Drug')
+
+    # Known resistance mutations
+    krm = [(var['Gene'], var['Mutation']) for var in tbdb_dict[drug_of_interest]]
 
     # Read in DR types from json
     standardise_drtype = json.load(open(drtypes_file))
@@ -200,6 +206,12 @@ def main(args):
     # e.g. if the mutation is lineage specific, then filter out
     potential_comp_mut_filtered, potential_comp_mut_stats = filter_vars(potential_comp_mut_list, mutation2sample, meta_dict, drug_of_interest)
 
+    print(" --- list of potential comp mutations after filtering --- ")
+    print(potential_comp_mut_filtered)
+    print(" --- stats: --- ")
+    print(potential_comp_mut_stats)
+    print()
+
     # Add the filtered potential compensatory mutations 
     # to the list of known compensatory mutations for the drug of interest
     compensatory_mutations[drug_of_interest].update(potential_comp_mut_filtered)
@@ -207,11 +219,13 @@ def main(args):
     # ** MAIN BIT **
     # ** Go over all the samples and get the potential resistance mutations from the presence of comp mutations ** 
     potential_resistance_mutations = set()
+    i = 0
     for s in tqdm(samples):
         # Get the comp, res and other variants for each sample in the full sample list
         comp_var = [var for var in sample2mutation[s] if var in compensatory_mutations[drug_of_interest]]
         res_var = [var for var in sample2mutation[s] if var in resistance_mutations[drug_of_interest]]
         other_vars = [var for var in sample2mutation[s] if var not in compensatory_mutations[drug_of_interest] and var not in resistance_mutations[drug_of_interest]]
+        test = False
         # If there is at least one comp variant and there are no (known) resistance variants
         if len(comp_var)>0 and len(res_var)==0:
             # If there are no 'other' variants print the sample and the comp variants
@@ -220,79 +234,150 @@ def main(args):
                 print(s,comp_var)
             # Store the 'other' vars as potential resistance variants
             for var in other_vars:
+                test = True
                 potential_resistance_mutations.add(var)
+        if test == True:
+            i += 1 
+
+    print(i)
 
     # Filter the potential resistance variants in the same way as filtering the potential comp. variants
     potential_res_mut_filtered, potential_res_mut_stats = filter_vars(potential_resistance_mutations, mutation2sample, meta_dict, drug_of_interest)
 
     # Check potential resistance mutations have been found, quit if not
-    print()
-    print("FOUND %s POTENTIAL RESISTANCE MUTATIONS FOR %s" % (len(potential_res_mut_filtered), drug_of_interest))
-    print()
-
     if len(potential_res_mut_filtered) == 0:
         print()
         print("NO POTENTIAL RESISTANCE MUTATIONS FOUND FOR %s; QUITTING SCRIPT" % drug_of_interest)
         print()
         sys.exit()
-
+    else:
+        print()
+        print("FOUND %s POTENTIAL RESISTANCE MUTATIONS FOR %s" % (len(potential_res_mut_filtered), drug_of_interest))
+        print()
 
     # WRITE FILES
 
+    # Make a dict of samps and metadata for samps with the potential res. mutations
+
+    potential_res_mut_dict = {}
+
+    for var in potential_res_mut_filtered:
+        for samp in mutation2sample[var]:
+            potential_res_mut_dict[samp] = {'wgs_id': samp,
+                                            'drug': drug_of_interest, 
+                                            'gene': var[0], 
+                                            'mutation': var[1],
+                                            'gene_mutation': var[0] + '-' + var[1], 
+                                            'main_lineage': meta_dict[samp]['main_lineage'], 
+                                            'sublin':meta_dict[samp]['sublin'], 
+                                            'country_code': meta_dict[samp]['country_code'], 
+                                            'drtype': meta_dict[samp]['drtype'],
+                                            'dst': meta_dict[samp][drug_of_interest]}
+
+
     # Write dictionary to file:
-    if os.path.isfile(potential_res_mut_samples_file):
-        with open(potential_res_mut_samples_file, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_filtered)))
-            for var in potential_res_mut_filtered:
-                samps = potential_res_mut_filtered[var]['samples']
-                for samp in samps:
-                    writer.writerow({'drug': potential_res_mut_filtered[var]['drug'],
-                        'gene': potential_res_mut_filtered[var]['gene'], 
-                        'mutation': potential_res_mut_filtered[var]['mutation'], 
-                        'samples': samp})
+    # if os.path.isfile(potential_res_mut_samples_file):
+    #     with open(potential_res_mut_samples_file, 'a') as f:
+    #         writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_dict)))
+    #         for samp in potential_res_mut_dict:
+    #             writer.writerow(potential_res_mut_dict[samp])
             
-    else:
-        with open(potential_res_mut_samples_file, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_filtered)))
-            writer.writeheader()
-            for var in potential_res_mut_filtered:
-                samps = potential_res_mut_filtered[var]['samples']
-                for samp in samps:
-                    writer.writerow({'drug': potential_res_mut_filtered[var]['drug'],
-                        'gene': potential_res_mut_filtered[var]['gene'], 
-                        'mutation': potential_res_mut_filtered[var]['mutation'], 
-                        'samples': samp})
+    # else:
+    with open(potential_res_mut_samples_file, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_dict)))
+        writer.writeheader()
+        for samp in potential_res_mut_dict:
+            writer.writerow(potential_res_mut_dict[samp])
 
     # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
     # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
     cmd = "sed -i -e 's/\r//g' %s" % potential_res_mut_samples_file
     pp.run_cmd(cmd)
 
-    # Do sort uniq in case has been run on same drug before 
-    cmd = f'(head -n 1 {potential_res_mut_samples_file} && tail -n +2 {potential_res_mut_samples_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_samples_file}'
-    pp.run_cmd(cmd)
+    # # Do sort uniq in case has been run on same drug before 
+    # cmd = f'(head -n 1 {potential_res_mut_samples_file} && tail -n +2 {potential_res_mut_samples_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_samples_file}'
+    # pp.run_cmd(cmd)
 
     # Write stats dictionary to file:
-    if os.path.isfile(potential_res_mut_stats_file):
-        with open(potential_res_mut_stats_file, 'a', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
-            for row in potential_res_mut_stats:
-                writer.writerow(potential_res_mut_stats[row])
-    else:
-        with open(potential_res_mut_stats_file, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
-            writer.writeheader()
-            for row in potential_res_mut_stats:
-                writer.writerow(potential_res_mut_stats[row])
+    # if os.path.isfile(potential_res_mut_stats_file):
+    #     with open(potential_res_mut_stats_file, 'a', newline='') as f:
+    #         writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
+    #         for row in potential_res_mut_stats:
+    #             writer.writerow(potential_res_mut_stats[row])
+    # else:
+    with open(potential_res_mut_stats_file, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(potential_res_mut_stats)))
+        writer.writeheader()
+        for row in potential_res_mut_stats:
+            writer.writerow(potential_res_mut_stats[row])
 
     # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
     # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
     cmd = "sed -i -e 's/\r//g' %s" % potential_res_mut_stats_file
     pp.run_cmd(cmd)
 
-    # Do sort uniq in case has been run on same drug before 
-    cmd = f'(head -n 1 {potential_res_mut_stats_file} && tail -n +2 {potential_res_mut_stats_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_stats_file}'
-    pp.run_cmd(cmd)
+    # # Do sort uniq in case has been run on same drug before 
+    # cmd = f'(head -n 1 {potential_res_mut_stats_file} && tail -n +2 {potential_res_mut_stats_file} | sort | uniq) > tmp.csv && mv tmp.csv {potential_res_mut_stats_file}'
+    # pp.run_cmd(cmd)
+
+
+
+    # SUMMARY
+
+    print()
+    print("RM = any resistance mutation \n \
+        KRM = known RM \n \
+        PRM = potential RM \n \
+        CM = any compensatory mutation \n \
+        KCM = known CM \n \
+        PCM = potential CM \n")
+
+    # samps with any CM
+    samps_CM = []
+    for samp in sample2mutation:
+        if any(var in sample2mutation[samp] for var in compensatory_mutations[drug_of_interest]):
+            samps_CM.append(samp)
+
+    # samps with CM and any KRM
+    samps_CM_and_KRM = []
+    for samp in samps_CM:
+        if any(var in sample2mutation[samp] for var in resistance_mutations[drug_of_interest]):
+            samps_CM_and_KRM.append(samp)
+
+    # samps with CM and no KRM
+    samps_CM_and_no_KRM = []
+    for samp in samps_CM:
+        if not any(var in sample2mutation[samp] for var in resistance_mutations[drug_of_interest]):
+            samps_CM_and_no_KRM.append(samp)
+
+    # samps with CM, with no KRM and PKM
+    samps_CM_and_no_KRM_and_PRM = []
+    for samp in samps_CM_and_no_KRM:
+        if any(var in sample2mutation[samp] for var in potential_res_mut_filtered):
+            samps_CM_and_no_KRM_and_PRM.append(samp)
+
+    # samps with CM, with no KRM and no PRM
+    samps_CM_and_no_KRM_and_no_PRM = []
+    for samp in samps_CM_and_no_KRM:
+        if not any(var in sample2mutation[samp] for var in potential_res_mut_filtered):
+            samps_CM_and_no_KRM_and_no_PRM.append(samp)
+
+    summary_dict = {"n_total_CM": len(compensatory_mutations[drug_of_interest]),
+                    "n_PCM": len(potential_comp_mut_filtered),
+                    "n_KCM": len(compensatory_mutations[drug_of_interest])-len(potential_comp_mut_filtered),
+                    "n_PRM": len(potential_res_mut_filtered), 
+                    "n_samps_PRM": len(potential_res_mut_dict), 
+                    "n_samps_CM": len(samps_CM), 
+                    "n_samps_CM_and_KRM": len(samps_CM_and_KRM),
+                    "n_samps_CM_and_no_KRM": len(samps_CM_and_no_KRM), 
+                    "n_samps_CM_and_no_KRM_and_PRM": len(samps_CM_and_no_KRM_and_PRM), 
+                    "n_samps_CM_and_no_KRM_and_no_PRM": len(samps_CM_and_no_KRM_and_no_PRM)}
+
+    print()
+    print("summary for", drug_of_interest)
+    for x in summary_dict:
+        print(x, summary_dict[x])
+    print()
 
 
 parser = argparse.ArgumentParser(description='get novel potential resistance mutations from compensatory mutations',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
