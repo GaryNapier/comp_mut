@@ -244,7 +244,7 @@ final_tree <- dr_data_hm %<+% metadata +
   geom_treescale(y = -5)+
   annotate('text', 
            x = 0, y = c(n_samps, n_samps-(n_samps*0.1)),
-           label = c(drug_of_interest, 
+           label = c(project_code, 
                      sprintf("n = %s", n_samps)), 
            size = 7, 
            hjust = 0)
