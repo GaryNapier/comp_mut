@@ -53,11 +53,14 @@ sample_list=test_sample_list.txt
 temp_json_files_list=files.tmp
 # find_comp_mutations.py files
 novel_comp_mut_data_file=${results_dir}${drug_of_interest}_novel_comp_mut_data.txt
-# filter_comp_mut.R files
+# filter_novel_comp_mut.R files
 novel_comp_mut_model_results_file=${results_dir}${drug_of_interest}_novel_comp_mut_model_results.csv
+# clean_novel_comp_mut files
+tc_file=${results_dir}${drug_of_interest}_tc.txt
+novel_comp_mut_merged_file=${results_dir}${drug_of_interest}_novel_comp_mut_merged.csv
 # comp_mut2res_mut.py files
-potential_res_mut_stats_file=${results_dir}potential_res_mut_stats.csv
-potential_res_mut_samples_file=${results_dir}potential_res_mut_samps.csv
+potential_res_mut_stats_file=${results_dir}${drug_of_interest}_potential_res_mut_stats.csv
+potential_res_mut_samples_file=${results_dir}${drug_of_interest}_potential_res_mut_samps.csv
 samples_for_vcf_file=${results_dir}${drug_of_interest}_res_mut_samps.txt
 # tree_pipeline.sh files
 gvcf_file_suffix=.g.vcf.gz 
@@ -67,8 +70,6 @@ fasta_file=${fasta_dir}/${drug_of_interest}.filt.val.gt.g.snps.fa
 newick_file=${newick_dir}${drug_of_interest}.filt.val.gt.g.snps.fa.treefile 
 # comp_mut_tree.R
 tree_png=${results_dir}${drug_of_interest}_tree.png
-
-
 
 # ---------------------------------------------------
 # Find all novel comp mutations for drug of interest
@@ -98,6 +99,22 @@ Rscript r_scripts/filter_novel_comp_mut.R \
 --outfile ${novel_comp_mut_model_results_file} 
 fi
 
+# --------------------------------------------------------------------------------------------------------
+# Concatenate output of filter_novel_comp_mut.R with previous analyses of potential comp. mutations by TC
+# --------------------------------------------------------------------------------------------------------
+
+echo " --- CLEANING AND MERGING ${tc_file} AND ${novel_comp_mut_model_results_file} - RUNNING clean_novel_comp_mut.R"
+Rscript r_scripts/clean_novel_comp_mut.R \
+--drug_of_interest ${drug_of_interest} \
+--tc_file ${tc_file} \
+--gn_results_file ${novel_comp_mut_model_results_file} \
+--cm_file ${known_comp_mut_file} \
+--outfile ${novel_comp_mut_merged_file}
+echo "--- output from clean_novel_comp_mut.R - potential novel comp. mutations for ${drug_of_interest} ---"
+cat ${novel_comp_mut_merged_file}
+echo ""
+
+
 # ----------------------------------------------------------------------------------------
 # Filter potential novel compensatory mutations with tbprofiler critera 
 # (n lineages, proportion of samples drug resistant, proportion of samples DST resistant)
@@ -106,7 +123,7 @@ fi
 echo " --- GETTING POTENTIAL NEW RESISTANCE MUTATIONS FOR ${drug_of_interest}; RUNNING python_scripts/comp_mut2res_mut.py --- "
 python python_scripts/comp_mut2res_mut.py \
 --drug-of-interest ${drug_of_interest} \
---potential-comp-mut-file ${novel_comp_mut_model_results_file} \
+--potential-comp-mut-file ${novel_comp_mut_merged_file} \
 --metadata-file ${main_tb_metadata_file} \
 --tbdb-file ${tbdb_file} \
 --drtypes-file ${dr_types_file} \
