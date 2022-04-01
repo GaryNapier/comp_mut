@@ -36,7 +36,7 @@
 
 # Setup ----
 
-TESTING <- 1
+TESTING <- 0
 
 library(optparse)
 library(phytools)
