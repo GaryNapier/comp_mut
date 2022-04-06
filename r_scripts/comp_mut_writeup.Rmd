@@ -1,0 +1,164 @@
+---
+title: "Compensatory mutations in *ahpC* reveal novel *katG* mutations implicated in isoniazid resistance in Mycobacterium tuberculosis"
+output: 
+  bookdown::word_document2: 
+    fig_caption: yes
+    table_caption: yes
+    number_sections: no
+mainfont: Calibri
+fontsize: 11pt
+bibliography: all_refs.bib
+csl: biomed-central.csl
+---
+
+```{r setup, include=FALSE}
+
+# SETUP ----
+
+rm(list = ls())
+
+knitr::opts_chunk$set(echo = F)
+# options(scipen=1, digits=2)
+options(scipen=999, digits = 3)
+table_font_sz <- 8
+
+```
+
+```{r functions, echo = F}
+
+source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
+
+```
+
+```{r variables, echo = F}
+
+
+# VARIABLES ----
+
+id_col <- "wgs_id"
+rnd <- 3
+drugs <- c("rifampicin", "isoniazid", "ethambutol", "pyrazinamide", "streptomycin", 
+             "ofloxacin", "moxifloxacin", "levofloxacin", "amikacin", "kanamycin", "capreomycin", "ciprofloxacin", "prothionamide", 
+             "ethionamide", "para_aminosalicylic_acid", "cycloserine",
+             "clarithromycin", "clofazimine", "bedaquiline", "linezolid", "rifabutin", "delamanid")
+fq <- "fluoroquinolones, ofloxacin, levofloxacin, ciprofloxacin, moxifloxacin"
+agc <- "capreomycin, streptomycin, amikacin, kanamycin, aminoglycosides"
+align <- c("l", "r", "r")
+blue_col <- "cornflowerblue"
+plot_text_sz <- 0.5
+main_cex <- 1.5
+# dr_status_vect <- c("Sensitive", "Pre-MDR", "MDR", "Pre-XDR", "XDR", "Other")
+dr_status_vect <- c("Sensitive", "Pre-MDR-TB", "HR-TB", "RR-TB", "MDR-TB", "Pre-XDR-TB", "XDR-TB", "Other")
+
+```
+
+```{r paths, echo = F}
+
+# PATHS ----
+
+metadata_path <- "../metadata/"
+pipeline_db_path <- "../pipeline/db/"
+db_path <- "../tbdb/"
+
+```
+
+```{r files, echo = F}
+
+# FILES ----
+
+# Metadata
+metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+# Database data
+lineage_conversion_file <- paste0(pipeline_db_path, "lineage_conversions.txt")
+dr_genes_file <- paste0(db_path, "tbdb.csv")
+
+```
+
+```{r read_in_data, echo = F, warning=F}
+
+# READ IN DATA ----
+
+# Metadata
+metadata <- read.csv(metadata_file)
+# Database data
+lineage_conversions <- read.delim(lineage_conversion_file)
+# dr_genes <- read.delim(dr_genes_file, header = F)
+dr_genes <- read.csv(dr_genes_file)
+
+
+```
+
+
+
+
+
+## Abstract
+
+## Introduction
+
+## Results
+
+## Methods
+
+**Sequence data and processing**
+
+### Tables
+
+RM = any resistance mutation 
+KRM = known RM 
+PRM = potential RM 
+CM = any compensatory mutation 
+KCM = known CM 
+PCM = potential CM 
+```{r tables, echo = F, warning=F}
+
+# summary for isoniazid
+# {'n_PCM': 8, 'n_samps_PCM': 391, 'n_total_CM': 26, 'n_PRM': 14, 'n_samps_PRM': 74, 'n_samps_CM': 515, 'n_samps_CM_and_PRM': 28, 'n_samps_CM_KRM_no_PRM': 460, 'n_samps_CM_no_KRM': 31, 'n_samps_CM_no_KRM_PRM': 4, 'n_samps_CM_no_KRM_no_PRM': 27}
+
+
+total_cm <- 26
+new_cm <- 8
+known_cm <- total_cm-new_cm
+samps_with_cm <- 515
+samps_with_cm_and_any_rm
+
+
+
+```
+
+
+### Figures
+
+### References
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
