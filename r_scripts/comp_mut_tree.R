@@ -49,7 +49,7 @@ library(ggnewscale)
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
-<<<<<<< HEAD
+
 # Arguments ----
 
 option_list = list(
@@ -70,7 +70,7 @@ option_list = list(
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="path and name of saved png", metavar="character")
 );
-19
+
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
@@ -89,8 +89,6 @@ tree_file <- opt$tree_file
 metadata_file <- opt$metadata_file
 outfile <- opt$outfile
 
-
-=======
 if (!TESTING){
 
   # Arguments ----
@@ -133,7 +131,6 @@ if (!TESTING){
   outfile <- opt$outfile
 
 }else{
->>>>>>> 1d07a8b4ef803dde1e8fbcd5fbebc9e26c20957c
 
 # TESTING TESTING TESTING TESTING TESTING TESTING 
   setwd("~/Documents/comp_mut/")
