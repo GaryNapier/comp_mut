@@ -56,9 +56,10 @@ dr_status_vect <- c("Sensitive", "Pre-MDR-TB", "HR-TB", "RR-TB", "MDR-TB", "Pre-
 
 # PATHS ----
 
-metadata_path <- "../metadata/"
-pipeline_db_path <- "../pipeline/db/"
-db_path <- "../tbdb/"
+metadata_path <- "../../metadata/"
+pipeline_db_path <- "../../pipeline/db/"
+db_path <- "../../tbdb/"
+results_path <- "../results/"
 
 ```
 
@@ -71,10 +72,21 @@ metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
 # Database data
 lineage_conversion_file <- paste0(pipeline_db_path, "lineage_conversions.txt")
 dr_genes_file <- paste0(db_path, "tbdb.csv")
+KCM_file <- paste0(pipeline_db_path, "compensatory_mutations.csv")
 
 ```
 
-```{r read_in_data, echo = F, warning=F}
+```{r isoniazid-files, echo = F}
+
+# Results
+isoniazid_binary_table_file <- paste0(results_path, "isoniazid_binary_table.csv")
+isoniazid_PCM_merged_file <- paste0(results_path, "isoniazid_PCM_merged.csv")
+isoniazid_summary_file <- paste0(results_path, "isoniazid_summary.csv")
+isoniazid_tree_file <- paste0(results_path, "isoniazid_tree.png")
+
+```
+
+```{r read-in-data, echo = F, warning=F}
 
 # READ IN DATA ----
 
@@ -84,13 +96,33 @@ metadata <- read.csv(metadata_file)
 lineage_conversions <- read.delim(lineage_conversion_file)
 # dr_genes <- read.delim(dr_genes_file, header = F)
 dr_genes <- read.csv(dr_genes_file)
-
+KCM <- read.csv(KCM_file)
 
 ```
 
+```{r isoniazid-read-in-data, echo = F, warning=F}
 
+# Results
+isoniazid_binary_table <- read.csv(isoniazid_binary_table_file)
+isoniazid_PCM_merged <- read.csv(isoniazid_PCM_merged_file)
+isoniazid_summary <- read.csv(isoniazid_summary_file)
 
+```
 
+```{r isoniazid-clean-data, echo = F, warning=F}
+
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, 
+                                           function(x){gsub("\\[\\]", NA, as.character(x))}))
+
+isoniazid_KCM <- KCM[KCM[,"Gene"] == "ahpC", ]
+
+# Remove the PCMs in the KCM
+isoniazid_PCM_merged <- isoniazid_PCM_merged[!(isoniazid_PCM_merged$change %in% isoniazid_KCM$Mutation), ]
+
+# Transpose summary
+isoniazid_summary <- data.frame(n = t(isoniazid_summary))
+
+```
 
 ## Abstract
 
@@ -104,30 +136,52 @@ dr_genes <- read.csv(dr_genes_file)
 
 ### Tables
 
-RM = any resistance mutation 
-KRM = known RM 
-PRM = potential RM 
-CM = any compensatory mutation 
-KCM = known CM 
-PCM = potential CM 
-```{r tables, echo = F, warning=F}
+RM = any resistance mutation;
+KRM = known RM;
+PRM = potential RM;
+CM = any compensatory mutation;
+KCM = known CM;
+PCM = potential CM
+
+```{r tables-isoniazid, echo = F, warning=F}
 
 # summary for isoniazid
-# {'n_PCM': 8, 'n_samps_PCM': 391, 'n_total_CM': 26, 'n_PRM': 14, 'n_samps_PRM': 74, 'n_samps_CM': 515, 'n_samps_CM_and_PRM': 28, 'n_samps_CM_KRM_no_PRM': 460, 'n_samps_CM_no_KRM': 31, 'n_samps_CM_no_KRM_PRM': 4, 'n_samps_CM_no_KRM_no_PRM': 27}
+# n_CM_in_list_before_filtering 33
+# n_KCM_in_list 22
+# n_PCM_in_list_before_filtering 11
+# n_CM_in_list_after_filtering 26
+# n_PCM_in_list_after_filtering 4
+# n_CM_in_samps 15
+# n_KCM_in_samps 11
+# n_PCM_in_samps 4
+# n_KRM_in_samps 208
+# n_PRM_in_samps 14
+# n_samps_PRM 74
+# n_samps_CM 515
+# n_samps_CM_and_KRM 343
+# n_samps_CM_and_no_KRM 172
+# n_samps_CM_and_no_KRM_and_PRM 25
+# n_samps_CM_and_no_KRM_and_no_PRM 147
 
 
-total_cm <- 26
-new_cm <- 8
-known_cm <- total_cm-new_cm
-samps_with_cm <- 515
-samps_with_cm_and_any_rm
+# n_CM_in_list_before_filtering <- nrow(isoniazid_KCM) + nrow(isoniazid_PCM_merged)
+# n_KCM_in_list <- nrow(isoniazid_KCM)
+# n_PCM_in_list_before_filtering <- nrow(isoniazid_PCM_merged)
+# n_CM_in_list_after_filtering <- 
 
-
+knitr::kable(isoniazid_summary)
 
 ```
 
 
 ### Figures
+
+```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of isoniazid samples with potential new katG mutations" }
+
+knitr::include_graphics(isoniazid_tree_file)
+
+```
+
 
 ### References
 
