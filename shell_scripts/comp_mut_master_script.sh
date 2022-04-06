@@ -63,6 +63,7 @@ PRM_stats_file=${results_dir}${drug_of_interest}_PRM_stats.csv
 PRM_samples_file=${results_dir}${drug_of_interest}_PRM_samps.csv
 samples_for_vcf_file=${results_dir}${drug_of_interest}_RM_samps.txt
 binary_table_file=${results_dir}${drug_of_interest}_binary_table.csv
+summary_file=${results_dir}${drug_of_interest}_summary.csv
 # tree_pipeline.sh files
 gvcf_file_suffix=.g.vcf.gz 
 multi_samp_vcf=${vcf_dir}${drug_of_interest}.val.gt.g.vcf.gz
@@ -133,7 +134,8 @@ python python_scripts/comp_mut2res_mut.py \
 --vars-exclude-file ${vars_exclude_file} \
 --PRM-stats-file ${PRM_stats_file} \
 --PRM-samples-file ${PRM_samples_file} \
---binary-table-file ${binary_table_file}
+--binary-table-file ${binary_table_file} \
+--summary-file ${summary_file}
 
 # ----------------------------
 # Put the samples into a file
