@@ -36,6 +36,8 @@
 
 # Setup ----
 
+TESTING <- 0
+
 library(optparse)
 library(phytools)
 library(ggplot2)
@@ -47,6 +49,7 @@ library(ggnewscale)
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
+<<<<<<< HEAD
 # Arguments ----
 
 option_list = list(
@@ -87,20 +90,64 @@ metadata_file <- opt$metadata_file
 outfile <- opt$outfile
 
 
+=======
+if (!TESTING){
+
+  # Arguments ----
+
+  option_list = list(
+    make_option(c("-t", "--tree_file"), type="character", default=NULL,
+                help="path to tree file to be plotted", metavar="character"),
+    make_option(c("-m", "--metadata_file"), type="character", default=NULL,
+                help="path to long-format metadata file containing columns:
+                wgs_id (ids of samples),
+                drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
+                main_lineage (main lineage of each samp),
+                drtype (Sensitive, pre-MDR, MDR etc),
+                dst (binary col of drug susceptibility test corresponding to drug column)",
+                metavar="character"),
+    make_option(c("-p", "--project_code"), type="character", default=NULL,
+                help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"),
+    make_option(c("-c", "--column"), type="character", default=NULL,
+                help="column name in which project code occurs e.g. 'drug'", metavar="character"),
+    make_option(c("-o", "--outfile"), type="character", default=NULL,
+                help="path and name of saved png", metavar="character")
+  );
+  
+  opt_parser = OptionParser(option_list=option_list);
+  opt = parse_args(opt_parser);
+  
+  print("ARGUMENTS:")
+  print(opt)
+  print("---")
+  print(str(opt))
+  
+  # Setup
+  project_code <- opt$project_code
+  project_code_col_name <- opt$column
+  
+  # Files ----
+  
+  tree_file <- opt$tree_file
+  metadata_file <- opt$metadata_file
+  outfile <- opt$outfile
+
+}else{
+>>>>>>> 1d07a8b4ef803dde1e8fbcd5fbebc9e26c20957c
 
 # TESTING TESTING TESTING TESTING TESTING TESTING 
-# setwd("~/Documents/comp_mut/")
-# # Setup
-# project_code <- "isoniazid"
-# project_code_col_name <- "drug"
-# 
-# # Files ----
-# 
-# tree_file <- "newick/isoniazid.filt.val.gt.g.snps.fa.treefile"
-# metadata_file <- "results/potential_res_mut_samps.csv"
-# outfile <- paste0("results/", project_code, "_tree.png")
+  setwd("~/Documents/comp_mut/")
+  # Setup
+  project_code <- "isoniazid"
+  project_code_col_name <- "drug"
+  
+  # Files ----
+  tree_file <- paste0("newick/", project_code, ".filt.val.gt.g.snps.fa.treefile")
+  metadata_file <- paste0("results/", project_code, "_potential_res_mut_samps.csv")
+  outfile <- paste0("results/", project_code, "_tree.png")
 # TESTING TESTING TESTING TESTING TESTING TESTING 
-
+  
+}
 
 
 # Read in data ----
@@ -237,11 +284,21 @@ final_tree <- dr_data_hm %<+% metadata +
   scale_colour_discrete(guide = "none")+
   hexpand(.1, direction = 1) +
   vexpand(.1)+
-  geom_treescale(y = -5)
+  geom_treescale(y = -5)+
+  annotate('text', 
+           x = 0, y = c(n_samps, n_samps-(n_samps*0.1)),
+           label = c(project_code, 
+                     sprintf("n = %s", n_samps)), 
+           size = 7, 
+           hjust = 0)
 
-# Save
-ggsave(outfile, final_tree)
 
+if (TESTING){
+  final_tree
+}else{
+  # Save
+  ggsave(outfile, final_tree, width = 1100/3, height = 700/3, units = "mm")
+}
 
 
 

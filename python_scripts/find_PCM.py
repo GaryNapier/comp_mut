@@ -22,7 +22,7 @@ def main(args):
 
     # tbprofiler_results_location = 'tbprofiler_pakistan_results/'
     metadata_file = args.metadata_file
-    known_comp_mut_file = args.known_comp_mut_file
+    KCM_file = args.KCM_file
     drug_of_interest = args.drug_of_interest
     id_key = args.id_key
     tbprofiler_results_location = args.tbp_results
@@ -42,9 +42,9 @@ def main(args):
             # Make the id the key, but also recapitulate the id in the key-values by including everything
             meta_dict[row[id_key]] = row
 
-    # Get known compensatory mutations data - loading this data just to pull *genes* associated with drug of interest
+    # Get known compensatory mutations data - loading this data just to pull comp mut *genes* associated with drug of interest
     compensatory_mutations = defaultdict(set)
-    for row in csv.DictReader(open(known_comp_mut_file)):
+    for row in csv.DictReader(open(KCM_file)):
         if row['Drug'] != drug_of_interest: continue
         compensatory_mutations[row['Drug']].add((row['Gene'],row['Mutation']))
 
@@ -90,7 +90,7 @@ def main(args):
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--metadata-file', default = '', type = str, help = 'metadata file name with column of sample ids - only processes samples in this file')
-parser.add_argument('--known-comp-mut-file', default = '', type = str, help = 'csv of all known compensatory mutations; https://github.com/GaryNapier/pipeline/blob/main/db/compensatory_mutations.csv')
+parser.add_argument('--KCM-file', default = '', type = str, help = 'csv of all known compensatory mutations; https://github.com/GaryNapier/pipeline/blob/main/db/compensatory_mutations.csv')
 parser.add_argument('--drug-of-interest', default = '', type = str, help = 'drug associated with the compensatory mutations')
 parser.add_argument('--id-key', default = '', type = str, help = 'column name in metadata file with sample ids')
 parser.add_argument('--tbp-results', default="results/",type=str,help='tbprofiler results directory (json files)')

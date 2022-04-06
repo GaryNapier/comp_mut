@@ -27,7 +27,7 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 option_list = list(
   make_option(c("-m", "--metadata_file"), type="character", default=NULL,
               help="input location and name of metadata file", metavar="character"),
-  make_option(c("-u", "--novel_comp_mut_data_file"), type="character", default=NULL,
+  make_option(c("-u", "--PCM_data_file"), type="character", default=NULL,
               help="input location and name of mutations file", metavar="character"),
   make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
               help="e.g. isoniazid", metavar="character"),
@@ -60,12 +60,12 @@ mutations_data_path <- "~/Documents/comp_mut/results/"
 
 # For testing
 metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-novel_comp_mut_file <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_data.txt")
+PCM_file <- paste0(mutations_data_path, "isoniazid_PCM_data.txt")
 drug_of_interest <- "isoniazid"
-outfile <- paste0(mutations_data_path, "isoniazid_novel_comp_mut_model_results.csv")
+outfile <- paste0(mutations_data_path, "isoniazid_PCM_model_results.csv")
 
 metadata_file <- opt$metadata_file
-novel_comp_mut_file <- opt$novel_comp_mut_data_file
+PCM_file <- opt$PCM_data_file
 drug_of_interest <- opt$drug_of_interest
 outfile <- opt$outfile
 
@@ -75,7 +75,7 @@ outfile <- opt$outfile
 
 # Read in data
 metadata <- read.csv(metadata_file, header = T)
-novel_comp_mutations <- read.delim(novel_comp_mut_file, sep = "\t", header = T)
+PCM <- read.delim(PCM_file, sep = "\t", header = T)
 
 # --------
 # WRANGLE
@@ -86,35 +86,35 @@ metadata <- metadata[, c("wgs_id", "genotypic_drtype", "main_lineage", "sub_line
 # names(metadata) <- c("wgs_id", "genotypic_drtype", "main_lineage", "sub_lineage", "inh_dst")
 
 # Compensatory mutations gene
-comp_mut_gene <- unique(novel_comp_mutations$gene)
+comp_mut_gene <- unique(PCM$gene)
 
 # Split out mutation results by mutation - keep only if there are > 10 samples
-novel_comp_mutations_split <- split(novel_comp_mutations, novel_comp_mutations$change)
-novel_comp_mutations_split <- novel_comp_mutations_split[sapply(novel_comp_mutations_split, function(x){nrow(x) >= 10})]
+PCM_split <- split(PCM, PCM$change)
+PCM_split <- PCM_split[sapply(PCM_split, function(x){nrow(x) >= 10})]
 
 # Make a list storing the binary values of whether the samples have the novel comp mutations or not
-meta_change_list <- matrix(nrow = nrow(metadata), ncol = length(novel_comp_mutations_split))
-for(i in seq(novel_comp_mutations_split)){
+meta_change_list <- matrix(nrow = nrow(metadata), ncol = length(PCM_split))
+for(i in seq(PCM_split)){
   # meta_change_list[[i]] <- metadata
-  meta_change_list[,i] <- ifelse(metadata$wgs_id %in% novel_comp_mutations_split[[i]]$wgs_id, 1, 0)
+  meta_change_list[,i] <- ifelse(metadata$wgs_id %in% PCM_split[[i]]$wgs_id, 1, 0)
 }
 
 # cbind this data to the metadata
-metadata <- cbind(metadata, setNames(data.frame(meta_change_list), names(novel_comp_mutations_split)))
+metadata <- cbind(metadata, setNames(data.frame(meta_change_list), names(PCM_split)))
 # Tidy up the names otherwise the formulae in the glms can't handle the col names
 names(metadata) <- gsub(">", "_to_", names(metadata))
 names(metadata) <- gsub("-", "MINUS", names(metadata))
 
-# Do the same for the novel_comp_mutations_split list
-names(novel_comp_mutations_split) <- gsub(">", "_to_", names(novel_comp_mutations_split))
-names(novel_comp_mutations_split) <- gsub("-", "MINUS", names(novel_comp_mutations_split))
+# Do the same for the PCM_split list
+names(PCM_split) <- gsub(">", "_to_", names(PCM_split))
+names(PCM_split) <- gsub("-", "MINUS", names(PCM_split))
 
 # -------
 # MODELS
 # -------
 
 # Do the models 
-mutations <- names(novel_comp_mutations_split)
+mutations <- names(PCM_split)
 model_list <- list()
 for(i in seq(mutations)){
   mod <- as.formula(sprintf("%s ~ %s", drug_of_interest, mutations[i]))
