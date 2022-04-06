@@ -67,7 +67,7 @@ option_list = list(
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="path and name of saved png", metavar="character")
 );
-
+19
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
