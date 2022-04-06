@@ -93,6 +93,7 @@ def main(args):
     PRM_stats_file = args.PRM_stats_file
     PRM_samples_file = args.PRM_samples_file
     binary_table_file = args.binary_table_file
+    summary_file = args.summary_file
 
     # FILES
 
@@ -320,13 +321,21 @@ def main(args):
     # ----------- BINARY TABLE SUMMARY --------------
 
     binary_table = {}
+
     # CM
     for samp in sample2mutation:
+    #     CM_vars = [var for var in sample2mutation[samp] if var in compensatory_mutations[drug_of_interest]]
         CM_vars = [var for var in sample2mutation[samp] if var in CM]
         KRM_vars = [var for var in sample2mutation[samp] if var in resistance_mutations[drug_of_interest]]
         PRM_vars = [var for var in sample2mutation[samp] if var in PRM_filtered]
-    #     if len(CM_vars) > 0:
-        binary_table[samp] = {'CM': CM_vars, 'KRM': KRM_vars, 'PRM': PRM_vars}
+        other_vars = [var for var in sample2mutation[samp]]
+        
+        if len(CM_vars) > 0 or len(KRM_vars) > 0 or len(PRM_vars) > 0 or len(other_vars):
+            binary_table[samp] = {'wgs_id': samp, \
+                                'CM': CM_vars, \
+                                'KRM': KRM_vars, \
+                                'PRM': PRM_vars, \
+                                'other_vars': other_vars}
 
     # vars
     # CM
@@ -388,6 +397,11 @@ def main(args):
         writer.writeheader()
         for row in binary_table:
             writer.writerow(binary_table[row])
+
+    with open(summary_file, 'w', newline = '') as f:
+        writer = csv.DictWriter(f, fieldnames = summary_dict.keys())
+        writer.writeheader()
+        writer.writerow(summary_dict)
 
     # ------------ RARE muations in the DR genes for the drug of interest ----------------
 
@@ -494,7 +508,8 @@ parser.add_argument('--tbprofiler-results-dir', default = '', type = str, help =
 parser.add_argument('--vars-exclude-file', default = '', type = str, help = 'csv of gene,mutation to exclude. No header')
 parser.add_argument('--PRM-stats-file', default = '', type = str, help = 'name of output file of variants and their stats')
 parser.add_argument('--PRM-samples-file', default = '', type = str, help = 'name of output file of variants and their stats')
-parser.add_argument('--binary-table-file', default = '', type = str, help = 'name of output file of samples and all their types off mutation - CM, KRM, PRM, other')
+parser.add_argument('--binary-table-file', default = '', type = str, help = 'name of output file of samples and all their types of mutation - CM, KRM, PRM, other')
+parser.add_argument('--summary-file', default = '', type = str, help = 'name of output file of CM, KRM etc counts')
 parser.add_argument('--suffix', default = '.results.json', type = str, help = 'suffix of json files in tbprofiler_results_dir')
 
 parser.set_defaults(func=main)
