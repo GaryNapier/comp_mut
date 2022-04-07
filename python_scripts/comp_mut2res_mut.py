@@ -324,11 +324,13 @@ def main(args):
 
     # CM
     for samp in sample2mutation:
-    #     CM_vars = [var for var in sample2mutation[samp] if var in compensatory_mutations[drug_of_interest]]
         CM_vars = [var for var in sample2mutation[samp] if var in CM]
         KRM_vars = [var for var in sample2mutation[samp] if var in resistance_mutations[drug_of_interest]]
         PRM_vars = [var for var in sample2mutation[samp] if var in PRM_filtered]
-        other_vars = [var for var in sample2mutation[samp]]
+        other_vars = [var for var in sample2mutation[samp] \
+                    if var not in CM and \
+                    var not in resistance_mutations[drug_of_interest] and \
+                    var not in PRM_filtered]
         
         if len(CM_vars) > 0 or len(KRM_vars) > 0 or len(PRM_vars) > 0 or len(other_vars):
             binary_table[samp] = {'wgs_id': samp, \
@@ -336,6 +338,26 @@ def main(args):
                                 'KRM': KRM_vars, \
                                 'PRM': PRM_vars, \
                                 'other_vars': other_vars}
+
+    # Split out other vars in case more than one in there
+    for samp in binary_table:
+        other_vars = binary_table[samp]['other_vars']
+        other_var_genes = [x[0] for x in binary_table[samp]['other_vars']]
+        for gene in other_var_genes:
+            vars_gene = [var for var in other_vars if var[0] == gene]
+            binary_table[samp].update({gene: vars_gene})
+
+    # Fill out the keys for the rest of the samples, getting all unique keys first
+    binary_table_keys = []
+    for samp in binary_table:
+        binary_table_keys.append(list(binary_table[samp].keys()))
+    binary_table_keys = set(flat_list(binary_table_keys))
+
+    for samp in binary_table:
+        keys_current = set(binary_table[samp].keys())
+        keys_needed = [key for key in binary_table_keys if key not in keys_current]
+        for key in keys_needed: 
+            binary_table[samp].update({key: []})
 
     # vars
     # CM
