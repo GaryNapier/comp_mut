@@ -6,7 +6,7 @@ output:
     table_caption: yes
     number_sections: no
 mainfont: Calibri
-fontsize: 11pt
+fontsize: 10pt
 bibliography: all_refs.bib
 csl: biomed-central.csl
 ---
@@ -27,6 +27,10 @@ table_font_sz <- 8
 ```{r functions, echo = F}
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
+
+uniq_col <- function(x, split = "; "){
+  unique(unlist(strsplit(x, split)))
+}
 
 ```
 
@@ -55,6 +59,8 @@ dr_status_vect <- c("Sensitive", "Pre-MDR-TB", "HR-TB", "RR-TB", "MDR-TB", "Pre-
 ```{r paths, echo = F}
 
 # PATHS ----
+
+setwd("~/Documents/comp_mut/r_scripts/")
 
 metadata_path <- "../../metadata/"
 pipeline_db_path <- "../../pipeline/db/"
@@ -111,9 +117,15 @@ isoniazid_summary <- read.csv(isoniazid_summary_file)
 
 ```{r isoniazid-clean-data, echo = F, warning=F}
 
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, 
-                                           function(x){gsub("\\[\\]", NA, as.character(x))}))
+# Remove all the "[]" present in the binary table caused by python's lists
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){gsub("\\[\\]", NA, as.character(x))}))
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\[||\\]", "", as.character(x)) }))
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\), \\(", "; ", as.character(x)) }))
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\', \\'", "-", as.character(x)) }))
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\(||\\)", "", as.character(x)) }))
+isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\'", "", as.character(x)) }))
 
+# Subset KCM for isoniazid
 isoniazid_KCM <- KCM[KCM[,"Gene"] == "ahpC", ]
 
 # Remove the PCMs in the KCM
@@ -130,12 +142,6 @@ isoniazid_summary <- data.frame(n = t(isoniazid_summary))
 
 ## Results
 
-## Methods
-
-**Sequence data and processing**
-
-### Tables
-
 RM = any resistance mutation;
 KRM = known RM;
 PRM = potential RM;
@@ -143,35 +149,64 @@ CM = any compensatory mutation;
 KCM = known CM;
 PCM = potential CM
 
-```{r tables-isoniazid, echo = F, warning=F}
+##### Isoniazid and katG
 
-# summary for isoniazid
-# n_CM_in_list_before_filtering 33
-# n_KCM_in_list 22
-# n_PCM_in_list_before_filtering 11
-# n_CM_in_list_after_filtering 26
-# n_PCM_in_list_after_filtering 4
-# n_CM_in_samps 15
-# n_KCM_in_samps 11
-# n_PCM_in_samps 4
-# n_KRM_in_samps 208
-# n_PRM_in_samps 14
-# n_samps_PRM 74
-# n_samps_CM 515
-# n_samps_CM_and_KRM 343
-# n_samps_CM_and_no_KRM 172
-# n_samps_CM_and_no_KRM_and_PRM 25
-# n_samps_CM_and_no_KRM_and_no_PRM 147
+**Summary:**
 
 
-# n_CM_in_list_before_filtering <- nrow(isoniazid_KCM) + nrow(isoniazid_PCM_merged)
-# n_KCM_in_list <- nrow(isoniazid_KCM)
-# n_PCM_in_list_before_filtering <- nrow(isoniazid_PCM_merged)
-# n_CM_in_list_after_filtering <- 
 
+```{r isoniazid-summary-table, echo = F, warning=F}
+
+# Summary
 knitr::kable(isoniazid_summary)
 
+n_samps_CM_and_no_KRM_and_no_PRM <- isoniazid_summary["n_samps_CM_and_no_KRM_and_no_PRM", ]
+
 ```
+
+**Rare isoniazid (katG) variants**
+
+```{r isoniazid-rare-mutations, echo = F, warning=F}
+
+rare_katg_table <- subset(isoniazid_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & !(is.na(katG)) )
+n_samps_rare_katg <- nrow(rare_katg_table)
+n_rare_katg <- length(uniq_col(rare_katg_table$katG))
+rare_katg_cnts <- table(table(unlist(strsplit(rare_katg_table$katG, "; "))))
+
+```
+
+The `r n_samps_CM_and_no_KRM_and_no_PRM` samples with CM but no KRM and no PRM have many INH mutations just found in one or two of these samples (‘*rare INH mutations*’). 
+
+e.g. Looking at TBProfiler - sample ERR1035291 has CM ahpC-c.-74G>A and missense katG-p.Thr394Pro, but this is the only sample with this katG mutation. 
+
+`r n_samps_rare_katg`/`r n_samps_CM_and_no_KRM_and_no_PRM` of the samples with CM but no KRM and no PRM have any katG missense mutation, with `r n_rare_katg` distinct mutations.
+
+Most of these occur only once or twice and were therefore filtered out.
+
+The mutations occurring 3 or 4 times were only in one lineage so were also filtered
+
+`r knitr::kable(rare_katg_cnts)`
+
+**Isoniazid - samples with potential new resistance mutations which also have fabG1 DR mutations**
+
+```{r isoniazid-fabG, echo = F, warning=F}
+
+isoniazid_PRM_tab <- subset(isoniazid_binary_table, !(is.na(PRM)))
+
+
+x <- isoniazid_PRM_tab$KRM
+
+grepl("fabG1", "fabG1-c.-15C>T", fixed = TRUE)
+
+grepl("fabG1", x, fixed = TRUE)
+
+knitr::kable(table(isoniazid_PRM_tab$KRM))
+
+```
+
+## Methods
+
+**Sequence data and processing**
 
 
 ### Figures
@@ -181,6 +216,9 @@ knitr::kable(isoniazid_summary)
 knitr::include_graphics(isoniazid_tree_file)
 
 ```
+
+### Tables
+
 
 
 ### References
