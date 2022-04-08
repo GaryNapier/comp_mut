@@ -11,7 +11,7 @@ bibliography: all_refs.bib
 csl: biomed-central.csl
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo = F, warning=F, message=F}
 
 # SETUP ----
 
@@ -24,7 +24,17 @@ table_font_sz <- 8
 
 ```
 
-```{r functions, echo = F}
+```{r library, include=FALSE, echo = F, warning=F, message=F}
+
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(reshape2)
+library(janitor)
+
+```
+
+```{r functions, echo = F, warning=F, message=F}
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
@@ -32,9 +42,37 @@ uniq_col <- function(x, split = "; "){
   unique(unlist(strsplit(x, split)))
 }
 
+col_pc <- function(df, col){
+  round((df[, col] / sum(df[, col]))*100, 3)
+}
+
+len_uniq <- function(x){
+  length(unique(x))
+}
+
+rbind_force <- function(df1, df2){
+  rbind(df1, setNames(df2, names(df1)))
+}
+
+
+# Make quick pivot table summarising total unique values by column
+# my_formula arg must be call to the formula() function: formula(<col> ~ 'n')
+# Result:
+#             PRM            n
+#  katG-c.2223A>G  3   (4.05%)
+# katG-p.Arg484His  5   (6.76%)
+# ...
+# katG-p.Tyr413Cys  8  (10.81%)
+#           Total 74 (100.00%)
+pivot <- function(x, my_formula, value_var = "wgs_id"){
+  drop_cols(to_table(reshape2::dcast(x, my_formula, value.var = value_var, fun.aggregate = len_uniq),
+                     pc_dir = 'col'), 
+            'Total')
+}
+
 ```
 
-```{r variables, echo = F}
+```{r variables, echo = F, warning=F, message=F}
 
 
 # VARIABLES ----
@@ -56,7 +94,7 @@ dr_status_vect <- c("Sensitive", "Pre-MDR-TB", "HR-TB", "RR-TB", "MDR-TB", "Pre-
 
 ```
 
-```{r paths, echo = F}
+```{r paths, echo = F, warning=F, message=F}
 
 # PATHS ----
 
@@ -69,7 +107,7 @@ results_path <- "../results/"
 
 ```
 
-```{r files, echo = F}
+```{r files, echo = F, warning=F, message=F}
 
 # FILES ----
 
@@ -82,7 +120,7 @@ KCM_file <- paste0(pipeline_db_path, "compensatory_mutations.csv")
 
 ```
 
-```{r isoniazid-files, echo = F}
+```{r isoniazid-files, echo = F, warning=F, message=F}
 
 # Results
 isoniazid_binary_table_file <- paste0(results_path, "isoniazid_binary_table.csv")
@@ -92,7 +130,7 @@ isoniazid_tree_file <- paste0(results_path, "isoniazid_tree.png")
 
 ```
 
-```{r read-in-data, echo = F, warning=F}
+```{r read-in-data, echo = F, warning=F, message=F}
 
 # READ IN DATA ----
 
@@ -106,7 +144,7 @@ KCM <- read.csv(KCM_file)
 
 ```
 
-```{r isoniazid-read-in-data, echo = F, warning=F}
+```{r isoniazid-read-in-data, echo = F, warning=F, message=F}
 
 # Results
 isoniazid_binary_table <- read.csv(isoniazid_binary_table_file)
@@ -115,7 +153,7 @@ isoniazid_summary <- read.csv(isoniazid_summary_file)
 
 ```
 
-```{r isoniazid-clean-data, echo = F, warning=F}
+```{r isoniazid-clean-data, echo = F, warning=F, message=F}
 
 # Remove all the "[]" present in the binary table caused by python's lists
 isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){gsub("\\[\\]", NA, as.character(x))}))
@@ -124,6 +162,11 @@ isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x
 isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\', \\'", "-", as.character(x)) }))
 isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\(||\\)", "", as.character(x)) }))
 isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\'", "", as.character(x)) }))
+
+# Split out the other_vars to make extra row per mutation
+# isoniazid_binary_table <- isoniazid_binary_table %>%
+#   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
+#   unnest(other_vars)
 
 # Subset KCM for isoniazid
 isoniazid_KCM <- KCM[KCM[,"Gene"] == "ahpC", ]
@@ -153,16 +196,22 @@ PCM = potential CM
 
 **Summary:**
 
-
-
 ```{r isoniazid-summary-table, echo = F, warning=F}
 
 # Summary
-knitr::kable(isoniazid_summary)
 
 n_samps_CM_and_no_KRM_and_no_PRM <- isoniazid_summary["n_samps_CM_and_no_KRM_and_no_PRM", ]
 
+# PRM subset and summary
+isoniazid_PRM_tab <- subset(isoniazid_binary_table, !(is.na(PRM)))
+isoniazid_PRM_summary <- pivot(isoniazid_PRM_tab, formula(PRM ~ 'n'))
+
 ```
+
+`r knitr::kable(isoniazid_summary)`
+
+The isoniazid PRMs:
+`r knitr::kable(isoniazid_PRM_summary)`
 
 **Rare isoniazid (katG) variants**
 
@@ -177,7 +226,7 @@ rare_katg_cnts <- table(table(unlist(strsplit(rare_katg_table$katG, "; "))))
 
 The `r n_samps_CM_and_no_KRM_and_no_PRM` samples with CM but no KRM and no PRM have many INH mutations just found in one or two of these samples (‘*rare INH mutations*’). 
 
-e.g. Looking at TBProfiler - sample ERR1035291 has CM ahpC-c.-74G>A and missense katG-p.Thr394Pro, but this is the only sample with this katG mutation. 
+e.g. Looking at TBProfiler - sample ERR1035291 has CM ahpC-c.-74G>A and missense katG-p.Thr394Pro, but this is the only sample with this *katG* mutation. 
 
 `r n_samps_rare_katg`/`r n_samps_CM_and_no_KRM_and_no_PRM` of the samples with CM but no KRM and no PRM have any katG missense mutation, with `r n_rare_katg` distinct mutations.
 
@@ -187,22 +236,49 @@ The mutations occurring 3 or 4 times were only in one lineage so were also filte
 
 `r knitr::kable(rare_katg_cnts)`
 
-**Isoniazid - samples with potential new resistance mutations which also have fabG1 DR mutations**
+**Samples with potential PRMs - co-occurrences of other mutations**
 
 ```{r isoniazid-fabG, echo = F, warning=F}
 
-isoniazid_PRM_tab <- subset(isoniazid_binary_table, !(is.na(PRM)))
+isoniazid_PRM_KRM <- pivot(isoniazid_PRM_tab, formula(KRM ~ 'n'))
+# isoniazid_PRM_fabg <- pivot(isoniazid_PRM_tab, formula(fabG1 ~ 'n'))
+isoniazid_PRM_other <- pivot(isoniazid_PRM_tab, formula(other_vars ~ 'n'))
 
+isoniazid_PRM_KRM <- cbind('status' = rep('KRM', nrow(isoniazid_PRM_KRM)), isoniazid_PRM_KRM)
+isoniazid_PRM_other <- cbind('status' = rep('unknown', nrow(isoniazid_PRM_other)), isoniazid_PRM_other)
 
-x <- isoniazid_PRM_tab$KRM
-
-grepl("fabG1", "fabG1-c.-15C>T", fixed = TRUE)
-
-grepl("fabG1", x, fixed = TRUE)
-
-knitr::kable(table(isoniazid_PRM_tab$KRM))
+isoniazid_PRM_KRM_other <- rbind_force(isoniazid_PRM_KRM, isoniazid_PRM_other)
+isoniazid_PRM_KRM_other <- dplyr::rename(isoniazid_PRM_KRM_other, mutation = KRM)
 
 ```
+
+KRM and unknown mutations co-occurring in samples with PRM:
+`r knitr::kable(isoniazid_PRM_KRM_other)`
+
+Comparison to Ser315Thr and Ser315Thr-fabG1 co-occurrence.
+
+```{r isoniazid-Ser315Thr, echo = F, warning=F}
+
+# total n samps with a Ser315Thr mutation:  6877
+# n samples with p.Ser315Thr and a fabG1 DR mutation:  909
+# n samples with p.Ser315Thr and no fabG1 DR mutations:  5968
+# proportion:  0.132
+# n samps with a p.Ser315Thr mutation and a comp mutation:  177
+# proportion:  0.026
+
+ser315thr_tab <- subset(isoniazid_binary_table, grepl("Ser315Thr", isoniazid_binary_table$KRM))
+
+katg_fabg <- "katG-p.Ser315Thr; fabG1"
+ser315thr_tab$KRM_2 <- ifelse(grepl("katG-p.Ser315Thr; fabG1", ser315thr_tab$KRM), "katG-p.Ser315Thr; fabG1", ser315thr_tab$KRM)
+ser315thr_tab$KRM_2 <- ifelse(grepl("katG-p.Ser315Thr; katG", ser315thr_tab$KRM_2), "katG-p.Ser315Thr", ser315thr_tab$KRM_2)
+ser315thr_tab$KRM_2 <- ifelse(grepl("; katG-p.Ser315Thr", ser315thr_tab$KRM_2), "katG-p.Ser315Thr", ser315thr_tab$KRM_2)
+ser315thr_tab$KRM_2 <- ifelse(grepl("katG-p.Ser315Thr; inhA", ser315thr_tab$KRM_2), "katG-p.Ser315Thr; inhA", ser315thr_tab$KRM_2)
+ser315thr_pivot <- pivot(ser315thr_tab, formula(KRM_2 ~ 'n'))
+ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
+
+```
+
+`r knitr::kable(ser315thr_pivot)`
 
 ## Methods
 
