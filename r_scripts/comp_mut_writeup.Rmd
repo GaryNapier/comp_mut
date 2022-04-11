@@ -54,7 +54,6 @@ rbind_force <- function(df1, df2){
   rbind(df1, setNames(df2, names(df1)))
 }
 
-
 # Make quick pivot table summarising total unique values by column
 # my_formula arg must be call to the formula() function: formula(<col> ~ 'n')
 # Result:
@@ -68,6 +67,43 @@ pivot <- function(x, my_formula, value_var = "wgs_id"){
   drop_cols(to_table(reshape2::dcast(x, my_formula, value.var = value_var, fun.aggregate = len_uniq),
                      pc_dir = 'col'), 
             'Total')
+}
+
+duped <- function(x, col){
+  dups <- x[duplicated(x[col]), col]
+  x[x[, col] %in% dups, ]
+}
+
+# Swap first and second parts of string, splitting on a charachter (or substring)
+# e.g. 
+# x <- "katG-p.Ile335Val; katG-p.Ser315Thr"
+# swap_str(x, "; ")
+# "katG-p.Ser315Thr; katG-p.Ile335Val"
+swap_str <- function(x, split_chr = "; "){
+  paste0(unlist(strsplit(x, split_chr))[c(2, 1)], collapse = split_chr)
+}
+
+
+# Print each element of vector vertically instead of across the screen
+# e.g. 
+# > x <- c("a", "b", "c")
+# > x
+# [1] "a" "b" "c"
+# > print_vert(x)
+# a
+# b
+# c
+print_vert <- function(x){
+  cat(paste0(x, '\n'))
+}
+
+# Remove change from second gene-change pair
+# e.g.
+# x <- "katG-p.Ser315Thr; fabG1-c.-15C>T"
+# > drop_change(x, "-")
+# [1] "katG-p.Ser315Thr; fabG1"
+drop_change <- function(string, split_on = "-"){
+  unlist(lapply(strsplit(string, split_on), function(x){paste0(x[c(1, 2)], collapse = split_on)}))
 }
 
 ```
@@ -164,9 +200,12 @@ isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x
 isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\'", "", as.character(x)) }))
 
 # Split out the other_vars to make extra row per mutation
-# isoniazid_binary_table <- isoniazid_binary_table %>%
-#   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
-#   unnest(other_vars)
+isoniazid_binary_split <- data.frame(isoniazid_binary_table %>%
+  mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
+  unnest(other_vars))
+
+# Make col for just the other_vars genes, stripping out the change
+isoniazid_binary_split$other_vars_gene <- gsub("-.*", "", isoniazid_binary_split$other_vars)
 
 # Subset KCM for isoniazid
 isoniazid_KCM <- KCM[KCM[,"Gene"] == "ahpC", ]
@@ -255,7 +294,7 @@ isoniazid_PRM_KRM_other <- dplyr::rename(isoniazid_PRM_KRM_other, mutation = KRM
 KRM and unknown mutations co-occurring in samples with PRM:
 `r knitr::kable(isoniazid_PRM_KRM_other)`
 
-Comparison to Ser315Thr and Ser315Thr-fabG1 co-occurrence.
+Comparison to Ser315Thr and Ser315Thr-KRM in other isoniazid resistance genes.
 
 ```{r isoniazid-Ser315Thr, echo = F, warning=F}
 
@@ -268,11 +307,10 @@ Comparison to Ser315Thr and Ser315Thr-fabG1 co-occurrence.
 
 ser315thr_tab <- subset(isoniazid_binary_table, grepl("Ser315Thr", isoniazid_binary_table$KRM))
 
-katg_fabg <- "katG-p.Ser315Thr; fabG1"
-ser315thr_tab$KRM_2 <- ifelse(grepl("katG-p.Ser315Thr; fabG1", ser315thr_tab$KRM), "katG-p.Ser315Thr; fabG1", ser315thr_tab$KRM)
-ser315thr_tab$KRM_2 <- ifelse(grepl("katG-p.Ser315Thr; katG", ser315thr_tab$KRM_2), "katG-p.Ser315Thr", ser315thr_tab$KRM_2)
-ser315thr_tab$KRM_2 <- ifelse(grepl("; katG-p.Ser315Thr", ser315thr_tab$KRM_2), "katG-p.Ser315Thr", ser315thr_tab$KRM_2)
-ser315thr_tab$KRM_2 <- ifelse(grepl("katG-p.Ser315Thr; inhA", ser315thr_tab$KRM_2), "katG-p.Ser315Thr; inhA", ser315thr_tab$KRM_2)
+# Move ser315thr string to front e.g. fabG1-c.-15C>T; katG-p.Ser315Thr -> katG-p.Ser315Thr; fabG1-c.-15C>T
+ser315thr_tab$KRM <- ifelse(grepl("; katG-p.Ser315Thr", ser315thr_tab$KRM), swap_str(ser315thr_tab$KRM), ser315thr_tab$KRM)
+# Drop the specific change for the co-occurring gene - e.g. katG-p.Ser315Thr; fabG1-c.-15C>T ->  katG-p.Ser315Thr; fabG1
+ser315thr_tab$KRM_2 <- drop_change(ser315thr_tab$KRM)
 ser315thr_pivot <- pivot(ser315thr_tab, formula(KRM_2 ~ 'n'))
 ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
