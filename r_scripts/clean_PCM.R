@@ -36,20 +36,20 @@
 
 # Setup ----
 
-TESTING <- 0
+TESTING <- 1
 
 library(optparse)
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
 if (TESTING){
-# TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING 
-setwd("~/Documents/comp_mut/")
-drug_of_interest <- 'isoniazid'
-tc_file <- paste0("results/", drug_of_interest, "_tc.txt")
-gn_results_file <- paste0("results/", drug_of_interest, "_novel_comp_mut_model_results.csv")
-KCM_file <- "../pipeline/db/compensatory_mutations.csv"
-# outfile <- "results/isoniazid_novel_comp_mut_merged.csv"
+  # TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING 
+  setwd("~/Documents/comp_mut/")
+  drug_of_interest <- 'isoniazid'
+  tc_file <- paste0("metadata/", drug_of_interest, "_tc.txt")
+  gn_results_file <- paste0("results/", drug_of_interest, "_PCM_model_results.csv")
+  KCM_file <- "../pipeline/db/compensatory_mutations.csv"
+  # outfile <- "results/isoniazid_novel_comp_mut_merged.csv"
 }else{
 
   # Arguments ----
@@ -94,9 +94,10 @@ tc_results <- tc_results[tc_results["waldp"] < 0.05, ]
 tc_results <- tc_results[, c("gene2", "pos2")]
 names(tc_results) <- c("gene", "change")
 
-gn_results <- gn_results[, c("term", "gene")]
-gn_results <- gn_results[, c("gene", "term")]
-names(gn_results) <- c("gene", "change")
+# gn_results <- gn_results[, c("term", "gene")]
+# gn_results <- gn_results[, c("gene", "term")]
+gn_results <- gn_results[, c("gene", "change")]
+# names(gn_results) <- c("gene", "change")
 
 results <- unique(rbind(tc_results, gn_results))
 results <- odr(results)
