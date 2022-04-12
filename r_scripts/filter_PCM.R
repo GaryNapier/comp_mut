@@ -22,52 +22,60 @@ source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/F
 # OPTPARSE
 # ---------
 
-# Arguments ----
+TESTING <- 0
 
-option_list = list(
-  make_option(c("-m", "--metadata_file"), type="character", default=NULL,
-              help="input location and name of metadata file", metavar="character"),
-  make_option(c("-u", "--PCM_data_file"), type="character", default=NULL,
-              help="input location and name of mutations file", metavar="character"),
-  make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
-              help="e.g. isoniazid", metavar="character"),
-  make_option(c("-o", "--outfile"), type="character", default=NULL,
-              help="input location and name of output file", metavar="character")
-  );
+if(!TESTING){
 
-# make_option(c("-s", "--STUDY_ACCESSION"), type="character", default=NULL,
-#             help="input study accession number", metavar="character"),
+  # Arguments ----
+  
+  option_list = list(
+    make_option(c("-m", "--metadata_file"), type="character", default=NULL,
+                help="input location and name of metadata file", metavar="character"),
+    make_option(c("-u", "--PCM_data_file"), type="character", default=NULL,
+                help="input location and name of mutations file", metavar="character"),
+    make_option(c("-d", "--drug_of_interest"), type="character", default=NULL,
+                help="e.g. isoniazid", metavar="character"),
+    make_option(c("-o", "--outfile"), type="character", default=NULL,
+                help="input location and name of output file", metavar="character")
+    );
+  
+  # make_option(c("-s", "--STUDY_ACCESSION"), type="character", default=NULL,
+  #             help="input study accession number", metavar="character"),
+  
+  opt_parser = OptionParser(option_list=option_list);
+  opt = parse_args(opt_parser);
+  
+  print("ARGUMENTS:")
+  print(opt)
+  print("---")
+  print(str(opt))
+  
+  metadata_file <- opt$metadata_file
+  PCM_file <- opt$PCM_data_file
+  drug_of_interest <- opt$drug_of_interest
+  outfile <- opt$outfile
+  
+}else{
 
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
+  # ------
+  # PATHS
+  # ------
+  
+  # For testing
+  metadata_path <- "~/Documents/metadata/"
+  mutations_data_path <- "~/Documents/comp_mut/results/"
+  
+  # ------
+  # FILES
+  # ------
+  
+  # For testing
+  metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
+  PCM_file <- paste0(mutations_data_path, "isoniazid_PCM_data.txt")
+  drug_of_interest <- "isoniazid"
+  outfile <- paste0(mutations_data_path, "isoniazid_PCM_model_results.csv")
 
-print("ARGUMENTS:")
-print(opt)
-print("---")
-print(str(opt))
-
-# ------
-# PATHS
-# ------
-
-# For testing
-metadata_path <- "~/Documents/metadata/"
-mutations_data_path <- "~/Documents/comp_mut/results/"
-
-# ------
-# FILES
-# ------
-
-# For testing
-metadata_file <- paste0(metadata_path, "tb_data_18_02_2021.csv")
-PCM_file <- paste0(mutations_data_path, "isoniazid_PCM_data.txt")
-drug_of_interest <- "isoniazid"
-outfile <- paste0(mutations_data_path, "isoniazid_PCM_model_results.csv")
-
-metadata_file <- opt$metadata_file
-PCM_file <- opt$PCM_data_file
-drug_of_interest <- opt$drug_of_interest
-outfile <- opt$outfile
+}
 
 # -------------
 # READ IN DATA
@@ -88,8 +96,13 @@ metadata <- metadata[, c("wgs_id", "genotypic_drtype", "main_lineage", "sub_line
 # Compensatory mutations gene
 comp_mut_gene <- unique(PCM$gene)
 
+# Keep track of gene-mutation in case more than one gene
+PCM$gene_change <- paste0(PCM$gene, "-", PCM$change)
+gene_change_table <- unique(PCM[, c("gene", "change", "gene_change")])
+
 # Split out mutation results by mutation - keep only if there are > 10 samples
-PCM_split <- split(PCM, PCM$change)
+# PCM_split <- split(PCM, PCM$change)
+PCM_split <- split(PCM, PCM$gene_change)
 PCM_split <- PCM_split[sapply(PCM_split, function(x){nrow(x) >= 10})]
 
 # Make a list storing the binary values of whether the samples have the novel comp mutations or not
@@ -201,11 +214,12 @@ models_results <- models_results[!(models_results[, "estimate_lin"] < 0), ]
 models_results$term <- gsub("_to_", ">", models_results$term)
 models_results$term <- gsub("MINUS", "-", models_results$term)
 models_results[, sapply(models_results, is.numeric)] <- round(num_cols(models_results), 3)
-models_results$gene <- rep(comp_mut_gene, nrow(models_results))
+models_results <- merge(models_results, gene_change_table, 
+                        by.x = 'term', by.y = 'gene_change', sort = T)
 
-
-write.csv(models_results, file = outfile, row.names = F, quote = F)
-
+if(!TESTING){
+  write.csv(models_results, file = outfile, row.names = F, quote = F)
+}
 
 
 
