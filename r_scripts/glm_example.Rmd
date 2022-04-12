@@ -1,0 +1,196 @@
+---
+title: "Correlating mutations with DST and lineages GLM example"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r functions, echo = F}
+
+generate_data <- function(n, maj){
+  n <- 100
+  maj <- 0.9
+  samp <- c(0, 1)
+  probs <- c(maj, 1-maj)
+  probs_rev <- rev(probs)
+  dst_zero <- sample(samp, n, replace = T, prob = probs)
+  dst_one <- sample(samp, n, replace = T, prob = probs_rev)
+  mut_zero <- sample(samp, n, replace = T, prob = probs)
+  mut_one <- sample(samp, n, replace = T, prob = probs_rev)
+  
+  x <- data.frame(dst = c(dst_zero, dst_one), has_mut = c(mut_zero, mut_one)) 
+  
+  lineages <- c("lin1", "lin2", "lin3", "lin4")
+
+  lin_zero <- sample(lineages, n, replace = T)
+  lin_one <- sample(lineages, n, replace = T, prob = c(maj, rep((1-maj)/3, 3)))
+  
+  x$lin <- c(lin_zero, lin_one)
+  
+  x
+}
+
+
+```
+
+### Introduction
+
+
+### Set up the data and parameters
+
+n samples where the majority are DST -ve (0)
+n samples where the majority are DST +ve (1)
+n samples where the majority do not have a mutation (0)
+n samples where the majority have a mutation (1)
+
+```{r params}
+
+n <- 100
+maj <- 0.9
+samp <- c(0, 1)
+probs <- c(maj, 1-maj)
+probs_rev <- rev(probs)
+dst_zero <- sample(samp, n, replace = T, prob = probs)
+dst_one <- sample(samp, n, replace = T, prob = probs_rev)
+mut_zero <- sample(samp, n, replace = T, prob = probs)
+mut_one <- sample(samp, n, replace = T, prob = probs_rev)
+
+x <- data.frame(dst = c(dst_zero, dst_one), has_mut = c(mut_zero, mut_one)) 
+
+head(x, 10)
+tail(x, 10)
+
+cor(x)
+```
+
+### Run a model on this data 
+
+```{r first-model}
+model <- glm(formula = dst ~ has_mut, data = x, family = binomial(link = "logit"))
+
+summary(model)
+
+cols <- ifelse(x$dst == 1, "red", "blue")
+jit <- 0.5
+plot(jitter(x$dst, jit), jitter(x$has_mut, jit), col = cols)
+x_dst <- seq(0, 1, 0.01)
+y_has_mut <- predict(model, list(has_mut = x_dst),type="response")
+lines(x_dst, y_has_mut)
+
+```
+
+DST and presence of mutation are highly correlated. Model result is highly sig. 
+
+### Add lineages as co-variates
+
+Make lineage 1 highly correlated with presence of mutation (1) and DST positive (1)
+
+```{r add-lineages}
+
+lineages <- c("lin1", "lin2", "lin3", "lin4")
+
+lin_zero <- sample(lineages, n, replace = T)
+lin_one <- sample(lineages, n, replace = T, prob = c(maj, rep((1-maj)/3, 3)))
+
+x$lin <- c(lin_zero, lin_one)
+
+head(x, 10)
+tail(x, 10)
+
+```
+
+First run a model predicting DST from lineage
+
+```{r dst-lin}
+
+model_2 <- glm(formula = dst ~ lin - 1, data = x, family = binomial(link = "logit"))
+
+summary(model_2)
+
+```
+
+Model predicting DST from lineage and mutation
+
+```{r dst-lin-plus-mut}
+
+model_3 <- glm(formula = dst ~ lin + has_mut - 1, data = x,  family = binomial(link = "logit"))
+
+summary(model_3)
+
+```
+
+Is model_3 significantly different from the first model?
+
+```{r model-sig-diff}
+
+anova(model_3, model, test='Chisq')
+
+```
+
+### Problems/questions
+
+1. why are the results so different every time?
+
+Something like 10-20% of the models come out as non-signifcant when the lineages are added (DST ~ has mutation + lineages, compared to DST ~ has mutation only)
+
+```{r models-loop}
+
+models_list <- list()
+loops <- 100
+for (i in 1:loops){
+  data <- generate_data(n, maj)
+  model_loop <- glm(formula = dst ~ lin + has_mut - 1, data = data,  family = binomial(link = "logit"))
+  has_mut_coef <- summary(model_loop)$coefficients["has_mut", "Estimate"]
+  has_mut_p <- summary(model_loop)$coefficients["has_mut", "Pr(>|z|)"]
+  anova_test <- anova(model_loop, model, test='Chisq')  
+  anova_test_p <- anova_test$`Pr(>Chi)`[2]
+  models_list[[i]] <- round(c(has_mut_coef, has_mut_p, anova_test_p), 3)
+}
+
+model_df <- setNames(data.frame(do.call("rbind", models_list)), c("has_mut_coef", "has_mut_p", "model_p"))
+model_df$non_sig <- ifelse(model_df$model_p > 0.05, 1, 0)
+model_df_non_sig <- subset(model_df, non_sig == 1)
+model_df_non_sig
+nrow(model_df_non_sig)/nrow(model_df)
+
+```
+
+2. what are the relationships between lineage 1 coefficient/p-value and the mutation coefficient/p-value?
+
+The p-value for lineage 1 seems to vary a lot and the p-value for the presence of a mutation is always significant.
+
+Shouldn't the p-value for the mutation become non-significant in the presence of a highly-correlated variable (lineage)?
+
+```{r models-loop-2}
+
+models_list <- list()
+loops <- 10
+for (i in 1:loops){
+  data <- generate_data(n, maj)
+  model_loop <- glm(formula = dst ~ lin + has_mut - 1, data = data,  family = binomial(link = "logit"))
+  lin_coef <- summary(model_loop)$coefficients["linlin1", "Estimate"]
+  lin_p <- summary(model_loop)$coefficients["linlin1", "Pr(>|z|)"]
+  has_mut_coef <- summary(model_loop)$coefficients["has_mut", "Estimate"]
+  has_mut_p <- summary(model_loop)$coefficients["has_mut", "Pr(>|z|)"]
+  models_list[[i]] <- round(c(lin_coef, lin_p, has_mut_coef, has_mut_p), 3)
+}
+
+model_df <- setNames(data.frame(do.call("rbind", models_list)), c("lin_1_coef", "lin_1_p", "has_mut_coef", "has_mut_p"))
+model_df
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
