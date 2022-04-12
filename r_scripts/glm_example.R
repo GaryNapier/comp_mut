@@ -1,6 +1,6 @@
 
 
-n <- 50
+n <- 100
 maj <- 0.9
 samp <- c(0, 1)
 probs <- c(maj, 1-maj)
@@ -11,6 +11,11 @@ mut_zero <- sample(samp, n, replace = T, prob = probs)
 mut_one <- sample(samp, n, replace = T, prob = probs_rev)
 
 x <- data.frame(dst = c(dst_zero, dst_one), has_mut = c(mut_zero, mut_one)) 
+
+cor(x)
+# dst has_mut
+# dst     1.000   0.722
+# has_mut 0.722   1.000
 
 model <- glm(formula = dst ~ has_mut, data = x, family = binomial(link = "logit"))
 
@@ -50,15 +55,15 @@ cols_df <- cols_df[match(x[,'lin'], cols_df$lin), ]
 plot(jitter(x$dst, jit), jitter(x$has_mut, jit), col = cols_df$col)
 
 # y_has_mut <- predict(model_3, list(has_mut = x_dst), type="response")
-y_has_mut <- predict(model_3, type = "response")
+# y_has_mut <- predict(model_3, type = "response")
 
 # lines(x_dst, c(y_has_mut[1], y_has_mut))
 
 
-library(ggplot2)
-
-qplot(x = jitter(has_mut), y = jitter(dst), color = lin, data = x) +
-  stat_smooth(method = "lm", se = FALSE, fullrange = TRUE)
+# library(ggplot2)
+# 
+# qplot(x = jitter(has_mut), y = jitter(dst), color = lin, data = x) 
+#   # stat_smooth(method = "lm", se = FALSE, fullrange = TRUE)
 
 
 
