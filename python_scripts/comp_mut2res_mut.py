@@ -258,65 +258,65 @@ def main(args):
     PRM_filtered, PRM_stats = filter_vars(PRM, mutation2sample, meta_dict, drug_of_interest)
 
     # Check potential resistance mutations have been found, quit if not
-    if len(PRM_filtered) == 0:
-        print()
-        print("NO POTENTIAL RESISTANCE MUTATIONS FOUND FOR %s; QUITTING SCRIPT" % drug_of_interest)
-        print()
-        sys.exit()
-    else:
+    if len(PRM_filtered) > 0:
+
         print()
         print("FOUND %s POTENTIAL RESISTANCE MUTATIONS FOR %s" % (len(PRM_filtered), drug_of_interest))
         print()
 
-    # WRITE FILES
+        # WRITE FILES
 
-    # Make a dict of samps and metadata for samps with the potential res. mutations
+        # Make a dict of samps and metadata for samps with the potential res. mutations
 
-    PRM_dict = {}
+        PRM_dict = {}
 
-    for var in PRM_filtered:
-        for samp in mutation2sample[var]:
-            PRM_dict[samp] = {'wgs_id': samp,
-                            'drug': drug_of_interest, 
-                            'gene': var[0], 
-                            'mutation': var[1],
-                            'gene_mutation': var[0] + '-' + var[1], 
-                            'main_lineage': meta_dict[samp]['main_lineage'], 
-                            'sublin':meta_dict[samp]['sublin'], 
-                            'country_code': meta_dict[samp]['country_code'], 
-                            'drtype': meta_dict[samp]['drtype'],
-                            'dst': meta_dict[samp][drug_of_interest]}
+        for var in PRM_filtered:
+            for samp in mutation2sample[var]:
+                PRM_dict[samp] = {'wgs_id': samp,
+                                'drug': drug_of_interest, 
+                                'gene': var[0], 
+                                'mutation': var[1],
+                                'gene_mutation': var[0] + '-' + var[1], 
+                                'main_lineage': meta_dict[samp]['main_lineage'], 
+                                'sublin':meta_dict[samp]['sublin'], 
+                                'country_code': meta_dict[samp]['country_code'], 
+                                'drtype': meta_dict[samp]['drtype'],
+                                'dst': meta_dict[samp][drug_of_interest]}
 
-    with open(PRM_samples_file, 'w') as f:
-        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_dict)))
-        writer.writeheader()
-        for samp in PRM_dict:
-            writer.writerow(PRM_dict[samp])
+        with open(PRM_samples_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_dict)))
+            writer.writeheader()
+            for samp in PRM_dict:
+                writer.writerow(PRM_dict[samp])
 
-    # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
-    # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
-    cmd = "sed -i -e 's/\r//g' %s" % PRM_samples_file
-    pp.run_cmd(cmd)
+        # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
+        # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
+        cmd = "sed -i -e 's/\r//g' %s" % PRM_samples_file
+        pp.run_cmd(cmd)
 
-    # # Do sort uniq in case has been run on same drug before 
-    # cmd = f'(head -n 1 {PRM_samples_file} && tail -n +2 {PRM_samples_file} | sort | uniq) > tmp.csv && mv tmp.csv {PRM_samples_file}'
-    # pp.run_cmd(cmd)
+        # # Do sort uniq in case has been run on same drug before 
+        # cmd = f'(head -n 1 {PRM_samples_file} && tail -n +2 {PRM_samples_file} | sort | uniq) > tmp.csv && mv tmp.csv {PRM_samples_file}'
+        # pp.run_cmd(cmd)
 
-    with open(PRM_stats_file, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_stats)))
-        writer.writeheader()
-        for row in PRM_stats:
-            writer.writerow(PRM_stats[row])
+        with open(PRM_stats_file, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_stats)))
+            writer.writeheader()
+            for row in PRM_stats:
+                writer.writerow(PRM_stats[row])
 
-    # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
-    # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
-    cmd = "sed -i -e 's/\r//g' %s" % PRM_stats_file
-    pp.run_cmd(cmd)
+        # Remove stupid "^M" ('carriage return') character that python stupidly puts on to the end of each line, completely messing up my pipeline!!!
+        # https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it
+        cmd = "sed -i -e 's/\r//g' %s" % PRM_stats_file
+        pp.run_cmd(cmd)
 
-    # # Do sort uniq in case has been run on same drug before 
-    # cmd = f'(head -n 1 {PRM_stats_file} && tail -n +2 {PRM_stats_file} | sort | uniq) > tmp.csv && mv tmp.csv {PRM_stats_file}'
-    # pp.run_cmd(cmd)
+        # # Do sort uniq in case has been run on same drug before 
+        # cmd = f'(head -n 1 {PRM_stats_file} && tail -n +2 {PRM_stats_file} | sort | uniq) > tmp.csv && mv tmp.csv {PRM_stats_file}'
+        # pp.run_cmd(cmd)
 
+    else:
+        print()
+        print("NO POTENTIAL RESISTANCE MUTATIONS FOUND FOR %s" % drug_of_interest)
+        print()
 
     # ----------- BINARY TABLE SUMMARY --------------
 
@@ -425,97 +425,97 @@ def main(args):
         writer.writeheader()
         writer.writerow(summary_dict)
 
-    # ------------ RARE muations in the DR genes for the drug of interest ----------------
+    # # ------------ RARE muations in the DR genes for the drug of interest ----------------
 
-    # i.e. example of CM samps with no PRM.
-    # However these samples will likely have a mutation in the relevant DR genes because they have CM
-    # But filtered because there is only one or two, or lineage specific
-    # use samps_CM_and_no_KRM_and_no_PRM
+    # # i.e. example of CM samps with no PRM.
+    # # However these samples will likely have a mutation in the relevant DR genes because they have CM
+    # # But filtered because there is only one or two, or lineage specific
+    # # use samps_CM_and_no_KRM_and_no_PRM
 
-    # Pull the DR mutations from these samps
-    rare_vars = []
-    n_samps_rare_vars = 0
-    for samp in samps_CM_and_no_KRM_and_no_PRM:
-    #     rare_var_samp = [var for var in sample2mutation[samp] if var[0] in genes]
-        rare_var_samp = [var for var in sample2mutation[samp] if var[0] == 'katG']
-        if len(rare_var_samp) > 0:
-            rare_vars.append(rare_var_samp)
-            n_samps_rare_vars += 1
+    # # Pull the DR mutations from these samps
+    # rare_vars = []
+    # n_samps_rare_vars = 0
+    # for samp in samps_CM_and_no_KRM_and_no_PRM:
+    #     # rare_var_samp = [var for var in sample2mutation[samp]]
+    #     rare_var_samp = [var for var in sample2mutation[samp] if var[0] == 'katG']
+    #     if len(rare_var_samp) > 0:
+    #         rare_vars.append(rare_var_samp)
+    #         n_samps_rare_vars += 1
 
-    # How many samps have rare katg?
-    n_samps_rare_vars
-    # # How many distinct rare vars in this list?
-    rare_var_cnt = Counter(flat_list(rare_vars))
-    n_rare_vars = len(rare_var_cnt)
-    # # Table of counts
-    n_n_rare_vars = Counter(rare_var_cnt.values())
+    # # How many samps have rare katg?
+    # n_samps_rare_vars
+    # # # How many distinct rare vars in this list?
+    # rare_var_cnt = Counter(flat_list(rare_vars))
+    # n_rare_vars = len(rare_var_cnt)
+    # # # Table of counts
+    # n_n_rare_vars = Counter(rare_var_cnt.values())
 
-    print()
-    print(" --- RARE MUTATIONS IN", drug_of_interest, "---")
-    print("n samps with a rare", drug_of_interest,":", n_samps_rare_vars)
-    print("n distinct rare", drug_of_interest, "vars:", n_rare_vars)
-    print("table of rare", drug_of_interest, "var occurrences:")
-    print(n_n_rare_vars)
-    print()
+    # print()
+    # print(" --- RARE MUTATIONS IN", drug_of_interest, "---")
+    # print("n samps with a rare", drug_of_interest,":", n_samps_rare_vars)
+    # print("n distinct rare", drug_of_interest, "vars:", n_rare_vars)
+    # print("table of rare", drug_of_interest, "var occurrences:")
+    # print(n_n_rare_vars)
+    # print()
 
-    # ---------- KATG POST-HOC ANALYSIS ----------
+    # # ---------- KATG POST-HOC ANALYSIS ----------
 
-    if drug_of_interest == 'isoniazid':
-        co_gene = 'fabG1'
-        fabg_dr_mutations = {(var['Gene'], var['Mutation']) \
-                            for var in tbdb_dict[drug_of_interest] \
-                            if var['Gene'] == co_gene}
+    # if drug_of_interest == 'isoniazid':
+    #     co_gene = 'fabG1'
+    #     fabg_dr_mutations = {(var['Gene'], var['Mutation']) \
+    #                         for var in tbdb_dict[drug_of_interest] \
+    #                         if var['Gene'] == co_gene}
 
-        # Co-occurrence with fabG1 in samples with potential INH res. mutations
-        co_gene_variants = []
-        for samp in PRM_dict:
-            variants = sample2mutation[samp]
-            co_gene_variants.append([v for v in variants if v in fabg_dr_mutations])
+    #     # Co-occurrence with fabG1 in samples with potential INH res. mutations
+    #     co_gene_variants = []
+    #     for samp in PRM_dict:
+    #         variants = sample2mutation[samp]
+    #         co_gene_variants.append([v for v in variants if v in fabg_dr_mutations])
 
-        co_gene_variants = flat_list(co_gene_variants)
+    #     co_gene_variants = flat_list(co_gene_variants)
 
-        fabg_count = dict(Counter(co_gene_variants))
+    #     fabg_count = dict(Counter(co_gene_variants))
 
-        print("n samples having potential new resistance mutations which also have fabG1 DR mutations:")
-        print(fabg_count)
-        print("proportions:")
-        print({count: round(fabg_count[count]/len(PRM_dict), 3) for count in fabg_count})
+    #     print("n samples having potential new resistance mutations which also have fabG1 DR mutations:")
+    #     print(fabg_count)
+    #     print("proportions:")
+    #     print({count: round(fabg_count[count]/len(PRM_dict), 3) for count in fabg_count})
 
-        # Compare to p.Ser315Thr - get proportion of samples with p.Ser315Thr that don't have a fabG1
-        katg_ser315thr = ('katG', 'p.Ser315Thr')
-        ser315thr_samps = []
-        Ser315Thr_fabg_samps = []
-        Ser315Thr_no_fabg_samps = []
-        ser315thr_comp_mut_samps = []
-        for samp in sample2mutation:
-            mutations = sample2mutation[samp]
+    #     # Compare to p.Ser315Thr - get proportion of samples with p.Ser315Thr that don't have a fabG1
+    #     katg_ser315thr = ('katG', 'p.Ser315Thr')
+    #     ser315thr_samps = []
+    #     Ser315Thr_fabg_samps = []
+    #     Ser315Thr_no_fabg_samps = []
+    #     ser315thr_comp_mut_samps = []
+    #     for samp in sample2mutation:
+    #         mutations = sample2mutation[samp]
 
-            # Total n samps with Ser315Thr
-            if (katg_ser315thr in mutations):
-                ser315thr_samps.append(samp)
+    #         # Total n samps with Ser315Thr
+    #         if (katg_ser315thr in mutations):
+    #             ser315thr_samps.append(samp)
 
-            if (katg_ser315thr in mutations) and (any(var in mutations for var in fabg_dr_mutations)):
-                Ser315Thr_fabg_samps.append(samp)
+    #         if (katg_ser315thr in mutations) and (any(var in mutations for var in fabg_dr_mutations)):
+    #             Ser315Thr_fabg_samps.append(samp)
 
-            if (katg_ser315thr in mutations) and not (any(var in mutations for var in fabg_dr_mutations)):
-                Ser315Thr_no_fabg_samps.append(samp)
+    #         if (katg_ser315thr in mutations) and not (any(var in mutations for var in fabg_dr_mutations)):
+    #             Ser315Thr_no_fabg_samps.append(samp)
                 
-            # How many of the S315 samples have comp mutations?
-            if (katg_ser315thr in mutations) and (any(var in mutations for var in CM)):
-                ser315thr_comp_mut_samps.append(samp)
+    #         # How many of the S315 samples have comp mutations?
+    #         if (katg_ser315thr in mutations) and (any(var in mutations for var in CM)):
+    #             ser315thr_comp_mut_samps.append(samp)
 
-        Ser315Thr_fabg_prop = round(len(Ser315Thr_fabg_samps) / len(ser315thr_samps), 3)
+    #     Ser315Thr_fabg_prop = round(len(Ser315Thr_fabg_samps) / len(ser315thr_samps), 3)
 
-        print("total n samps with a Ser315Thr mutation: ", len(ser315thr_samps))
-        print("n samples with p.Ser315Thr and a fabG1 DR mutation: ", len(Ser315Thr_fabg_samps))
-        print("n samples with p.Ser315Thr and no fabG1 DR mutations: ", len(Ser315Thr_no_fabg_samps))
-        print("proportion: ", Ser315Thr_fabg_prop)
-        print("n samps with a p.Ser315Thr mutation and a comp mutation: ", len(ser315thr_comp_mut_samps) )
-        print("proportion: ", round(len(ser315thr_comp_mut_samps) / len(ser315thr_samps), 3))
+    #     print("total n samps with a Ser315Thr mutation: ", len(ser315thr_samps))
+    #     print("n samples with p.Ser315Thr and a fabG1 DR mutation: ", len(Ser315Thr_fabg_samps))
+    #     print("n samples with p.Ser315Thr and no fabG1 DR mutations: ", len(Ser315Thr_no_fabg_samps))
+    #     print("proportion: ", Ser315Thr_fabg_prop)
+    #     print("n samps with a p.Ser315Thr mutation and a comp mutation: ", len(ser315thr_comp_mut_samps) )
+    #     print("proportion: ", round(len(ser315thr_comp_mut_samps) / len(ser315thr_samps), 3))
 
-        # 2 measures - fitness cost and levels of res
-        # fabg1 gives extra resistance
-        # therefore how 'resistant' are the new ones?
+    #     # 2 measures - fitness cost and levels of res
+    #     # fabg1 gives extra resistance
+    #     # therefore how 'resistant' are the new ones?
 
 
 parser = argparse.ArgumentParser(description='get novel potential resistance mutations from compensatory mutations',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
