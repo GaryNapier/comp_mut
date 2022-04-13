@@ -106,6 +106,16 @@ drop_change <- function(string, split_on = "-"){
   unlist(lapply(strsplit(string, split_on), function(x){paste0(x[c(1, 2)], collapse = split_on)}))
 }
 
+clean_binary_table <- function(x){
+  x <- data.frame(apply(x, 2, function(x){gsub("\\[\\]", NA, as.character(x))}))
+  x <- data.frame(apply(x, 2, function(x){ gsub("\\[||\\]", "", as.character(x)) }))
+  x <- data.frame(apply(x, 2, function(x){ gsub("\\), \\(", "; ", as.character(x)) }))
+  x <- data.frame(apply(x, 2, function(x){ gsub("\\', \\'", "-", as.character(x)) }))
+  x <- data.frame(apply(x, 2, function(x){ gsub("\\(||\\)", "", as.character(x)) }))
+  x <- data.frame(apply(x, 2, function(x){ gsub("\\'", "", as.character(x)) }))
+  x
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -166,6 +176,15 @@ isoniazid_tree_file <- paste0(results_path, "isoniazid_tree.png")
 
 ```
 
+```{r rifampicin-files, echo = F, warning=F, message=F}
+
+rifampicin_binary_table_file <- paste0(results_path, "rifampicin_binary_table.csv")
+rifampicin_PCM_merged_file <- paste0(results_path, "rifampicin_PCM_merged.csv")
+rifampicin_summary_file <- paste0(results_path, "rifampicin_summary.csv")
+rifampicin_tree_file <- paste0(results_path, "rifampicin_tree.png")
+
+```
+
 ```{r read-in-data, echo = F, warning=F, message=F}
 
 # READ IN DATA ----
@@ -182,22 +201,24 @@ KCM <- read.csv(KCM_file)
 
 ```{r isoniazid-read-in-data, echo = F, warning=F, message=F}
 
-# Results
 isoniazid_binary_table <- read.csv(isoniazid_binary_table_file)
 isoniazid_PCM_merged <- read.csv(isoniazid_PCM_merged_file)
 isoniazid_summary <- read.csv(isoniazid_summary_file)
 
 ```
 
+```{r rifampicin-read-in-data, echo = F, warning=F, message=F}
+
+rifampicin_binary_table <- read.csv(rifampicin_binary_table_file)
+rifampicin_PCM_merged <- read.csv(rifampicin_PCM_merged_file)
+rifampicin_summary <- read.csv(rifampicin_summary_file)
+
+```
+
 ```{r isoniazid-clean-data, echo = F, warning=F, message=F}
 
 # Remove all the "[]" present in the binary table caused by python's lists
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){gsub("\\[\\]", NA, as.character(x))}))
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\[||\\]", "", as.character(x)) }))
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\), \\(", "; ", as.character(x)) }))
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\', \\'", "-", as.character(x)) }))
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\(||\\)", "", as.character(x)) }))
-isoniazid_binary_table <- data.frame(apply(isoniazid_binary_table, 2, function(x){ gsub("\\'", "", as.character(x)) }))
+isoniazid_binary_table <- clean_binary_table(isoniazid_binary_table)
 
 # Split out the other_vars to make extra row per mutation
 isoniazid_binary_split <- data.frame(isoniazid_binary_table %>%
@@ -217,6 +238,31 @@ isoniazid_PCM_merged <- isoniazid_PCM_merged[!(isoniazid_PCM_merged$change %in% 
 isoniazid_summary <- data.frame(n = t(isoniazid_summary))
 
 ```
+
+```{r rifampicin-clean-data, echo = F, warning=F, message=F}
+
+# Remove all the "[]" present in the binary table caused by python's lists
+rifampicin_binary_table <- clean_binary_table(rifampicin_binary_table)
+
+# Split out the other_vars to make extra row per mutation
+rifampicin_binary_split <- data.frame(rifampicin_binary_table %>%
+  mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
+  unnest(other_vars))
+
+# Make col for just the other_vars genes, stripping out the change
+rifampicin_binary_split$other_vars_gene <- gsub("-.*", "", rifampicin_binary_split$other_vars)
+
+# Subset KCM for rifampicin
+rifampicin_KCM <- KCM[KCM[,"Gene"] == "ahpC", ]
+
+# Remove the PCMs in the KCM
+rifampicin_PCM_merged <- rifampicin_PCM_merged[!(rifampicin_PCM_merged$change %in% rifampicin_KCM$Mutation), ]
+
+# Transpose summary
+rifampicin_summary <- data.frame(n = t(rifampicin_summary))
+
+```
+
 
 ## Abstract
 
@@ -317,6 +363,41 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 ```
 
 `r knitr::kable(ser315thr_pivot)`
+
+
+
+##### Rifampicin
+
+**Summary:**
+
+```{r rifampicin-summary-table, echo = F, warning=F}
+
+# Summary
+
+n_samps_CM_and_no_KRM_and_no_PRM <- rifampicin_summary["n_samps_CM_and_no_KRM_and_no_PRM", ]
+
+# PRM subset and summary
+rifampicin_PRM_tab <- subset(rifampicin_binary_table, !(is.na(PRM)))
+rifampicin_PRM_summary <- pivot(rifampicin_PRM_tab, formula(PRM ~ 'n'))
+
+```
+
+`r knitr::kable(rifampicin_summary)`
+
+**Rare rifampicin variants**
+
+```{r rifampicin-rare-mutations, echo = F, warning=F}
+
+rifampicin_rare_table <- subset(rifampicin_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & (!(is.na(rpoC)) | !(is.na(rpoB))) )
+n_samps_rare_rifampicin <- nrow(rifampicin_rare_table)
+n_rare_rifampicin <- length(uniq_col(rifampicin_rare_table$other_vars))
+rare_rifampicin_table <- table(unlist(strsplit(rifampicin_rare_table$other_vars, "; ")))
+
+```
+
+`r knitr::kable(rare_rifampicin_table)`
+
+
 
 ## Methods
 
