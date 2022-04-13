@@ -42,7 +42,7 @@ def main(args):
             # Make the id the key, but also recapitulate the id in the key-values by including everything
             meta_dict[row[id_key]] = row
 
-    # Get known compensatory mutations data - loading this data just to pull comp mut *genes* associated with drug of interest
+    # Get known compensatory mutations data
     compensatory_mutations = defaultdict(set)
     for row in csv.DictReader(open(KCM_file)):
         if row['Drug'] != drug_of_interest: continue
@@ -51,8 +51,10 @@ def main(args):
 
     # Wrangle data
 
+    KCM = compensatory_mutations[drug_of_interest]
+
     # Get all genes for comp mutations for drug of interest
-    genes = set([var[0] for var in compensatory_mutations[drug_of_interest]])
+    genes = set([var[0] for var in KCM])
 
     # Pull novel comp mutations
     mutations_dict = defaultdict(dict)
@@ -67,8 +69,17 @@ def main(args):
             lin = lins[len(lins) - 1] # I hate Python!
             
             for var in data["dr_variants"] + data["other_variants"]:
-                # Save mutation if in genes for drug of interest, is non-synonymous, does NOT already have a known drug association and is >0.7 freq
-                if var["gene"] in genes and var['type'] != 'synonymous_variant' and "drugs" not in var and var["freq"] >= 0.7:
+                # Save mutation if:
+                # in genes for drug of interest, 
+                # is not in KCM list,
+                # is non-synonymous, 
+                # does NOT already have a known drug association 
+                # and is >0.7 freq
+                if var["gene"] in genes \
+                    and (var["gene"], var["change"]) not in KCM \
+                        and var['type'] != 'synonymous_variant' \
+                            and "drugs" not in var \
+                                and var["freq"] >= 0.7:
 
                     mutations_dict[samp] = {'wgs_id': samp,
                     'drtype':data["drtype"],
