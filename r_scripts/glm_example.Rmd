@@ -183,6 +183,23 @@ model_df
 
 
 
+```{r julian}
+
+n <- 1000
+
+lin <- as.factor(sample(1:4, n, replace=T))
+mut <- rbinom(n, 1, 0.1 * (lin != 1) + 0.9 * (lin == 1))
+res <- rbinom(n, 1, 0.1 * (lin != 1) + 0.9 * (lin == 1))
+
+df <- data.frame(lin, mut, res)
+table(df)
+m <- glm(res ~ . -1, data=df, family=binomial)
+summary(m)
+m2 <- aov(res ~ ., data=df)
+summary(m2)
+
+```
+
 
 
 
