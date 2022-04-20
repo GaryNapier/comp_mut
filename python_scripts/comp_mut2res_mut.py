@@ -14,27 +14,36 @@ from contextlib import closing
 from python_scripts.utils import *
 
 
-def get_vars_exclude(vars_exclude_file):
+# def get_vars_exclude(vars_exclude_file):
 
-    # URL below is the results of all Fst = 1 variants from https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-020-00817-3
-    fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
-    # See https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python for pulling data from url
-    with closing(requests.get(fst_results_url, stream=True)) as r:
-        f = (line.decode('utf-8') for line in r.iter_lines())
-        fst_dict = csv_to_dict_multi(f)
+#     # URL below is the results of all Fst = 1 variants from https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-020-00817-3
+#     fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
+#     # See https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python for pulling data from url
+#     with closing(requests.get(fst_results_url, stream=True)) as r:
+#         f = (line.decode('utf-8') for line in r.iter_lines())
+#         fst_dict = csv_to_dict_multi(f)
     
-    lin_specific_variants = []
-    for gene in fst_dict:
-        for var in fst_dict[gene]:
-            lin_specific_variants.append( tuple( [ gene, reformat_mutations(var['aa_pos']) ] ) )
+#     lin_specific_variants = []
+#     for gene in fst_dict:
+#         for var in fst_dict[gene]:
+#             lin_specific_variants.append( tuple( [ gene, reformat_mutations(var['aa_pos']) ] ) )
+
+#     # Read in variants to be excluded
+#     vars_exclude = []
+#     for l in open(vars_exclude_file):
+#         vars_exclude.append(tuple(l.strip().split(',')))
+
+#     # Concat
+#     vars_exclude = vars_exclude + lin_specific_variants 
+#     return vars_exclude
+
+def get_vars_exclude(vars_exclude_file):
 
     # Read in variants to be excluded
     vars_exclude = []
     for l in open(vars_exclude_file):
         vars_exclude.append(tuple(l.strip().split(',')))
 
-    # Concat
-    vars_exclude = vars_exclude + lin_specific_variants 
     return vars_exclude
 
 def get_counts(meta,samples,col):
@@ -45,7 +54,40 @@ def get_meta_proportion(meta,samples,column,targets):
     target_count = sum([tmp.get(c,0) for c in targets])
     return round(target_count/sum(tmp.values()), 3)
 
-def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
+# def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
+
+#     # Get stats for each variant
+#     stats_dict = defaultdict(dict)
+#     variants_passed = set()
+#     # for var in variants:
+#     for var in variants:
+
+#         # Get proportion or number of samples (in the case of lineage) per potential mutation
+#         samps = mutation2sample[var]
+
+#         if len(samps)<3: continue
+
+#         dst_proportion = get_meta_proportion(meta_dict,samps,drug_of_interest,['1'])
+#         sensitive_geno_proportion = get_meta_proportion(meta_dict,samps,'drtype',['Sensitive'])
+#         num_lins = len(set(resolve_lineages(get_counts(meta_dict,samps,'sublin'))))
+
+#         # Filter and add to dict
+#         if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and num_lins > 1:
+                
+#             variants_passed.add(var)
+
+#             stats_dict[var] = {'drug': drug_of_interest, 
+#                                'gene': var[0], 
+#                                'mutation': var[1],
+#                                'gene_mutation': var[0] + '-' + var[1],
+#                                'n_samps' : len(samps), 
+#                                'dst_prop': dst_proportion, 
+#                                'dr_prop': sensitive_geno_proportion, 
+#                                'n_lins': num_lins}
+
+#     return (variants_passed, stats_dict)
+
+def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes):
 
     # Get stats for each variant
     stats_dict = defaultdict(dict)
@@ -63,7 +105,7 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
         num_lins = len(set(resolve_lineages(get_counts(meta_dict,samps,'sublin'))))
 
         # Filter and add to dict
-        if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and num_lins > 1:
+        if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes:
                 
             variants_passed.add(var)
 
@@ -85,6 +127,7 @@ def main(args):
     PCM_file = args.PCM_file
     metadata_file = args.metadata_file
     tbdb_file = args.tbdb_file
+    CM_RM_assoc_file = args.CM_RM_assoc_file
     drtypes_file = args.drtypes_file
     KCM_file = args.KCM_file
     tbprofiler_results_dir = args.tbprofiler_results_dir
@@ -138,6 +181,17 @@ def main(args):
     # # Read in tbdb file
     with open(tbdb_file, 'r') as f:
         tbdb_dict = csv_to_dict_multi(f, 'Drug')
+    
+    # Read in CM-RM gene association file and store genes
+    CM_RM_assoc_file
+    with open(CM_RM_assoc_file, 'r') as f:
+        CM_RM_assoc_dict = csv_to_dict_multi(f, 'drug')
+
+    RM_genes = set()
+    CM_genes = set()
+    for x in CM_RM_assoc_dict[drug_of_interest]:
+        RM_genes.add(x['RM_gene'])
+        CM_genes.add(x['CM_gene'])
 
     # Known resistance mutations
     # krm = [(var['Gene'], var['Mutation']) for var in tbdb_dict[drug_of_interest]]
@@ -206,15 +260,13 @@ def main(args):
                         resistance_mutations[d["drug"]].add(key)
 
     # Classify potential compensatory mutations and filter 
-    # GLM models (filter_novel_comp_mut.R) is only first step in identifying 'interesting' compensatory mutations
     # Need to check against tbprofiler results for each mutation 
-    # e.g. if the mutation is lineage specific, then filter out
     # First remove PCMs that are in the KCM list
     PCM_list = [var for var in PCM_list if var not in KCM[drug_of_interest]]
     ########################################################
     n_PCM_before_filtering = len(PCM_list) 
     ########################################################
-    PCM_filtered, PCM_stats = filter_vars(PCM_list, mutation2sample, meta_dict, drug_of_interest)
+    PCM_filtered, PCM_stats = filter_vars(PCM_list, mutation2sample, meta_dict, drug_of_interest, CM_genes)
 
     print(" --- list of potential comp mutations after filtering --- ")
     print(PCM_filtered)
@@ -254,7 +306,7 @@ def main(args):
                 PRM.add(var)
 
     # Filter the potential resistance variants in the same way as filtering the potential comp. variants
-    PRM_filtered, PRM_stats = filter_vars(PRM, mutation2sample, meta_dict, drug_of_interest)
+    PRM_filtered, PRM_stats = filter_vars(PRM, mutation2sample, meta_dict, drug_of_interest, RM_genes)
 
     # Check potential resistance mutations have been found, quit if not
     if len(PRM_filtered) > 0:
@@ -421,6 +473,7 @@ parser.add_argument('--drug-of-interest', default = '', type = str, help = 'drug
 parser.add_argument('--PCM-file', default = '', type = str, help = 'csv; first column = list of mutations e.g. c.-51G>A')
 parser.add_argument('--metadata-file', default = '', type = str, help = 'csv of metadata')
 parser.add_argument('--tbdb-file', default = '', type = str, help = 'csv from https://github.com/jodyphelan/tbdb/blob/master/tbdb.csv')
+parser.add_argument('--CM-RM-assoc-file', default = '', type = str, help = 'csv associating CM genes to RM genes by drug, e.g. isoniazid, ahpC, katG')
 parser.add_argument('--drtypes-file', default = '', type = str, help = 'json converting old WHO drug resistance types to new ones; https://github.com/GaryNapier/pipeline/blob/main/db/dr_types.json')
 parser.add_argument('--KCM-file', default = '', type = str, help = 'csv of all known compensatory mutations; https://github.com/GaryNapier/pipeline/blob/main/db/compensatory_mutations.csv')
 parser.add_argument('--tbprofiler-results-dir', default = '', type = str, help = 'directory of tbprofiler results containing one json per sample')

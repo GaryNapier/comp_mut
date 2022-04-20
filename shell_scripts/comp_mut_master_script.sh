@@ -16,8 +16,10 @@ cd ~/comp_mut
 # Variables
 # ----------
 
-drug_of_interest=rifampicin
+drug_of_interest=${1}
 id_key=wgs_id
+# Run script analysing lineage? yes = 1, 0 = no
+lineage=${2}
 
 # ------------
 # Directories
@@ -44,6 +46,7 @@ vcf_dir=vcf/
 main_tb_metadata_file=${main_metadata_dir}tb_data_18_02_2021.csv
 KCM_file=${database_dir}compensatory_mutations.csv 
 tbdb_file=${tbdb_dir}tbdb.csv
+CM_RM_assoc_file=${local_metadata_dir}CM_RM_gene_assoc.csv
 dr_types_file=${database_dir}dr_types.json
 vars_exclude_file=${local_metadata_dir}var_exclude_comp_mut.csv
 tc_file=${local_metadata_dir}${drug_of_interest}_tc.txt
@@ -88,32 +91,54 @@ python python_scripts/find_PCM.py \
 --tbp-results ${tbp_results_dir} \
 --outfile ${PCM_data_file}
 
-# ------------------------------------------------------------------------------------------------------------------------------------
-# Run filter_PCM.R - run GLM models to see if DST is significantly predicted against presence of each mutation and lineage
-# ------------------------------------------------------------------------------------------------------------------------------------
 
-echo ""
-echo " --- FILTERING POTENTIAL NEW COMPENSATORY MUTATIONS - RUNNING r_scripts/filter_PCM.R --- "
-echo ""
-Rscript r_scripts/filter_PCM.R \
---metadata_file ${main_tb_metadata_file} \
---PCM_data_file ${PCM_data_file} \
---drug_of_interest ${drug_of_interest} \
---outfile ${PCM_model_results_file} 
+if [ ${lineage} == 1 ]; then 
 
-# --------------------------------------------------------------------------------------------------------
-# Concatenate output of filter_PCM.R with previous analyses of potential comp. mutations by TC
-# --------------------------------------------------------------------------------------------------------
+    echo "lineage = ${lineage}"
 
-echo ""
-echo " --- CLEANING AND MERGING ${tc_file} AND ${PCM_model_results_file} - RUNNING clean_PCM.R"
-echo ""
-Rscript r_scripts/clean_PCM.R \
---drug_of_interest ${drug_of_interest} \
---tc_file ${tc_file} \
---gn_results_file ${PCM_model_results_file} \
---KCM_file ${KCM_file} \
---outfile ${PCM_merged_file}
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # Run filter_PCM.R - run GLM models to see if DST is significantly predicted against presence of each mutation and lineage
+    # ------------------------------------------------------------------------------------------------------------------------------------
+
+    echo ""
+    echo " --- FILTERING POTENTIAL NEW COMPENSATORY MUTATIONS - RUNNING r_scripts/filter_PCM.R --- "
+    echo ""
+    Rscript r_scripts/filter_PCM.R \
+    --metadata_file ${main_tb_metadata_file} \
+    --PCM_data_file ${PCM_data_file} \
+    --drug_of_interest ${drug_of_interest} \
+    --outfile ${PCM_model_results_file} 
+
+    # --------------------------------------------------------------------------------------------------------
+    # Concatenate output of filter_PCM.R with previous analyses of potential comp. mutations by TC
+    # --------------------------------------------------------------------------------------------------------
+
+    echo ""
+    echo " --- CLEANING AND MERGING ${tc_file} AND ${PCM_model_results_file} - RUNNING clean_PCM.R"
+    echo ""
+    Rscript r_scripts/clean_PCM.R \
+    --drug_of_interest ${drug_of_interest} \
+    --tc_file ${tc_file} \
+    --gn_results_file ${PCM_model_results_file} \
+    --KCM_file ${KCM_file} \
+    --outfile ${PCM_merged_file}
+
+else
+
+    echo "lineage = ${lineage}"
+
+    echo ""
+    echo " --- MERGING ${tc_file} AND ${PCM_data_file} - RUNNING merge_PCM.R"
+    echo ""
+
+    Rscript r_scripts/merge_PCM.R \
+    --drug_of_interest ${drug_of_interest} \
+    --tc_file ${tc_file} \
+    --PCM_data_file ${PCM_data_file} \
+    --KCM_file ${KCM_file} \
+    --outfile ${PCM_merged_file}
+
+fi
 
 # ----------------------------------------------------------------------------------------
 # Filter potential novel compensatory mutations with tbprofiler critera 
@@ -128,6 +153,7 @@ python python_scripts/comp_mut2res_mut.py \
 --PCM-file ${PCM_merged_file} \
 --metadata-file ${main_tb_metadata_file} \
 --tbdb-file ${tbdb_file} \
+--CM-RM-assoc-file ${CM_RM_assoc_file} \
 --drtypes-file ${dr_types_file} \
 --KCM-file ${KCM_file} \
 --tbprofiler-results-dir ${tbp_results_dir} \
@@ -162,7 +188,7 @@ else
     echo ""
     echo " --- RUNNING tree_pipeline.sh --- "
     echo ""
-    tree_pipeline.sh ${drug_of_interest} ${vcf_db} ${samples_for_vcf_file} ${vcf_dir} ${fasta_dir} ${newick_dir}
+    tree_pipeline.sh   ${drug_of_interest} ${vcf_db}  ${vcf_dir}       ${samples_for_vcf_file} ${fasta_dir} ${newick_dir}   
     fi
 
     # Plot tree and save as png
