@@ -116,6 +116,12 @@ clean_binary_table <- function(x){
   x
 }
 
+sort_pos <- function(df, col){
+  mut <- df[, col]
+  pos <- sort(as.numeric(stringr::str_extract(mut, "[0-9]+")))
+  df[sapply(pos, function(x) grep(x, mut)), ]
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -172,6 +178,7 @@ KCM_file <- paste0(pipeline_db_path, "compensatory_mutations.csv")
 isoniazid_binary_table_file <- paste0(results_path, "isoniazid_binary_table.csv")
 isoniazid_PCM_merged_file <- paste0(results_path, "isoniazid_PCM_merged.csv")
 isoniazid_summary_file <- paste0(results_path, "isoniazid_summary.csv")
+isoniazid_PRM_stats_file <- paste0(results_path, "isoniazid_PRM_stats.csv")
 isoniazid_tree_file <- paste0(results_path, "isoniazid_tree.png")
 
 ```
@@ -204,6 +211,7 @@ KCM <- read.csv(KCM_file)
 isoniazid_binary_table <- read.csv(isoniazid_binary_table_file)
 isoniazid_PCM_merged <- read.csv(isoniazid_PCM_merged_file)
 isoniazid_summary <- read.csv(isoniazid_summary_file)
+isoniazid_PRM_stats <- read.csv(isoniazid_PRM_stats_file)
 
 ```
 
@@ -236,6 +244,20 @@ isoniazid_PCM_merged <- isoniazid_PCM_merged[!(isoniazid_PCM_merged$change %in% 
 
 # Transpose summary
 isoniazid_summary <- data.frame(n = t(isoniazid_summary))
+
+# PRM stats
+isoniazid_PRM_stats <- select(isoniazid_PRM_stats, gene_mutation, n_samps, dst_prop, dr_prop, n_lins)
+isoniazid_PRM_stats <- sort_pos(isoniazid_PRM_stats, 'gene_mutation')
+
+# names(isoniazid_PRM_stats) <- c("Gene-change", "n samps")
+
+
+
+
+
+
+
+# names(isoniazid_PRM_statsisoniazid_PRM_stats
 
 ```
 
@@ -317,7 +339,7 @@ e.g. Looking at TBProfiler - sample ERR1035291 has CM ahpC-c.-74G>A and missense
 
 Most of these occur only once or twice and were therefore filtered out.
 
-The mutations occurring 3 or 4 times were only in one lineage so were also filtered
+<!-- The mutations occurring 3 or 4 times were only in one lineage so were also filtered -->
 
 `r knitr::kable(rare_katg_cnts)`
 
