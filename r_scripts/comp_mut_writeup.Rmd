@@ -116,11 +116,14 @@ clean_binary_table <- function(x){
   x
 }
 
-sort_pos <- function(df, col){
-  mut <- df[, col]
-  pos <- sort(as.numeric(stringr::str_extract(mut, "[0-9]+")))
-  df[sapply(pos, function(x) grep(x, mut)), ]
+sort_pos <- function(x, col){
+  
+  x$pos <- as.numeric(stringr::str_extract(x[, col], "[0-9]+"))
+  x <- x[order(x$pos), ]
+  drop_cols(x, 'pos')
+  
 }
+
 
 ```
 
@@ -156,6 +159,7 @@ metadata_path <- "../../metadata/"
 pipeline_db_path <- "../../pipeline/db/"
 db_path <- "../../tbdb/"
 results_path <- "../results/"
+newick_path <- ""
 
 ```
 
@@ -246,18 +250,10 @@ isoniazid_PCM_merged <- isoniazid_PCM_merged[!(isoniazid_PCM_merged$change %in% 
 isoniazid_summary <- data.frame(n = t(isoniazid_summary))
 
 # PRM stats
-isoniazid_PRM_stats <- select(isoniazid_PRM_stats, gene_mutation, n_samps, dst_prop, dr_prop, n_lins)
-isoniazid_PRM_stats <- sort_pos(isoniazid_PRM_stats, 'gene_mutation')
-
-# names(isoniazid_PRM_stats) <- c("Gene-change", "n samps")
-
-
-
-
-
-
-
-# names(isoniazid_PRM_statsisoniazid_PRM_stats
+isoniazid_PRM_stats <- select(isoniazid_PRM_stats, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
+isoniazid_PRM_stats <- sort_pos(isoniazid_PRM_stats, 'mutation')
+isoniazid_PRM_stats$dst_prop <- 1 - isoniazid_PRM_stats$dst_prop
+names(isoniazid_PRM_stats) <- c("Gene-change", "n samples", "DST sensitive", "DR type sensitive", "n lineages")
 
 ```
 
@@ -311,14 +307,19 @@ n_samps_CM_and_no_KRM_and_no_PRM <- isoniazid_summary["n_samps_CM_and_no_KRM_and
 
 # PRM subset and summary
 isoniazid_PRM_tab <- subset(isoniazid_binary_table, !(is.na(PRM)))
-isoniazid_PRM_summary <- pivot(isoniazid_PRM_tab, formula(PRM ~ 'n'))
+isoniazid_PRM_summary <- sort_pos(pivot(isoniazid_PRM_tab, formula(PRM ~ 'n')), 'PRM')
 
 ```
 
 `r knitr::kable(isoniazid_summary)`
 
 The isoniazid PRMs:
+
 `r knitr::kable(isoniazid_PRM_summary)`
+
+Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each isoniazid PRM:
+
+`r knitr::kable(isoniazid_PRM_stats)`
 
 **Rare isoniazid (katG) variants**
 
@@ -343,11 +344,12 @@ Most of these occur only once or twice and were therefore filtered out.
 
 `r knitr::kable(rare_katg_cnts)`
 
-**Samples with potential PRMs - co-occurrences of other mutations**
+**Samples with PRMs - co-occurrences of other mutations**
 
-```{r isoniazid-fabG, echo = F, warning=F}
+```{r isoniazid-PRM-KRM, echo = F, warning=F}
 
 isoniazid_PRM_KRM <- pivot(isoniazid_PRM_tab, formula(KRM ~ 'n'))
+
 # isoniazid_PRM_fabg <- pivot(isoniazid_PRM_tab, formula(fabG1 ~ 'n'))
 isoniazid_PRM_other <- pivot(isoniazid_PRM_tab, formula(other_vars ~ 'n'))
 
@@ -356,6 +358,7 @@ isoniazid_PRM_other <- cbind('status' = rep('unknown', nrow(isoniazid_PRM_other)
 
 isoniazid_PRM_KRM_other <- rbind_force(isoniazid_PRM_KRM, isoniazid_PRM_other)
 isoniazid_PRM_KRM_other <- dplyr::rename(isoniazid_PRM_KRM_other, mutation = KRM)
+names(isoniazid_PRM_KRM_other) <- c("Status", "Gene-change", "n samples (%)")
 
 ```
 
@@ -397,7 +400,7 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 # Summary
 
 n_samps_CM_and_no_KRM_and_no_PRM <- rifampicin_summary["n_samps_CM_and_no_KRM_and_no_PRM", ]
-
+ 
 # PRM subset and summary
 rifampicin_PRM_tab <- subset(rifampicin_binary_table, !(is.na(PRM)))
 rifampicin_PRM_summary <- pivot(rifampicin_PRM_tab, formula(PRM ~ 'n'))
@@ -429,6 +432,20 @@ rare_rifampicin_table <- table(unlist(strsplit(rifampicin_rare_table$other_vars,
 ### Figures
 
 ```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of isoniazid samples with potential new katG mutations" }
+
+# Run tree script
+
+# system(paste("Rscript file_to_source.R", arg1, arg2))
+# 
+# for (drug in drugs){
+#   tree_file <- paste0(newick_dir, drug, ".filt.val.gt.g.snps.fa.treefile")
+#   
+# system(sprintf("Rscript comp_mut_tree.R 
+#                --tree_file %s 
+#                --metadata_file %s
+#                --project_code %s
+#                --column drug 
+#                --outfile %s", tree_file, , , ))
 
 knitr::include_graphics(isoniazid_tree_file)
 
