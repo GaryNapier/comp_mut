@@ -13,36 +13,35 @@ import requests
 from contextlib import closing
 from python_scripts.utils import *
 
+def get_vars_exclude(vars_exclude_file, do_lineage):
 
-# def get_vars_exclude(vars_exclude_file):
+    if do_lineage == 1:
+        # URL below is the results of all Fst = 1 variants from https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-020-00817-3
+        fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
+        # See https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python for pulling data from url
+        with closing(requests.get(fst_results_url, stream=True)) as r:
+            f = (line.decode('utf-8') for line in r.iter_lines())
+            fst_dict = csv_to_dict_multi(f)
+        
+        lin_specific_variants = []
+        for gene in fst_dict:
+            for var in fst_dict[gene]:
+                lin_specific_variants.append( tuple( [ gene, reformat_mutations(var['aa_pos']) ] ) )
 
-#     # URL below is the results of all Fst = 1 variants from https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-020-00817-3
-#     fst_results_url = 'https://raw.githubusercontent.com/GaryNapier/tb-lineages/main/fst_results_clean_fst_1_for_paper.csv'
-#     # See https://www.codegrepper.com/code-examples/python/how+to+read+a+csv+file+from+a+url+with+python for pulling data from url
-#     with closing(requests.get(fst_results_url, stream=True)) as r:
-#         f = (line.decode('utf-8') for line in r.iter_lines())
-#         fst_dict = csv_to_dict_multi(f)
+        # Read in variants to be excluded
+        vars_exclude = []
+        for l in open(vars_exclude_file):
+            vars_exclude.append(tuple(l.strip().split(',')))
+
+        # Concat
+        vars_exclude = vars_exclude + lin_specific_variants
     
-#     lin_specific_variants = []
-#     for gene in fst_dict:
-#         for var in fst_dict[gene]:
-#             lin_specific_variants.append( tuple( [ gene, reformat_mutations(var['aa_pos']) ] ) )
+    else:
 
-#     # Read in variants to be excluded
-#     vars_exclude = []
-#     for l in open(vars_exclude_file):
-#         vars_exclude.append(tuple(l.strip().split(',')))
-
-#     # Concat
-#     vars_exclude = vars_exclude + lin_specific_variants 
-#     return vars_exclude
-
-def get_vars_exclude(vars_exclude_file):
-
-    # Read in variants to be excluded
-    vars_exclude = []
-    for l in open(vars_exclude_file):
-        vars_exclude.append(tuple(l.strip().split(',')))
+        # Read in variants to be excluded
+        vars_exclude = []
+        for l in open(vars_exclude_file):
+            vars_exclude.append(tuple(l.strip().split(',')))
 
     return vars_exclude
 
@@ -54,40 +53,7 @@ def get_meta_proportion(meta,samples,column,targets):
     target_count = sum([tmp.get(c,0) for c in targets])
     return round(target_count/sum(tmp.values()), 3)
 
-# def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest):
-
-#     # Get stats for each variant
-#     stats_dict = defaultdict(dict)
-#     variants_passed = set()
-#     # for var in variants:
-#     for var in variants:
-
-#         # Get proportion or number of samples (in the case of lineage) per potential mutation
-#         samps = mutation2sample[var]
-
-#         if len(samps)<3: continue
-
-#         dst_proportion = get_meta_proportion(meta_dict,samps,drug_of_interest,['1'])
-#         sensitive_geno_proportion = get_meta_proportion(meta_dict,samps,'drtype',['Sensitive'])
-#         num_lins = len(set(resolve_lineages(get_counts(meta_dict,samps,'sublin'))))
-
-#         # Filter and add to dict
-#         if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and num_lins > 1:
-                
-#             variants_passed.add(var)
-
-#             stats_dict[var] = {'drug': drug_of_interest, 
-#                                'gene': var[0], 
-#                                'mutation': var[1],
-#                                'gene_mutation': var[0] + '-' + var[1],
-#                                'n_samps' : len(samps), 
-#                                'dst_prop': dst_proportion, 
-#                                'dr_prop': sensitive_geno_proportion, 
-#                                'n_lins': num_lins}
-
-#     return (variants_passed, stats_dict)
-
-def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes):
+def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes, do_lineage):
 
     # Get stats for each variant
     stats_dict = defaultdict(dict)
@@ -105,18 +71,33 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes):
         num_lins = len(set(resolve_lineages(get_counts(meta_dict,samps,'sublin'))))
 
         # Filter and add to dict
-        if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes:
+        if do_lineage == 1:
+            if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes and num_lins > 1:    
                 
-            variants_passed.add(var)
+                variants_passed.add(var)
 
-            stats_dict[var] = {'drug': drug_of_interest, 
-                               'gene': var[0], 
-                               'mutation': var[1],
-                               'gene_mutation': var[0] + '-' + var[1],
-                               'n_samps' : len(samps), 
-                               'dst_prop': dst_proportion, 
-                               'dr_prop': sensitive_geno_proportion, 
-                               'n_lins': num_lins}
+                stats_dict[var] = {'drug': drug_of_interest, 
+                                    'gene': var[0], 
+                                    'mutation': var[1],
+                                    'gene_mutation': var[0] + '-' + var[1],
+                                    'n_samps' : len(samps), 
+                                    'dst_prop': dst_proportion, 
+                                    'dr_prop': sensitive_geno_proportion, 
+                                    'n_lins': num_lins}
+
+        else:
+            if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes:
+                
+                variants_passed.add(var)
+
+                stats_dict[var] = {'drug': drug_of_interest, 
+                                    'gene': var[0], 
+                                    'mutation': var[1],
+                                    'gene_mutation': var[0] + '-' + var[1],
+                                    'n_samps' : len(samps), 
+                                    'dst_prop': dst_proportion, 
+                                    'dr_prop': sensitive_geno_proportion, 
+                                    'n_lins': num_lins}
 
     return (variants_passed, stats_dict)
 
@@ -137,29 +118,13 @@ def main(args):
     binary_table_file = args.binary_table_file
     summary_file = args.summary_file
 
-    # FILES
-
-    # potential_comp_mut_file = "results/isoniazid_PCM_results.csv"
-    # metadata_file = "../metadata/tb_data_18_02_2021.csv"
-    # tbdb_file = "../tbdb/tbdb.csv"
-    # drtypes_file = "../pipeline/db/dr_types.json"
-    # known_comp_mut_file = '../pipeline/db/compensatory_mutations.csv'
-    # tbprofiler_results_dir = '/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/'
-    # vars_exclude_file = 'metadata/var_exclude_comp_mut.csv'
-    # PRM_stats_file = 'results/PRM_stats.csv'
-    # PRM_samples_file = 'results/PRM_samps.csv'
-    # binary_table_file = 'results/'+drug_of_interest+'_binary_table.csv'
-
     # VARIABLES
 
     suffix = args.suffix
     drug_of_interest = args.drug_of_interest
+    do_lineage = int(args.do_lineage)
 
     # READ IN DATA
-
-    # # Read in GLM results file
-    # with open(potential_comp_mut_file, 'r') as f:
-    #     potential_comp_mut_dict = csv_to_dict(f)
 
     # Read in potential CM results file
     with open(PCM_file, 'r') as f:
@@ -167,9 +132,6 @@ def main(args):
         PCM_list = []
         for row in reader:
             PCM_list.append((row['gene'], row['change']))
-
-    # Convert to list of tuples
-    # potential_comp_mut_list = [(potential_comp_mut_dict[var]['gene'], potential_comp_mut_dict[var]['change']) for var in list(potential_comp_mut_dict)]
 
     # Read in metadata
     with open(metadata_file) as mf:
@@ -193,9 +155,6 @@ def main(args):
         RM_genes.add(x['RM_gene'])
         CM_genes.add(x['CM_gene'])
 
-    # Known resistance mutations
-    # krm = [(var['Gene'], var['Mutation']) for var in tbdb_dict[drug_of_interest]]
-
     # Read in DR types from json
     standardise_drtype = json.load(open(drtypes_file))
 
@@ -207,12 +166,9 @@ def main(args):
     ################################################################
     n_KCM = len(KCM[drug_of_interest])
     ################################################################
-
-    # # Pull unique comp mut genes
-    # known_comp_mut_genes = set([var[0] for var in compensatory_mutations[drug_of_interest]])
     
     # Read in variants to exclude
-    vars_exclude = get_vars_exclude(vars_exclude_file)
+    vars_exclude = get_vars_exclude(vars_exclude_file, do_lineage)
 
     # WRANGLE DATA
 
@@ -266,7 +222,7 @@ def main(args):
     ########################################################
     n_PCM_before_filtering = len(PCM_list) 
     ########################################################
-    PCM_filtered, PCM_stats = filter_vars(PCM_list, mutation2sample, meta_dict, drug_of_interest, CM_genes)
+    PCM_filtered, PCM_stats = filter_vars(PCM_list, mutation2sample, meta_dict, drug_of_interest, CM_genes, do_lineage)
 
     print(" --- list of potential comp mutations after filtering --- ")
     print(PCM_filtered)
@@ -276,7 +232,6 @@ def main(args):
 
     # Add the filtered potential compensatory mutations 
     # to the list of known compensatory mutations for the drug of interest
-    # KCM[drug_of_interest] + PCM_filtered
     CM = KCM[drug_of_interest].union(PCM_filtered)
     ############################################################################
     n_CM_after_filtering = len(CM)
@@ -296,17 +251,13 @@ def main(args):
 
         # If there is at least one comp variant and there are no (known) resistance variants
         if len(comp_var)>0 and len(res_var)==0:
-            # If there are no 'other' variants print the sample and the comp variants
-            # if len(other_vars)==0:
-                # print("Sample with at least one comp. mut. but no res. mutations:")
-                # print("samp:", s, "comp. mut.:", comp_var)
                 
             # Store the 'other' vars as potential resistance variants
             for var in other_vars:
                 PRM.add(var)
 
     # Filter the potential resistance variants in the same way as filtering the potential comp. variants
-    PRM_filtered, PRM_stats = filter_vars(PRM, mutation2sample, meta_dict, drug_of_interest, RM_genes)
+    PRM_filtered, PRM_stats = filter_vars(PRM, mutation2sample, meta_dict, drug_of_interest, RM_genes, do_lineage)
 
     # Check potential resistance mutations have been found, quit if not
     if len(PRM_filtered) > 0:
@@ -317,44 +268,19 @@ def main(args):
 
         # WRITE FILES
 
-        # Make a dict of samps and metadata for samps with the potential res. mutations
-
-        PRM_dict = {}
-
-        for var in PRM_filtered:
-            for samp in mutation2sample[var]:
-                PRM_dict[samp] = {'wgs_id': samp,
-                                'drug': drug_of_interest, 
-                                'gene': var[0], 
-                                'mutation': var[1],
-                                'gene_mutation': var[0] + '-' + var[1], 
-                                'main_lineage': meta_dict[samp]['main_lineage'], 
-                                'sublin':meta_dict[samp]['sublin'], 
-                                'country_code': meta_dict[samp]['country_code'], 
-                                'drtype': meta_dict[samp]['drtype'],
-                                'dst': meta_dict[samp][drug_of_interest]}
-
-        with open(PRM_samples_file, 'w') as f:
-            writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_dict)))
-            writer.writeheader()
-            for samp in PRM_dict:
-                writer.writerow(PRM_dict[samp])
-
         with open(PRM_stats_file, 'w') as f:
             writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_stats)))
             writer.writeheader()
             for row in PRM_stats:
                 writer.writerow(PRM_stats[row])
 
-        clean_file(PRM_samples_file)
+        # clean_file(PRM_samples_file)
         clean_file(PRM_stats_file)
 
     else:
         print()
         print("NO POTENTIAL RESISTANCE MUTATIONS FOUND FOR %s" % drug_of_interest)
         print()
-
-        PRM_dict = {}
 
     # ----------- BINARY TABLE SUMMARY --------------
 
@@ -370,8 +296,13 @@ def main(args):
                     var not in resistance_mutations[drug_of_interest] and \
                     var not in PRM_filtered]
         
-        if len(CM_vars) > 0 or len(KRM_vars) > 0 or len(PRM_vars) > 0 or len(other_vars):
+        if len(CM_vars) > 0 or len(KRM_vars) > 0 or len(PRM_vars) > 0 or len(other_vars) > 0:
             binary_table[samp] = {'wgs_id': samp, \
+                                'main_lineage': meta_dict[samp]['main_lineage'], \
+                                'sublin': meta_dict[samp]['main_lineage'], \
+                                'country_code': meta_dict[samp]['country_code'], \
+                                'drtype': meta_dict[samp]['drtype'], \
+                                'dst': meta_dict[samp][drug_of_interest], \
                                 'CM': CM_vars, \
                                 'KRM': KRM_vars, \
                                 'PRM': PRM_vars, \
@@ -384,7 +315,7 @@ def main(args):
         for gene in other_var_genes:
             vars_gene = [var for var in other_vars if var[0] == gene]
             binary_table[samp].update({gene: vars_gene})
-
+            
     # Fill out the keys for the rest of the samples, getting all unique keys first
     binary_table_keys = []
     for samp in binary_table:
@@ -398,21 +329,24 @@ def main(args):
             binary_table[samp].update({key: []})
 
     # vars
+
     # CM
     CM_in_samps = set(flat_list([binary_table[samp]['CM'] for samp in binary_table]))
     KCM_in_samps = {var for var in CM_in_samps if var in KCM[drug_of_interest]}
     PCM_in_samps = {var for var in CM_in_samps if var in PCM_filtered}
     # RM
     KRM_in_samps = set(flat_list([binary_table[samp]['KRM'] for samp in binary_table]))
-    PRM_in_samps = set(flat_list([binary_table[samp]['PRM'] for samp in binary_table]))
 
     # samps
+    samps_PRM = []
     samps_CM = []
     samps_CM_and_KRM = []
     samps_CM_and_no_KRM = []
     samps_CM_and_no_KRM_and_PRM = []
     samps_CM_and_no_KRM_and_no_PRM = []
     for samp in binary_table:
+        if len(binary_table[samp]['PRM']) >0:
+            samps_PRM.append(samp)
         if len(binary_table[samp]['CM']) > 0:
             samps_CM.append(samp)
             if len(binary_table[samp]['KRM']) > 0:
@@ -425,32 +359,37 @@ def main(args):
                     samps_CM_and_no_KRM_and_no_PRM.append(samp)
 
     summary_dict = {'n_CM_in_list_before_filtering': n_KCM + n_PCM_before_filtering,
-                    'n_KCM_in_list': n_KCM, 
-                    'n_PCM_in_list_before_filtering': n_PCM_before_filtering,
-                                        
-                    'n_CM_in_list_after_filtering': n_CM_after_filtering,
-                    'n_PCM_in_list_after_filtering': len(PCM_filtered),
-                    
-                    'n_CM_in_samps': len(CM_in_samps), 
-                    'n_KCM_in_samps': len(KCM_in_samps), 
-                    'n_PCM_in_samps': len(PCM_in_samps), 
-                    
-                    'n_KRM_in_samps': len(KRM_in_samps), 
-                    'n_PRM_in_samps': len(PRM_in_samps),
-                    
-                    "n_samps_PRM": len(PRM_dict), 
-                    
-                    "n_samps_CM": len(samps_CM), 
-                    "n_samps_CM_and_KRM": len(samps_CM_and_KRM),
-                    "n_samps_CM_and_no_KRM": len(samps_CM_and_no_KRM), 
-                    "n_samps_CM_and_no_KRM_and_PRM": len(samps_CM_and_no_KRM_and_PRM), 
-                    "n_samps_CM_and_no_KRM_and_no_PRM": len(samps_CM_and_no_KRM_and_no_PRM)}
+    'n_KCM_in_list': n_KCM, 
+    'n_PCM_in_list_before_filtering': n_PCM_before_filtering,
+                        
+    'n_CM_in_list_after_filtering': n_CM_after_filtering,
+    'n_PCM_in_list_after_filtering': len(PCM_filtered),
+    
+    'n_CM_in_samps': len(CM_in_samps), 
+    'n_KCM_in_samps': len(KCM_in_samps), 
+    'n_PCM_in_samps': len(PCM_in_samps), 
+    
+    'n_KRM_in_samps': len(KRM_in_samps), 
+    'n_PRM_in_samps': len(PRM_filtered),
+    
+    "n_samps_PRM": len(samps_PRM), 
+    
+    "n_samps_CM": len(samps_CM), 
+    "n_samps_CM_and_KRM": len(samps_CM_and_KRM),
+    "n_samps_CM_and_no_KRM": len(samps_CM_and_no_KRM), 
+    "n_samps_CM_and_no_KRM_and_PRM": len(samps_CM_and_no_KRM_and_PRM), 
+    "n_samps_CM_and_no_KRM_and_no_PRM": len(samps_CM_and_no_KRM_and_no_PRM)}
 
     print()
     print("summary for", drug_of_interest)
     for x in summary_dict:
         print(x, summary_dict[x])
     print()
+
+    if len(samps_PRM) > 0:
+        with open(PRM_samples_file, 'w') as f:
+            for samp in samps_PRM:
+                f.write("%s\n" % samp)
 
     with open(binary_table_file, 'w') as f:
         writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(binary_table)))
@@ -463,6 +402,7 @@ def main(args):
         writer.writeheader()
         writer.writerow(summary_dict)
 
+    clean_file(PRM_samples_file)
     clean_file(binary_table_file)
     clean_file(summary_file)
 
@@ -483,6 +423,7 @@ parser.add_argument('--PRM-samples-file', default = '', type = str, help = 'name
 parser.add_argument('--binary-table-file', default = '', type = str, help = 'name of output file of samples and all their types of mutation - CM, KRM, PRM, other')
 parser.add_argument('--summary-file', default = '', type = str, help = 'name of output file of CM, KRM etc counts')
 parser.add_argument('--suffix', default = '.results.json', type = str, help = 'suffix of json files in tbprofiler_results_dir')
+parser.add_argument('--do-lineage', type = str, help = 'run script analysing lineage? yes = 1, 0 = no')
 
 parser.set_defaults(func=main)
 
