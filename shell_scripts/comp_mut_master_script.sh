@@ -21,6 +21,10 @@ id_key=wgs_id
 # Run script analysing lineage? yes = 1, 0 = no
 lineage=${2}
 
+echo
+echo "LINEAGE = ${lineage}"
+echo 
+
 # ------------
 # Directories
 # ------------
@@ -63,8 +67,8 @@ PCM_model_results_file=${results_dir}${drug_of_interest}_PCM_model_results.csv
 PCM_merged_file=${results_dir}${drug_of_interest}_PCM_merged.csv
 # comp_mut2res_mut.py files
 PRM_stats_file=${results_dir}${drug_of_interest}_PRM_stats.csv
-PRM_samples_file=${results_dir}${drug_of_interest}_PRM_samps.csv
-samples_for_vcf_file=${results_dir}${drug_of_interest}_PRM_samps.txt
+PRM_samples_file=${results_dir}${drug_of_interest}_PRM_samps.txt
+# samples_for_vcf_file=${results_dir}${drug_of_interest}_PRM_samps.txt
 binary_table_file=${results_dir}${drug_of_interest}_binary_table.csv
 summary_file=${results_dir}${drug_of_interest}_summary.csv
 # tree_pipeline.sh files
@@ -94,7 +98,7 @@ python python_scripts/find_PCM.py \
 
 if [ ${lineage} == 1 ]; then 
 
-    echo "lineage = ${lineage}"
+    echo "LINEAGE = ${lineage}"
 
     # ------------------------------------------------------------------------------------------------------------------------------------
     # Run filter_PCM.R - run GLM models to see if DST is significantly predicted against presence of each mutation and lineage
@@ -125,7 +129,7 @@ if [ ${lineage} == 1 ]; then
 
 else
 
-    echo "lineage = ${lineage}"
+    echo "LINEAGE = ${lineage}"
 
     echo ""
     echo " --- MERGING ${tc_file} AND ${PCM_data_file} - RUNNING merge_PCM.R"
@@ -161,7 +165,8 @@ python python_scripts/comp_mut2res_mut.py \
 --PRM-stats-file ${PRM_stats_file} \
 --PRM-samples-file ${PRM_samples_file} \
 --binary-table-file ${binary_table_file} \
---summary-file ${summary_file}
+--summary-file ${summary_file} \
+--do-lineage ${lineage}
 
 
 if [ ! -f ${PRM_samples_file} ]; then 
@@ -177,7 +182,8 @@ else
     # Put the samples into a file
     # ----------------------------
 
-    cat ${PRM_samples_file} | csvtk grep -f drug -p ${drug_of_interest} | csvtk cut -f wgs_id | tail -n+2 > ${samples_for_vcf_file}
+    # cat ${PRM_samples_file} | csvtk grep -f drug -p ${drug_of_interest} | csvtk cut -f wgs_id | tail -n+2 > ${samples_for_vcf_file}
+    # cat ${PRM_samples_file} > ${samples_for_vcf_file}
 
     # ------
     # Trees
@@ -188,18 +194,19 @@ else
     echo ""
     echo " --- RUNNING tree_pipeline.sh --- "
     echo ""
-    tree_pipeline.sh   ${drug_of_interest} ${vcf_db}  ${vcf_dir}       ${samples_for_vcf_file} ${fasta_dir} ${newick_dir}   
+    # tree_pipeline.sh   ${drug_of_interest} ${vcf_db}  ${vcf_dir}       ${samples_for_vcf_file} ${fasta_dir} ${newick_dir}   
+    tree_pipeline.sh   ${drug_of_interest} ${vcf_db}  ${vcf_dir}       ${PRM_samples_file} ${fasta_dir} ${newick_dir}   
     fi
 
-    # Plot tree and save as png
-    echo ""
-    echo " --- RUNNING comp_mut_tree.R --- "
-    echo ""
-    Rscript r_scripts/comp_mut_tree.R \
-    --tree_file ${newick_file} \
-    --metadata_file ${PRM_samples_file} \
-    --project_code ${drug_of_interest} \
-    --column 'drug' \
-    --outfile ${tree_png}
+    # # Plot tree and save as png
+    # echo ""
+    # echo " --- RUNNING comp_mut_tree.R --- "
+    # echo ""
+    # Rscript r_scripts/comp_mut_tree.R \
+    # --tree_file ${newick_file} \
+    # --metadata_file ${PRM_samples_file} \
+    # --project_code ${drug_of_interest} \
+    # --column 'drug' \
+    # --outfile ${tree_png}
 
 fi
