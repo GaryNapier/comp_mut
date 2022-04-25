@@ -36,7 +36,7 @@
 
 # Setup ----
 
-TESTING <- 0
+TESTING <- 1
 
 library(optparse)
 library(phytools)
@@ -48,46 +48,6 @@ library(castor)
 library(ggnewscale)
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
-
-
-# Arguments ----
-
-option_list = list(
-  make_option(c("-t", "--tree_file"), type="character", default=NULL,
-              help="path to tree file to be plotted", metavar="character"),
-  make_option(c("-m", "--metadata_file"), type="character", default=NULL,
-              help="path to long-format metadata file containing columns:
-              wgs_id (ids of samples),
-              drug (name of drug to which the other columns of metadata correspond e.g. gene, dst),
-              main_lineage (main lineage of each samp),
-              drtype (Sensitive, pre-MDR, MDR etc),
-              dst (binary col of drug susceptibility test corresponding to drug column)",
-              metavar="character"),
-  make_option(c("-p", "--project_code"), type="character", default=NULL,
-              help="enter project code on which to subset rows of metadata e.g. 'isoniazid'", metavar="character"),
-  make_option(c("-c", "--column"), type="character", default=NULL,
-              help="column name in which project code occurs e.g. 'drug'", metavar="character"),
-  make_option(c("-o", "--outfile"), type="character", default=NULL,
-              help="path and name of saved png", metavar="character")
-);
-
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
-
-print("ARGUMENTS:")
-print(opt)
-print("---")
-print(str(opt))
-
-# Setup
-project_code <- opt$project_code
-project_code_col_name <- opt$column
-
-# Files ----
-
-tree_file <- opt$tree_file
-metadata_file <- opt$metadata_file
-outfile <- opt$outfile
 
 if (!TESTING){
 
@@ -122,7 +82,7 @@ if (!TESTING){
   
   # Setup
   project_code <- opt$project_code
-  project_code_col_name <- opt$column
+  # project_code_col_name <- opt$column
   
   # Files ----
   
@@ -136,11 +96,12 @@ if (!TESTING){
   setwd("~/Documents/comp_mut/")
   # Setup
   project_code <- "isoniazid"
-  project_code_col_name <- "drug"
+  # project_code_col_name <- "drug"
   
   # Files ----
-  tree_file <- paste0("newick/", project_code, ".filt.val.gt.g.snps.fa.treefile")
-  metadata_file <- paste0("results/", project_code, "_potential_res_mut_samps.csv")
+  tree_file <- paste0("results/newick/", project_code, ".filt.val.gt.g.snps.fa.treefile")
+  # metadata_file <- paste0("results/", project_code, "_PRM_samps.csv")
+  metadata_file <- paste0("results/", project_code, "_binary_table.csv")
   outfile <- paste0("results/", project_code, "_tree.png")
 # TESTING TESTING TESTING TESTING TESTING TESTING 
   
@@ -165,14 +126,24 @@ n_samps <- length(tree_all_samps$tip.label)
 
 # Metadata
 # Subset metadata to just the project code rows
-metadata <- metadata[metadata[, project_code_col_name] == project_code, ]
-# Make ID rownames of metadata so heatmap strips work in ggtree
-row.names(metadata) <- metadata$wgs_id
+# metadata <- metadata[metadata[, project_code_col_name] == project_code, ]
+
+# Clean data ----
+
 # Lineages - remove 'lineage' and convert to factor
 metadata$main_lineage <- factor(gsub('lineage', '', metadata$main_lineage))
 metadata$sublin <- factor(gsub('lineage', '', metadata$sublin))
 # Convert DST to factor
 metadata$dst <- as.factor(metadata$dst)
+
+# Remove all the "[]" present in the binary table caused by python's lists
+metadata <- clean_binary_table(metadata)
+
+# Subset to just those samps with PRM
+metadata <- subset(metadata, !(is.na(PRM)))
+
+# Make ID rownames of metadata so heatmap strips work in ggtree
+row.names(metadata) <- metadata$wgs_id
 
 # Get data for separate heatmap strips
 lin_data <- metadata[, "main_lineage", drop = F]
@@ -273,13 +244,16 @@ dr_data_hm <- gheatmap(dr_status_hm, dr_data,
 # Add the mutations labels, make adjustments to spacing and add scale
 # For adding tip labels which are not sample IDs, see - https://yulab-smu.top/treedata-book/faq.html
 final_tree <- dr_data_hm %<+% metadata + 
-  geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+  # geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+  geom_tiplab(aes(label = PRM, colour = PRM),
               linetype = NULL,
               align = T,
+              # angle = 45, 
               offset = os*3.5,
-              size = (n_samps*0.1)/font_sz)+
+              size = 2.25)+
   scale_colour_discrete(guide = "none")+
-  hexpand(.1, direction = 1) +
+  # hexpand(.1, direction = 1) +
+  hexpand(.25, direction = 1) +
   vexpand(.1)+
   geom_treescale(y = -5)+
   annotate('text', 
@@ -287,15 +261,14 @@ final_tree <- dr_data_hm %<+% metadata +
            label = c(project_code, 
                      sprintf("n = %s", n_samps)), 
            size = 7, 
-           hjust = 0)
+           hjust = 0)+
+  theme(legend.position = 'bottom')
 
 
-if (TESTING){
-  final_tree
-}else{
-  # Save
-  ggsave(outfile, final_tree, width = 1100/3, height = 700/3, units = "mm")
-}
+final_tree
+# Save
+ggsave(outfile, final_tree, width = 1100/3, height = 700/3, units = "mm")
+
 
 
 
