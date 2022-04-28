@@ -49,9 +49,18 @@ def get_counts(meta,samples,col):
     return dict(Counter([meta[s][col] for s in samples]))
 
 def get_meta_proportion(meta,samples,column,targets):
+    # Make a dict of counts for each category (e.g. {'Sensitive': 4, 'MDR-TB': 2.. etc})
     tmp = get_counts(meta,samples,column)
+    # Remove NA values (especially occurring in DST)
+    tmp.pop('NA', None)
+    # Get the values for the target (e.g. 'Sensitive' or '1'), default to 0 if no key available
     target_count = sum([tmp.get(c,0) for c in targets])
-    return round(target_count/sum(tmp.values()), 3)
+    # Make sure no division by 0
+    if len(tmp) == 0:
+        return 0
+    else:
+        # Get the proportion of target to the rest
+        return round(target_count/sum(tmp.values()), 3)
 
 def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes, do_lineage):
 
