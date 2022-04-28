@@ -67,6 +67,9 @@ def main(args):
             dst = meta_dict[samp][drug_of_interest]
             lins = [lin['lin'] for lin in data['lineage']]
             lin = lins[len(lins) - 1] # I hate Python!
+            # Correct the La1.2_La1.2 BCG lineage (the space messes everything up)
+            lin_correct = {"La1.2_La1.2 BCG": "La1.2.BCG"}
+            lin = lin_correct.get(lin,lin)
             
             for var in data["dr_variants"] + data["other_variants"]:
                 # Save mutation if:
