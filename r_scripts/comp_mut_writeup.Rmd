@@ -27,10 +27,12 @@ table_font_sz <- 8
 ```{r library, include=FALSE, echo = F, warning=F, message=F}
 
 library(tidyr)
+library(plyr)
 library(dplyr)
 library(knitr)
 library(reshape2)
 library(janitor)
+library(kableExtra)
 
 ```
 
@@ -130,6 +132,16 @@ lapply_nms <- function(x, fun, nms){
   res
 }
 
+drug_col_front <- function(df_list){
+  lapply(df_list, function(x){ select(x, Drug, everything()) })
+}
+
+add_drug_col <- function(df_list, drugs){
+  
+  drug_col_front(lapply_mod(df_list, function(i){df_list[[i]]$Drug <- rep(drugs[i], nrow(df_list[[i]])); df_list[[i]]}))
+  
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -166,7 +178,7 @@ local_metadata_path <- "../metadata/"
 pipeline_db_path <- "../../pipeline/db/"
 db_path <- "../../tbdb/"
 results_path <- "../results/"
-newick_path <- ""
+newick_path <- paste0(results_path, "newick/")
 
 ```
 
@@ -194,28 +206,6 @@ tree_files <- paste0(results_path, drugs, "_tree.png")
 
 ```
 
-<!-- ```{r isoniazid-files, echo = F, warning=F, message=F} -->
-
-<!-- # Results -->
-<!-- isoniazid_binary_table_file <- paste0(results_path, "isoniazid_binary_table.csv") -->
-<!-- isoniazid_PCM_merged_file <- paste0(results_path, "isoniazid_PCM_merged.csv") -->
-<!-- isoniazid_summary_file <- paste0(results_path, "isoniazid_summary.csv") -->
-<!-- isoniazid_PRM_stats_file <- paste0(results_path, "isoniazid_PRM_stats.csv") -->
-<!-- isoniazid_tree_file <- paste0(results_path, "isoniazid_tree.png") -->
-
-<!-- ``` -->
-
-<!-- ```{r rifampicin-files, echo = F, warning=F, message=F} -->
-
-<!-- rifampicin_binary_table_file <- paste0(results_path, "rifampicin_binary_table.csv") -->
-<!-- rifampicin_PCM_merged_file <- paste0(results_path, "rifampicin_PCM_merged.csv") -->
-<!-- rifampicin_summary_file <- paste0(results_path, "rifampicin_summary.csv") -->
-<!-- rifampicin_PRM_stats_file <- paste0(results_path, "rifampicin_PRM_stats.csv") -->
-<!-- rifampicin_tree_file <- paste0(results_path, "rifampicin_tree.png") -->
-
-<!-- ``` -->
-
-
 ```{r read-in-data, echo = F, warning=F, message=F}
 
 # READ IN DATA ----
@@ -239,26 +229,6 @@ summaries <- lapply_nms(summary_files, read.csv, drugs)
 PRM_stats <- lapply_nms(PRM_stats_files, read.csv, drugs)
 
 ```
-
-
-<!-- ```{r isoniazid-read-in-data, echo = F, warning=F, message=F} -->
-
-<!-- isoniazid_binary_table <- read.csv(isoniazid_binary_table_file) -->
-<!-- isoniazid_PCM_merged <- read.csv(isoniazid_PCM_merged_file) -->
-<!-- isoniazid_summary <- read.csv(isoniazid_summary_file) -->
-<!-- isoniazid_PRM_stats <- read.csv(isoniazid_PRM_stats_file) -->
-
-<!-- ``` -->
-
-<!-- ```{r rifampicin-read-in-data, echo = F, warning=F, message=F} -->
-
-<!-- rifampicin_binary_table <- read.csv(rifampicin_binary_table_file) -->
-<!-- rifampicin_PCM_merged <- read.csv(rifampicin_PCM_merged_file) -->
-<!-- rifampicin_summary <- read.csv(rifampicin_summary_file) -->
-<!-- rifampicin_PRM_stats <- read.csv(rifampicin_PRM_stats_file) -->
-
-<!-- ``` -->
-
 
 ```{r clean-data, echo = F, warning=F, message=F}
 
@@ -313,197 +283,50 @@ names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "D
 PRM_tabs <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
 # isoniazid_PRM_summary <- sort_pos(pivot(isoniazid_PRM_tab, formula(PRM ~ 'n')), 'PRM')
 PRM_tabs <- lapply(PRM_tabs, function(x){sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')})
-PRM_tabs <- lapply_mod(PRM_tabs, function(i){PRM_tabs[[i]]$Drug <- rep(drugs[i], nrow(PRM_tabs[[i]])); PRM_tabs[[i]]})
+PRM_tabs <- add_drug_col(PRM_tabs, drugs)
 PRM_summary <- do.call("rbind", PRM_tabs)
 PRM_summary <- select(PRM_summary, Drug, PRM, n)
 
 ```
 
-<!-- ```{r isoniazid-clean-data, echo = F, warning=F, message=F} -->
-
-<!-- # Remove all the "[]" present in the binary table caused by python's lists -->
-<!-- isoniazid_binary_table <- clean_binary_table(isoniazid_binary_table) -->
-
-<!-- # Split out the other_vars to make extra row per mutation -->
-<!-- isoniazid_binary_split <- data.frame(isoniazid_binary_table %>% -->
-<!--   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>% -->
-<!--   unnest(other_vars)) -->
-
-<!-- # Make col for just the other_vars genes, stripping out the change -->
-<!-- isoniazid_binary_split$other_vars_gene <- gsub("-.*", "", isoniazid_binary_split$other_vars) -->
-
-<!-- # Subset KCM for isoniazid -->
-<!-- isoniazid_KCM <- KCM[KCM[,"Gene"] == "ahpC", ] -->
-
-<!-- # Remove the PCMs in the KCM -->
-<!-- isoniazid_PCM_merged <- isoniazid_PCM_merged[!(isoniazid_PCM_merged$change %in% isoniazid_KCM$Mutation), ] -->
-
-<!-- # Transpose summary -->
-<!-- isoniazid_summary <- data.frame(n = t(isoniazid_summary)) -->
-
-<!-- # PRM stats -->
-<!-- isoniazid_PRM_stats <- select(isoniazid_PRM_stats, gene, mutation, n_samps, dst_prop, dr_prop, n_lins) -->
-<!-- isoniazid_PRM_stats <- sort_pos(isoniazid_PRM_stats, 'mutation') -->
-<!-- isoniazid_PRM_stats$dst_prop <- 1 - isoniazid_PRM_stats$dst_prop -->
-<!-- names(isoniazid_PRM_stats) <- c("Gene-change", "n samples", "DST sensitive", "DR type sensitive", "n lineages") -->
-
-<!-- ``` -->
-
-<!-- ```{r rifampicin-clean-data, echo = F, warning=F, message=F} -->
-
-<!-- # Remove all the "[]" present in the binary table caused by python's lists -->
-<!-- rifampicin_binary_table <- clean_binary_table(rifampicin_binary_table) -->
-
-<!-- # Split out the other_vars to make extra row per mutation -->
-<!-- rifampicin_binary_split <- data.frame(rifampicin_binary_table %>% -->
-<!--   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>% -->
-<!--   unnest(other_vars)) -->
-
-<!-- # Make col for just the other_vars genes, stripping out the change -->
-<!-- rifampicin_binary_split$other_vars_gene <- gsub("-.*", "", rifampicin_binary_split$other_vars) -->
-
-<!-- # Subset KCM for rifampicin -->
-<!-- rifampicin_KCM <- KCM[KCM[,"Gene"] == "rpoB", ] -->
-
-<!-- # Remove the PCMs in the KCM -->
-<!-- rifampicin_PCM_merged <- rifampicin_PCM_merged[!(rifampicin_PCM_merged$change %in% rifampicin_KCM$Mutation), ] -->
-
-<!-- # Transpose summary -->
-<!-- rifampicin_summary <- data.frame(n = t(rifampicin_summary)) -->
-
-<!-- # PRM stats -->
-<!-- rifampicin_PRM_stats <- select(rifampicin_PRM_stats, gene, mutation, n_samps, dst_prop, dr_prop, n_lins) -->
-<!-- rifampicin_PRM_stats <- sort_pos(rifampicin_PRM_stats, 'mutation') -->
-<!-- rifampicin_PRM_stats$dst_prop <- 1 - rifampicin_PRM_stats$dst_prop -->
-<!-- names(rifampicin_PRM_stats) <- c("Gene-change", "n samples", "DST sensitive", "DR type sensitive", "n lineages") -->
-
-<!-- ``` -->
-
-
-## Abstract
-
-## Introduction
-
-## Results
-
-RM = any resistance mutation;
-KRM = known RM;
-PRM = potential RM;
-CM = any compensatory mutation;
-KCM = known CM;
-PCM = potential CM
-
-
-
-```{r summary-table, echo = F, warning=F, caption = "Summary of each PRM"}
-
- # knitr::kable(isoniazid_summary)
-knitr::kable(summaries)
-
-```
-
-```{r PRM-summary-table, echo = F, warning=F, caption = "n samples by PRM haplotype"}
-
-# knitr::kable(isoniazid_PRM_summary)
-knitr::kable(PRM_summary)
-
-```
-
-```{r PRM-stats-table, echo = F, warning=F, caption = "Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each PRM"}
-
-# knitr::kable(isoniazid_PRM_stats)
-knitr::kable(PRM_stats)
-
-```
-
-<!-- **Rare isoniazid (katG) variants** -->
-
-**Rare variants**
-
-```{r isoniazid-rare-mutations, echo = F, warning=F}
+```{r isoniazid-rare-mutations-cnts, echo = F, warning=F}
 
 isoniazid_binary_table <- binary_tables$isoniazid
 rare_katg_table <- subset(isoniazid_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & !(is.na(katG)) )
 n_samps_rare_katg <- nrow(rare_katg_table)
 n_rare_katg <- length(uniq_col(rare_katg_table$katG))
-rare_katg_cnts <- table(table(unlist(strsplit(rare_katg_table$katG, "; "))))
+rare_katg_cnts <- tab2df(table(table(unlist(strsplit(rare_katg_table$katG, "; ")))))
 
 ```
 
-```{r rifampicin-rare-mutations, echo = F, warning=F}
+```{r rifampicin-rare-mutations-cnts, echo = F, warning=F}
 
 rifampicin_binary_table <- binary_tables$rifampicin
 rare_rpob_table <- subset(rifampicin_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & !(is.na(rpoB)) )
 n_samps_rare_rpob <- nrow(rare_rpob_table)
 n_rare_rpob <- length(uniq_col(rare_rpob_table$rpoB))
-rare_rpob_cnts <- table(table(unlist(strsplit(rare_rpob_table$rpoB, "; "))))
+rare_rpob_cnts <- tab2df(table(table(unlist(strsplit(rare_rpob_table$rpoB, "; ")))))
 
 ```
 
-```{r rare-mutations, echo = F, warning=F}
+```{r rare-mutations-cnts, echo = F, warning=F}
 
-
-
-```
-
-
-```{r basic-stats, echo = F, warning=F}
-
-# Basic stats
-
-# n_samps_CM_and_no_KRM_and_no_PRM <- isoniazid_summary["n_samps_CM_and_no_KRM_and_no_PRM", ]
-# summaries["n_samps_CM_and_no_KRM_and_no_PRM", "isoniazid"]
+rare_cnts <- plyr::rbind.fill(rare_katg_cnts, rare_rpob_cnts)
+row.names(rare_cnts) <- drugs
 
 ```
 
-<!-- The `r n_samps_CM_and_no_KRM_and_no_PRM` samples with CM but no KRM and no PRM have many INH mutations just found in one or two of these samples (‘*rare INH mutations*’).  -->
+```{r PRM-KRM, echo = F, warning=F}
 
-<!-- e.g. Looking at TBProfiler - sample ERR1035291 has CM ahpC-c.-74G>A and missense katG-p.Thr394Pro, but this is the only sample with this *katG* mutation.  -->
-
-<!-- `r n_samps_rare_katg`/`r n_samps_CM_and_no_KRM_and_no_PRM` of the samples with CM but no KRM and no PRM have any katG missense mutation, with `r n_rare_katg` distinct mutations. -->
-
-<!-- Most of these occur only once or twice and were therefore filtered out. -->
-
-<!-- The mutations occurring 3 or 4 times were only in one lineage so were also filtered -->
-
-
-```{r rare-counts, echo = F, warning=F, caption = "Frequency of low-occurring variants"}
-
-`r knitr::kable(rare_katg_cnts)`
+PRM_KRM <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
+PRM_KRM <- lapply(PRM_KRM, function(x) {reshape2::dcast(x, PRM + KRM + other_vars ~ 'n', value.var = 'wgs_id', fun.aggregate = len_uniq) } )
+PRM_KRM <- do.call("rbind", add_drug_col(PRM_KRM, drugs))
+PRM_KRM <- dplyr::rename(PRM_KRM, unknown = other_vars)
 
 ```
-
-**Samples with PRMs - co-occurrences of other mutations**
-
-```{r isoniazid-PRM-KRM, echo = F, warning=F}
-
-isoniazid_PRM_KRM <- pivot(isoniazid_PRM_tab, formula(KRM ~ 'n'))
-
-# isoniazid_PRM_fabg <- pivot(isoniazid_PRM_tab, formula(fabG1 ~ 'n'))
-isoniazid_PRM_other <- pivot(isoniazid_PRM_tab, formula(other_vars ~ 'n'))
-
-isoniazid_PRM_KRM <- cbind('status' = rep('KRM', nrow(isoniazid_PRM_KRM)), isoniazid_PRM_KRM)
-isoniazid_PRM_other <- cbind('status' = rep('unknown', nrow(isoniazid_PRM_other)), isoniazid_PRM_other)
-
-isoniazid_PRM_KRM_other <- rbind_force(isoniazid_PRM_KRM, isoniazid_PRM_other)
-isoniazid_PRM_KRM_other <- dplyr::rename(isoniazid_PRM_KRM_other, mutation = KRM)
-names(isoniazid_PRM_KRM_other) <- c("Status", "Gene-change", "n samples (%)")
-
-```
-
-KRM and unknown mutations co-occurring in samples with PRM:
-`r knitr::kable(isoniazid_PRM_KRM_other)`
-
-Comparison to Ser315Thr and Ser315Thr-KRM in other isoniazid resistance genes.
 
 ```{r isoniazid-Ser315Thr, echo = F, warning=F}
 
-# total n samps with a Ser315Thr mutation:  6877
-# n samples with p.Ser315Thr and a fabG1 DR mutation:  909
-# n samples with p.Ser315Thr and no fabG1 DR mutations:  5968
-# proportion:  0.132
-# n samps with a p.Ser315Thr mutation and a comp mutation:  177
-# proportion:  0.026
 
 ser315thr_tab <- subset(isoniazid_binary_table, grepl("Ser315Thr", isoniazid_binary_table$KRM))
 
@@ -516,73 +339,142 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 ```
 
-`r knitr::kable(ser315thr_pivot)`
-
-
-
-##### Rifampicin
-
-**Summary:**
-
-```{r rifampicin-summary-table, echo = F, warning=F}
-
-# Summary
-
-n_samps_CM_and_no_KRM_and_no_PRM <- rifampicin_summary["n_samps_CM_and_no_KRM_and_no_PRM", ]
- 
-# PRM subset and summary
-rifampicin_PRM_tab <- subset(rifampicin_binary_table, !(is.na(PRM)))
-rifampicin_PRM_summary <- pivot(rifampicin_PRM_tab, formula(PRM ~ 'n'))
+```{r basic-stats, echo = F, warning=F}
 
 ```
 
-`r knitr::kable(rifampicin_summary)`
+| | |
+| ----------- | ----------- |
+|Gary Napier^1^ | gary.napier@lshtm.ac.uk |
+|Collaborators in Europe | |
+|Susana Campino^1^ | susana.campino@lshtm.ac.uk |
+|Collaborators in Europe | |
+|Jody E. Phelan^1^,* | jody.phelan@lshtm.ac.uk |
+|Taane G. Clark^1^,^2^,* | taane.clark@lshtm.ac.uk |
 
-**Rare rifampicin variants**
+^1^Faculty of Infectious and Tropical Diseases, London School of Hygiene & Tropical Medicine, WC1E 7HT London, UK
+^2^Faculty of Epidemiology and Population Health, London School of Hygiene & Tropical Medicine, WC1E 7HT London, UK
 
-```{r rifampicin-rare-mutations, echo = F, warning=F}
-
-rifampicin_rare_table <- subset(rifampicin_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & (!(is.na(rpoC)) | !(is.na(rpoB))) )
-n_samps_rare_rifampicin <- nrow(rifampicin_rare_table)
-n_rare_rifampicin <- length(uniq_col(rifampicin_rare_table$other_vars))
-rare_rifampicin_table <- table(unlist(strsplit(rifampicin_rare_table$other_vars, "; ")))
-
-```
-
-`r knitr::kable(rare_rifampicin_table)`
+\* joint authors
 
 
+## Abstract
+
+**Background:** 
+
+**Results:**
+
+**Conclusions:**
+
+**URL:**
+
+**Keywords:** 
+
+## Background
+
+## Results
+
+## Discussion
+
+## Conclusions
 
 ## Methods
 
 **Sequence data and processing**
 
+## List of abbreviations
 
-### Figures
+RM = any resistance mutation;
+KRM = known RM;
+PRM = potential RM;
+CM = any compensatory mutation;
+KCM = known CM;
+PCM = potential CM
 
-```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of isoniazid samples with potential new katG mutations" }
+## Declarations
 
-# Run tree script
+## Ethics approval and consent to participate
+Not applicable
 
-# system(paste("Rscript file_to_source.R", arg1, arg2))
-# 
-# for (drug in drugs){
-#   tree_file <- paste0(newick_dir, drug, ".filt.val.gt.g.snps.fa.treefile")
-#   
-# system(sprintf("Rscript comp_mut_tree.R 
-#                --tree_file %s 
-#                --metadata_file %s
-#                --project_code %s
-#                --column drug 
-#                --outfile %s", tree_file, , , ))
+## Consent for publication
+Not applicable 
 
-knitr::include_graphics(isoniazid_tree_file)
+## Competing interests
+The authors declare that they have no competing interests
+
+## Funding
+GN is funded by an BBSRC-LiDO PhD studentship. JEP is funded by a Newton Institutional Links Grant (British Council, no. 261868591). TGC is funded by the Medical Research Council UK (Grant no. MR/M01360X/1, MR/N010469/1, MR/R025576/1, and MR/R020973/1). SC is funded by Medical Research Council UK grants (ref. MR/M01360X/1, MR/R025576/1, and MR/R020973/1). The authors declare no conflicts of interest. The funders had no role in the design of the study and collection, analysis, and interpretation of data and in writing the manuscript should be declared.
+
+## Authors' contributions
+XXX, JEP and TGC conceived and directed the project. XXXXXXX contributed data. GN performed bioinformatic and statistical analyses under the supervision of SC, JEP and TGC. GN, SC, JEP and TGC interpreted results. GN wrote the first draft of the manuscript with inputs from JEP and TGC. All authors commented and edited on various versions of the draft manuscript and approved the final version. GN, SC, JEP, and TGC compiled the final manuscript. 
+
+## Acknowledgements
+
+## Tables
+
+```{r summary-table, echo = F, warning=F}
+
+# knitr::kable(summaries,  caption = "Summary of each PRM") %>% kable_styling(font_size = table_font_sz)
+knitr::kable(summaries,  caption = "Summary of each PRM")
 
 ```
 
-### Tables
+```{r PRM-summary-table, echo = F, warning=F}
 
+knitr::kable(PRM_summary, caption = "n samples by PRM haplotype", row.names = F)
 
+```
+
+```{r PRM-stats-table, echo = F, warning=F}
+
+knitr::kable(PRM_stats, row.names = F,
+             caption = "Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each PRM")
+
+```
+
+**Rare variants**
+
+```{r rare-counts-table, echo = F, warning=F}
+
+cap <- "Number of variants by frequancy of occurrence for katG (isoniazid) and rpoB (rifampicin) among samples with at least one CM, no KRM. These variants are not counted as 'PRM' because of their low frequency (only one or two samples). Variants occurring more than twice were rejected either because most samples were DR-type sensitive or DST sensitive."
+
+knitr::kable(rare_cnts, caption = cap)
+
+```
+
+**Samples with PRMs - co-occurrences of KRM and unknown mutations**
+
+```{r PRM-KRM-other-table, echo = F, warning=F}
+
+knitr::kable(PRM_KRM,  row.names = F, 
+             caption = "KRM and non-DR-associated ('unknown') mutations co-occurring in samples with PRM")
+
+```
+
+**Isoniazid**
+
+Comparison to katG-Ser315Thr and katG-Ser315Thr-KRM in other isoniazid resistance genes.
+
+```{r isoniazid-Ser315Thr-table, echo = F, warning=F, }
+
+knitr::kable(ser315thr_pivot, row.names = F, 
+             caption = "Comparison to katG-Ser315Thr and katG-Ser315Thr-KRM in other isoniazid resistance genes.")
+
+```
+
+## Figures
+
+```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of isoniazid samples with potential new katG mutations"}
+
+knitr::include_graphics(tree_files[grep("isoniazid", tree_files)])
+
+```
+
+```{r rifmpicin-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of rifampicin samples with potential new proB mutations" }
+
+knitr::include_graphics(tree_files[grep("rifampicin", tree_files)])
+
+```
 
 ### References
 
