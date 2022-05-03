@@ -30,7 +30,8 @@ echo
 # ------------
 
 # Existing directories
-tbp_results_dir=/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/
+# tbp_results_dir=/mnt/storage7/jody/tb_ena/tbprofiler/freebayes/results/
+tbp_results_dir=/mnt/storage7/jody/tb_ena/tbprofiler/vcf_profile/results/
 vcf_remote=/mnt/storage7/jody/tb_ena/per_sample/
 main_metadata_dir=../metadata/
 local_metadata_dir=metadata/
