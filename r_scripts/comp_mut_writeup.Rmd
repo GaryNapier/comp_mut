@@ -406,11 +406,11 @@ All unknown (PCM) mutations were filtered such that:
 - <50% samples predicted Sensitive by TB-profiler
 - <50% samples DST sensitive
 
-These successful mutations were then combined with the list of known compensatory mutations (KCM) to form a full list of compensatory mutations (CM).
+These successful mutations were then combined with the list of known compensatory mutations (KCM) [@Phelan2019] to form a full list of compensatory mutations (CM).
 
 To find PRM, all non-synonymous mutations in the relevant resistance genes were pulled from the TB-profiler database (katG for INH and rpoB for RIF), with the exclusion of mutations coming from samples with mixed lineages. 
 
-Some variants were excluded from consideration for PRM. katG-Arg463Leu is known not to be associated with INH resistance [@Doorn2001]. katG-Val469Leu is lineage-specific to *M.orygis* [@Napier2020]. 
+Some variants were excluded from consideration for PRM. katG-Arg463Leu is known not to be associated with INH resistance [@Doorn2001]. 
 
 
 
