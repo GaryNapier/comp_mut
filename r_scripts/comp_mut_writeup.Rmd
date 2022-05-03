@@ -1,5 +1,5 @@
 ---
-title: "Compensatory mutations in *ahpC* reveal novel *katG* mutations implicated in isoniazid resistance in Mycobacterium tuberculosis"
+title: "Compensatory mutations reveal novel mutations implicated in isoniazid and rifampicin resistance in *Mycobacterium tuberculosis*"
 output: 
   bookdown::word_document2: 
     fig_caption: yes
@@ -32,7 +32,6 @@ library(dplyr)
 library(knitr)
 library(reshape2)
 library(janitor)
-library(kableExtra)
 
 ```
 
@@ -382,14 +381,53 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 **Sequence data and processing**
 
+Sequences obtained from ENA  *www.ebi.ac.uk/ena/*
+
+Quality inspection of sequence reads - fastQC (v0.11.9) (www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+
+Trimming of reads to remove low-quality sequences -	Trimmomatic (v0.39)	- parameters: PE, -phred33, LEADING:3, TRAILING:3, SLIDINGWINDOW:4:20, MINLEN:36 [@Bolger2014]
+
+Alignment to H37Rv reference genome (AL123456) - BWA mem	(v0.7.17) [@Li2013], [@Cole1998]
+
+Joint SNP calling -	gatk GenotypeGVCFs (v4.1.3.0) - --java-options "-Xmx40g" - [@Depristo2011]
+
+SNP filtering - exclude indels - exclude heterozygous SNPs - set genotypes of failed samples to '.' - trim alternate alleles not seen in the subset - set minimum/maximum count to 1 - exclude monomorphic SNPs - exclude non-unique regions of the genome (e.g. ppe genes) - bcftools view; bcftools filter (v1.9) (using htslib 1.9); parameters *-V indels -e 'GT="het"' -S . -a -c 1 -Oz* [@Li2009]
+
+Multi-FASTA format created from the filtered SNP file and H37Rv reference fasta	- bedtools makewindows (v2.28.0); parameters -w 50000 -s 50000 [@Quinlan2010]
+
+DR and lineages predicted *in silico* - TB-Profiler (v2.4) [@Phelan2019] [@Coll2015]
+
+**Finding PRM from CM**
+
+From the database of TB-profiler - all non-synonymous mutations in the relevant compensatory genes were found (ahpC in the case of INH and rpoC and rpoA for RIF)
+
+All unknown (PCM) mutations were filtered such that:
+- > 3 samples
+- <50% samples predicted Sensitive by TB-profiler
+- <50% samples DST sensitive
+
+These successful mutations were then combined with the list of known compensatory mutations (KCM) to form a full list of compensatory mutations (CM).
+
+To find PRM, all non-synonymous mutations in the relevant resistance genes were pulled from the TB-profiler database (katG for INH and rpoB for RIF), with the exclusion of mutations coming from samples with mixed lineages. 
+
+Some variants were excluded from consideration for PRM. katG-Arg463Leu is known not to be associated with INH resistance [@Doorn2001]. katG-Val469Leu is lineage-specific to *M.orygis* [@Napier2020]. 
+
+
+
+
+
 ## List of abbreviations
 
-RM = any resistance mutation;
-KRM = known RM;
-PRM = potential RM;
-CM = any compensatory mutation;
-KCM = known CM;
-PCM = potential CM
+* *Mtb* = *Mycobacterium tuberculosis*
+* TB = Tuberculosis
+* RM = any resistance mutation;
+* KRM = known RM;
+* PRM = potential RM;
+* CM = any compensatory mutation;
+* KCM = known CM;
+* PCM = potential CM
+* INH = isoniazid
+* RIF = rifampicin
 
 ## Declarations
 
@@ -436,7 +474,7 @@ knitr::kable(PRM_stats, row.names = F,
 
 ```{r rare-counts-table, echo = F, warning=F}
 
-cap <- "Number of variants by frequancy of occurrence for katG (isoniazid) and rpoB (rifampicin) among samples with at least one CM, no KRM. These variants are not counted as 'PRM' because of their low frequency (only one or two samples). Variants occurring more than twice were rejected either because most samples were DR-type sensitive or DST sensitive."
+cap <- "Number of variants by frequency of occurrence for katG (isoniazid) and rpoB (rifampicin) among samples with at least one CM, no KRM. These variants are not counted as 'PRM' because of their low frequency (only one or two samples). Variants occurring more than twice were rejected either because most samples were DR-type sensitive or DST sensitive."
 
 knitr::kable(rare_cnts, caption = cap)
 
