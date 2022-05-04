@@ -399,20 +399,19 @@ def main(args):
         with open(PRM_samples_file, 'w') as f:
             for samp in samps_PRM:
                 f.write("%s\n" % samp)
+        clean_file(PRM_samples_file)
 
     with open(binary_table_file, 'w') as f:
         writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(binary_table)))
         writer.writeheader()
         for row in binary_table:
             writer.writerow(binary_table[row])
+    clean_file(binary_table_file)
 
     with open(summary_file, 'w') as f:
         writer = csv.DictWriter(f, fieldnames = summary_dict.keys())
         writer.writeheader()
         writer.writerow(summary_dict)
-
-    clean_file(PRM_samples_file)
-    clean_file(binary_table_file)
     clean_file(summary_file)
 
 
