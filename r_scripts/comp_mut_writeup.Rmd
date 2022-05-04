@@ -340,6 +340,8 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 ```{r basic-stats, echo = F, warning=F}
 
+
+
 ```
 
 | | |
@@ -359,11 +361,13 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 ## Abstract
 
-**Background:** 
+**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in *Mycobacterium tuberculosis* (*Mtb*) (multidrug-resistant TB; MDR-TB) threatens disease control. In the development of *Mtb* resistance to anti-TB drugs, genetic mutations often come with a cost to fitness. In order to overcome these fitness costs, *Mtb* can develop further, beneficial, mutations in genes that code for similar proteins. These are known as compensatory mutations. 
 
-**Results:**
+Here we leverage the presence of known compensatory mutations (KCM) and novel potential compensatory mutations (PCM) to detect the presence of novel potential resistance mutations (PRM) occurring in the target genes of INH and RIF - *katG* and *rpoB*, respectively. By examining samples profiled as having the presence of CMs, but no known resistance mutation (KRM), yet having a mutation in the relevant target gene, it is inferred that these mutations are PRM. 
 
-**Conclusions:**
+**Results:** XXX PCM in *katG* and XXX PCM in *rpoB* were found. These were added to the list of KCM to create a complete list of compensatory mutations (CM). Using the full list of CM, XXX PRM in *katG* in XXX samples and XXX PRM in *rpoB* in XXX samples were detected. 
+
+**Conclusions:** Detecting PRM from whole genome sequencing (WGS) underlines the power of applying molecular approaches to predicting drug resistance among a wide diversity of samples. Further research needs to be conducted to establish firstly where in the final folded protein the PRMs occur, and secondly to confirm by phenotypic tests that the PRMs do indeed confer resistance. 
 
 **URL:**
 
@@ -419,7 +423,7 @@ Some variants were excluded from consideration for PRM. katG-Arg463Leu is known 
 ## List of abbreviations
 
 * *Mtb* = *Mycobacterium tuberculosis*
-* TB = Tuberculosis
+* TB = tuberculosis
 * RM = any resistance mutation;
 * KRM = known RM;
 * PRM = potential RM;
@@ -428,6 +432,7 @@ Some variants were excluded from consideration for PRM. katG-Arg463Leu is known 
 * PCM = potential CM
 * INH = isoniazid
 * RIF = rifampicin
+* WGS = whole genome sequencing
 
 ## Declarations
 
