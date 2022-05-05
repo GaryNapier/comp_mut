@@ -202,6 +202,10 @@ def main(args):
             data = json.load(open(file))
             # Skip mixed samps
             if ';' in data['sublin']: continue
+            # Skip animal samples
+            if 'La' in data['main_lin']: continue
+            # Just do lineages 7, 8, 9
+            if data['main_lin'] in {'lineage7', 'lineage8', 'lineage9'}: continue
 
             # Update metadata
             meta_dict[s]['drtype'] = standardise_drtype[data['drtype']]
