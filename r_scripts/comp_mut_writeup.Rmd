@@ -1,5 +1,5 @@
 ---
-title: "Compensatory mutations reveal novel mutations implicated in isoniazid and rifampicin resistance in *Mycobacterium tuberculosis*"
+title: "Large-scale genomic analysis of *Mycobacterium tuberculosis* reveals extent of target and compensatory mutations linked to isoniazid, rifampicin and multi-drug resistance"
 output: 
   bookdown::word_document2: 
     fig_caption: yes
@@ -234,6 +234,10 @@ PRM_stats <- lapply_nms(PRM_stats_files, read.csv, drugs)
 # Remove all the "[]" present in the binary table caused by python's lists
 binary_tables <- lapply(binary_tables, clean_binary_table)
 
+# Clean lineage column 
+binary_tables <- lapply(binary_tables, function(x) {x$main_lineage <- gsub("lineage", "", x$main_lineage); x})
+binary_tables <- lapply(binary_tables, function(x) {x$sublin <- gsub("lineage", "", x$sublin); x})
+
 # Duplicate sample row if other_vars has more than one var (i.e. on the "; " character/string)
 binary_tables_dup <- lapply(binary_tables, function(x){
   data.frame(x %>%
@@ -338,7 +342,56 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 ```
 
+```{r table-1, echo = F, warning=F}
+
+# Make pivot tables of basic stats
+
+# Add drug col, select and bind
+meta_tables <- add_drug_col(binary_tables, drugs)
+meta_table <- do.call('rbind', lapply(meta_tables, function(x){ select(x, Drug, wgs_id, main_lineage, sublin, country_code, drtype, dst)}))
+
+# Lin
+lin_pivot <- pivot(meta_table, formula(main_lineage ~ 'n' + Drug) )
+
+# DR
+drtype_pivot <- pivot(meta_table, formula(drtype ~ 'n' + Drug) )
+drtype_pivot <- drtype_pivot[order(match(drtype_pivot$drtype, dr_status_vect)), ]
+
+# Predicted DR to individual drugs
+KRM_table <- do.call('rbind', lapply(meta_tables, function(x){ select(x, Drug, wgs_id, KRM)}))
+KRM_table$KRM_binary <- ifelse(is.na(KRM_table$KRM), 0, 1)
+KRM_pivot <- pivot(KRM_table, formula(KRM_binary ~ 'n' + Drug) )
+
+# DST
+dst_pivot <- pivot(meta_table, formula(dst ~ 'n' + Drug) )
+
+table_1 <- data.frame()
+table_1 <- rbind(table_1, 
+                 setNames(lin_pivot, names(table_1)), 
+                 setNames(drtype_pivot, names(table_1)), 
+                 setNames(KRM_pivot, names(table_1)), 
+                 setNames(dst_pivot, names(table_1)))
+
+names(table_1) <- c("Characteristic", "n isoniazid", "n rifampicin")
+
+table_1$Category <- c(rep("Lineage", nrow(lin_pivot)), 
+                      rep("DR status", nrow(drtype_pivot)), 
+                      rep("(predicted) resistance", nrow(KRM_pivot)), 
+                      rep("DST", nrow(dst_pivot)))
+
+table_1 <- table_1[, c( "Category", "Characteristic", "n isoniazid", "n rifampicin")]
+
+```
+
 ```{r basic-stats, echo = F, warning=F}
+
+
+
+```
+
+```{r working, echo = F, warning=F}
+
+
 
 
 
@@ -347,9 +400,7 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 | | |
 | ----------- | ----------- |
 |Gary Napier^1^ | gary.napier@lshtm.ac.uk |
-|Collaborators in Europe | |
 |Susana Campino^1^ | susana.campino@lshtm.ac.uk |
-|Collaborators in Europe | |
 |Jody E. Phelan^1^,* | jody.phelan@lshtm.ac.uk |
 |Taane G. Clark^1^,^2^,* | taane.clark@lshtm.ac.uk |
 
@@ -361,13 +412,12 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 ## Abstract
 
-**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in *Mycobacterium tuberculosis* (*Mtb*) (multidrug-resistant TB; MDR-TB) threatens disease control. In the development of *Mtb* resistance to anti-TB drugs, genetic mutations often come with a cost to fitness. In order to overcome these fitness costs, *Mtb* can develop further, beneficial, mutations in genes that code for similar proteins. These are known as compensatory mutations. 
+**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in Mycobacterium tuberculosis (multidrug-resistant TB; MDR-TB) threatens disease control. In the development of M. tuberculosis resistance to anti-TB drugs, genetic mutations often come with a fitness cost. To overcome these fitness costs, M. tuberculosis can develop further, beneficial, compensatory mutations in genes that code for similar proteins. Here we leverage the presence of known resistance a
+nd compensatory mutations and phenotypic data to detect the presence of novel mutations occurring in the target genes of INH (e.g., katG) and RIF (e.g., rpoB). 
 
-Here we leverage the presence of known compensatory mutations (KCM) and novel potential compensatory mutations (PCM) to detect the presence of novel potential resistance mutations (PRM) occurring in the target genes of INH and RIF - *katG* and *rpoB*, respectively. By examining samples profiled as having the presence of CMs, but no known resistance mutation (KRM), yet having a mutation in the relevant target gene, it is inferred that these mutations are PRM. 
+**Results:** Across XX isolates, there was XXX (XX%) with INH and XXX (XX%) with RIF phenotypic resistance. Known mutations in rpoB (n=XXX/XXX;) and katG (XXX/XXXX) explained most of the resistance…. Known compensatory mutations were identified XXXXXX. By examining isolates with resistance, but known compensatory mutations, we identified XXXXX novel resistance markers where no known resistance ones were present. XXX look at combinations for MDR XXXX
 
-**Results:** XXX PCM in *katG* and XXX PCM in *rpoB* were found. These were added to the list of KCM to create a complete list of compensatory mutations (CM). Using the full list of CM, XXX PRM in *katG* in XXX samples and XXX PRM in *rpoB* in XXX samples were detected. 
-
-**Conclusions:** Detecting PRM from whole genome sequencing (WGS) underlines the power of applying molecular approaches to predicting drug resistance among a wide diversity of samples. Further research needs to be conducted to establish firstly where in the final folded protein the PRMs occur, and secondly to confirm by phenotypic tests that the PRMs do indeed confer resistance. 
+**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new markers linked to resistance. We have identified XXX new resistance markers, and after validation, added to list of mutations for genotypic predictions.
 
 **URL:**
 
@@ -377,15 +427,20 @@ Here we leverage the presence of known compensatory mutations (KCM) and novel po
 
 ## Results
 
+Isolate collection - Number that are INH, RIF and MDR resistant 
+Resistance mutations, and how many explain the phenotype
+Compensatory mutations
+Filling in the gaps of phenotypic resistance, leveraging compensatory, and revealing novel resistance markers
+Can we find new compensatory markers?
+Function of new mutations… protein modelling
+
 ## Discussion
 
 ## Conclusions
 
 ## Methods
 
-**Sequence data and processing**
-
-Sequences obtained from ENA  *www.ebi.ac.uk/ena/*
+*Sequence data and processing*
 
 Quality inspection of sequence reads - fastQC (v0.11.9) (www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 
@@ -401,7 +456,7 @@ Multi-FASTA format created from the filtered SNP file and H37Rv reference fasta	
 
 DR and lineages predicted *in silico* - TB-Profiler (v2.4) [@Phelan2019] [@Coll2015]
 
-**Finding PRM from CM**
+*Finding putative resistance markers using compensatory mutations*
 
 From the database of TB-profiler - all non-synonymous mutations in the relevant compensatory genes were found (ahpC in the case of INH and rpoC and rpoA for RIF)
 
@@ -410,9 +465,9 @@ All unknown (PCM) mutations were filtered such that:
 - <50% samples predicted Sensitive by TB-profiler
 - <50% samples DST sensitive
 
-These successful mutations were then combined with the list of known compensatory mutations (KCM) [@Phelan2019] to form a full list of compensatory mutations (CM).
+These successful mutations were then combined with the list of known compensatory mutations [@Phelan2019] to form a full list of compensatory mutations.
 
-To find PRM, all non-synonymous mutations in the relevant resistance genes were pulled from the TB-profiler database (katG for INH and rpoB for RIF), with the exclusion of mutations coming from samples with mixed lineages. 
+To find putative resistance mutations, all non-synonymous mutations in the relevant resistance genes were pulled from the TB-profiler database (katG for INH and rpoB for RIF), with the exclusion of mutations coming from isolates with mixed lineages. 
 
 Some variants were excluded from consideration for PRM. katG-Arg463Leu is known not to be associated with INH resistance [@Doorn2001]. 
 
@@ -424,12 +479,12 @@ Some variants were excluded from consideration for PRM. katG-Arg463Leu is known 
 
 * *Mtb* = *Mycobacterium tuberculosis*
 * TB = tuberculosis
-* RM = any resistance mutation;
-* KRM = known RM;
-* PRM = potential RM;
-* CM = any compensatory mutation;
-* KCM = known CM;
-* PCM = potential CM
+<!-- * RM = any resistance mutation; -->
+<!-- * KRM = known RM; -->
+<!-- * PRM = potential RM; -->
+<!-- * CM = any compensatory mutation; -->
+<!-- * KCM = known CM; -->
+<!-- * PCM = potential CM -->
 * INH = isoniazid
 * RIF = rifampicin
 * WGS = whole genome sequencing
@@ -449,29 +504,37 @@ The authors declare that they have no competing interests
 GN is funded by an BBSRC-LiDO PhD studentship. JEP is funded by a Newton Institutional Links Grant (British Council, no. 261868591). TGC is funded by the Medical Research Council UK (Grant no. MR/M01360X/1, MR/N010469/1, MR/R025576/1, and MR/R020973/1). SC is funded by Medical Research Council UK grants (ref. MR/M01360X/1, MR/R025576/1, and MR/R020973/1). The authors declare no conflicts of interest. The funders had no role in the design of the study and collection, analysis, and interpretation of data and in writing the manuscript should be declared.
 
 ## Authors' contributions
-XXX, JEP and TGC conceived and directed the project. XXXXXXX contributed data. GN performed bioinformatic and statistical analyses under the supervision of SC, JEP and TGC. GN, SC, JEP and TGC interpreted results. GN wrote the first draft of the manuscript with inputs from JEP and TGC. All authors commented and edited on various versions of the draft manuscript and approved the final version. GN, SC, JEP, and TGC compiled the final manuscript. 
+JEP and TGC conceived and directed the project. GN performed bioinformatic and statistical analyses under the supervision of SC, JEP and TGC. GN, SC, JEP and TGC interpreted results. GN wrote the first draft of the manuscript with inputs from JEP and TGC. All authors commented and edited on various versions of the draft manuscript and approved the final version. GN, SC, JEP, and TGC compiled the final manuscript.
 
 ## Acknowledgements
 
 ## Tables
 
+```{r table-1-display, echo = F, warning=F}
+
+cap <- "*Mycobacterium tuberculosis* samples (n = XXX)"
+knitr::kable(table_1, caption = cap, format = "pipe", row.names = F)
+
+```
+
 ```{r summary-table, echo = F, warning=F}
 
 # knitr::kable(summaries,  caption = "Summary of each PRM") %>% kable_styling(font_size = table_font_sz)
-knitr::kable(summaries,  caption = "Summary of each PRM")
+knitr::kable(summaries, caption = "Potential resistance mutations ", format = "pipe")
 
 ```
 
 ```{r PRM-summary-table, echo = F, warning=F}
 
-knitr::kable(PRM_summary, caption = "n samples by PRM haplotype", row.names = F)
+cap <- "Potential resistance mutation (PRM) haplotypes for isoniazid (n=XXX) and rifampicin (n=XXX)"
+knitr::kable(PRM_summary, caption = , row.names = F, format = "pipe")
 
 ```
 
 ```{r PRM-stats-table, echo = F, warning=F}
 
-knitr::kable(PRM_stats, row.names = F,
-             caption = "Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each PRM")
+cap <- "Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each PRM"
+knitr::kable(PRM_stats, row.names = F, caption = cap, format = "pipe")
 
 ```
 
@@ -479,9 +542,8 @@ knitr::kable(PRM_stats, row.names = F,
 
 ```{r rare-counts-table, echo = F, warning=F}
 
-cap <- "Number of variants by frequency of occurrence for katG (isoniazid) and rpoB (rifampicin) among samples with at least one CM, no KRM. These variants are not counted as 'PRM' because of their low frequency (only one or two samples). Variants occurring more than twice were rejected either because most samples were DR-type sensitive or DST sensitive."
-
-knitr::kable(rare_cnts, caption = cap)
+cap <- "Number of variants by frequency of occurrence for katG (isoniazid) and rpoB (rifampicin) among samples with at least one CM, no KRM. These variants are not counted as ‘PRM’ because of their low frequency (only one or two samples). Variants occurring more than twice were rejected either because most samples were DR-type sensitive or DST sensitive."
+knitr::kable(rare_cnts, caption = cap, format = "pipe")
 
 ```
 
@@ -489,8 +551,8 @@ knitr::kable(rare_cnts, caption = cap)
 
 ```{r PRM-KRM-other-table, echo = F, warning=F}
 
-knitr::kable(PRM_KRM,  row.names = F, 
-             caption = "KRM and non-DR-associated ('unknown') mutations co-occurring in samples with PRM")
+cap <- "Known resistance mutations and non-DR-associated (‘unknown’) mutations co-occurring in samples with putative drug resistance"
+knitr::kable(PRM_KRM,  row.names = F, caption = cap, format = "pipe")
 
 ```
 
@@ -500,14 +562,14 @@ Comparison to katG-Ser315Thr and katG-Ser315Thr-KRM in other isoniazid resistanc
 
 ```{r isoniazid-Ser315Thr-table, echo = F, warning=F, }
 
-knitr::kable(ser315thr_pivot, row.names = F, 
-             caption = "Comparison to katG-Ser315Thr and katG-Ser315Thr-KRM in other isoniazid resistance genes.")
+cap <- "Comparison to katG-Ser315Thr and katG-Ser315Thr-KRM in other isoniazid resistance genes."
+knitr::kable(ser315thr_pivot, row.names = F, caption = cap, format = "pipe")
 
 ```
 
 ## Figures
 
-```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of isoniazid samples with potential new katG mutations"}
+```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Phylogenetic tree of isolates with resistance; Isoniazid resistance (n=XX), with potentially new katG mutations"}
 
 knitr::include_graphics(tree_files[grep("isoniazid", tree_files)])
 
