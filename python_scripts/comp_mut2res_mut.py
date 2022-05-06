@@ -196,20 +196,25 @@ def main(args):
     mutation2sample = defaultdict(set)
     sample2mutation = defaultdict(set)
     resistance_mutations = defaultdict(set)
+    samples_with_files = set()
     for s in tqdm(samples):
         file = "%s/%s%s" % (tbprofiler_results_dir, s, suffix)
         if os.path.isfile(file):
             data = json.load(open(file))
+            
+            # Keep record of which samples have files 
+            samples_with_files.add(s)
+            
+            # Update metadata
+            meta_dict[s]['drtype'] = standardise_drtype[data['drtype']]
+            meta_dict[s]['sublin'] = data['sublin']
+            
             # Skip mixed samps
             if ';' in data['sublin']: continue
             # Skip animal samples
             if 'La' in data['main_lin']: continue
             # Just do lineages 7, 8, 9
             if data['main_lin'] in {'lineage7', 'lineage8', 'lineage9'}: continue
-
-            # Update metadata
-            meta_dict[s]['drtype'] = standardise_drtype[data['drtype']]
-            meta_dict[s]['sublin'] = data['sublin']
 
             # MAKE SURE THE FOR LOOP BELOW IS INDENTED IN LINE WITH if os.path.isfile(file):
             # Otherwise adds sample s to mutation2sample etc
@@ -227,6 +232,12 @@ def main(args):
                         if d["drug"] not in drug_of_interest: continue
                         if key in KCM[d["drug"]] or key in PCM_list: continue
                         resistance_mutations[d["drug"]].add(key)
+
+    # Clean up samples list - needs to agree with samples which actually have files
+    samples = [samp for samp in samples if samp in samples_with_files]
+
+    # Clean up meta_dict - needs to agree with samples which actually have files
+    meta_dict = {samp: meta_dict[samp] for samp in samples}
 
     # Classify potential compensatory mutations and filter 
     # Need to check against tbprofiler results for each mutation 
@@ -300,7 +311,8 @@ def main(args):
     binary_table = {}
 
     # CM
-    for samp in sample2mutation:
+    # for samp in sample2mutation:
+    for samp in samples:
         CM_vars = [var for var in sample2mutation[samp] if var in CM]
         KRM_vars = [var for var in sample2mutation[samp] if var in resistance_mutations[drug_of_interest]]
         PRM_vars = [var for var in sample2mutation[samp] if var in PRM_filtered]
@@ -308,18 +320,17 @@ def main(args):
                     if var not in CM and \
                     var not in resistance_mutations[drug_of_interest] and \
                     var not in PRM_filtered]
-        
-        if len(CM_vars) > 0 or len(KRM_vars) > 0 or len(PRM_vars) > 0 or len(other_vars) > 0:
-            binary_table[samp] = {'wgs_id': samp, \
-                                'main_lineage': meta_dict[samp]['main_lineage'], \
-                                'sublin': meta_dict[samp]['main_lineage'], \
-                                'country_code': meta_dict[samp]['country_code'], \
-                                'drtype': meta_dict[samp]['drtype'], \
-                                'dst': meta_dict[samp][drug_of_interest], \
-                                'CM': CM_vars, \
-                                'KRM': KRM_vars, \
-                                'PRM': PRM_vars, \
-                                'other_vars': other_vars}
+
+        binary_table[samp] = {'wgs_id': samp, \
+                            'main_lineage': meta_dict[samp]['main_lineage'], \
+                            'sublin': meta_dict[samp]['main_lineage'], \
+                            'country_code': meta_dict[samp]['country_code'], \
+                            'drtype': meta_dict[samp]['drtype'], \
+                            'dst': meta_dict[samp][drug_of_interest], \
+                            'CM': CM_vars, \
+                            'KRM': KRM_vars, \
+                            'PRM': PRM_vars, \
+                            'other_vars': other_vars}
 
     # Split out other vars in case more than one in there
     for samp in binary_table:
@@ -328,7 +339,7 @@ def main(args):
         for gene in other_var_genes:
             vars_gene = [var for var in other_vars if var[0] == gene]
             binary_table[samp].update({gene: vars_gene})
-            
+
     # Fill out the keys for the rest of the samples, getting all unique keys first
     binary_table_keys = []
     for samp in binary_table:
