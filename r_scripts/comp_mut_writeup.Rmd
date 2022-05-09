@@ -70,6 +70,22 @@ pivot <- function(x, my_formula, value_var = "wgs_id"){
             'Total')
 }
 
+split_pivot <- function(df, my_formula, leave_col, value_var = "wgs_id", split_on_col = "Drug"){
+  
+  to_table_split_pivot <- function(x, col){
+    x[[col]] <- as.character(x[[col]])
+    x <- drop_cols(to_table(x, "col"), "Total")
+    x[[col]] <- gsub("\\s*\\([^\\)]+\\)", "", x[[col]])
+    x
+  }
+  
+  df_pivot <- reshape2::dcast(df, my_formula, value.var = 'wgs_id', fun.aggregate = len_uniq)
+  df_split <- split(df_pivot, df_pivot[, split_on_col])
+  
+  do.call('rbind', lapply(df_split, to_table_split_pivot, leave_col))
+  
+}
+
 duped <- function(x, col){
   dups <- x[duplicated(x[col]), col]
   x[x[, col] %in% dups, ]
@@ -118,11 +134,9 @@ clean_binary_table <- function(x){
 }
 
 sort_pos <- function(x, col){
-  
   x$pos <- as.numeric(stringr::str_extract(x[, col], "[0-9]+"))
   x <- x[order(x$pos), ]
   drop_cols(x, 'pos')
-  
 }
 
 lapply_nms <- function(x, fun, nms){
@@ -136,10 +150,10 @@ drug_col_front <- function(df_list){
 }
 
 add_drug_col <- function(df_list, drugs){
-  
   drug_col_front(lapply_mod(df_list, function(i){df_list[[i]]$Drug <- rep(drugs[i], nrow(df_list[[i]])); df_list[[i]]}))
-  
 }
+
+
 
 ```
 
@@ -351,35 +365,45 @@ meta_tables <- add_drug_col(binary_tables, drugs)
 meta_table <- do.call('rbind', lapply(meta_tables, function(x){ select(x, Drug, wgs_id, main_lineage, sublin, country_code, drtype, dst)}))
 
 # Lin
-lin_pivot <- pivot(meta_table, formula(main_lineage ~ 'n' + Drug) )
+lin_pivot <- pivot(meta_table, formula(main_lineage ~ 'n') )
 
 # DR
-drtype_pivot <- pivot(meta_table, formula(drtype ~ 'n' + Drug) )
+drtype_pivot <- pivot(meta_table, formula(drtype ~ 'n') )
 drtype_pivot <- drtype_pivot[order(match(drtype_pivot$drtype, dr_status_vect)), ]
 
-# Predicted DR to individual drugs
+# # Predicted DR to individual drugs
 KRM_table <- do.call('rbind', lapply(meta_tables, function(x){ select(x, Drug, wgs_id, KRM)}))
 KRM_table$KRM_binary <- ifelse(is.na(KRM_table$KRM), 0, 1)
-KRM_pivot <- pivot(KRM_table, formula(KRM_binary ~ 'n' + Drug) )
+KRM_pivot <- split_pivot(KRM_table, formula(Drug + KRM_binary ~ 'n'), "KRM_binary") 
+  
 
 # DST
-dst_pivot <- pivot(meta_table, formula(dst ~ 'n' + Drug) )
+# dst_pivot <- pivot(meta_table, formula(Drug + dst ~ 'n') )
+dst_pivot <- split_pivot(meta_table, formula(Drug + dst ~ 'n'), "dst")
+
 
 table_1 <- data.frame()
-table_1 <- rbind(table_1, 
-                 setNames(lin_pivot, names(table_1)), 
-                 setNames(drtype_pivot, names(table_1)), 
-                 setNames(KRM_pivot, names(table_1)), 
+lin_dr <- rbind(table_1,
+                setNames(lin_pivot, names(table_1)),
+                setNames(drtype_pivot, names(table_1)))
+
+lin_dr <- cbind(rep("-", nrow(lin_dr)), lin_dr)
+
+                 
+KRM_dst <- rbind(table_1,
+                 setNames(KRM_pivot, names(table_1)),
                  setNames(dst_pivot, names(table_1)))
 
-names(table_1) <- c("Characteristic", "n isoniazid", "n rifampicin")
+table_1 <- rbind_force(lin_dr, KRM_dst)
 
-table_1$Category <- c(rep("Lineage", nrow(lin_pivot)), 
-                      rep("DR status", nrow(drtype_pivot)), 
-                      rep("(predicted) resistance", nrow(KRM_pivot)), 
+names(table_1) <- c("Drug", "Chararcteristic", "n (%)")
+
+table_1$Category <- c(rep("Lineage", nrow(lin_pivot)),
+                      rep("DR status", nrow(drtype_pivot)),
+                      rep("(predicted) resistance", nrow(KRM_pivot)),
                       rep("DST", nrow(dst_pivot)))
 
-table_1 <- table_1[, c( "Category", "Characteristic", "n isoniazid", "n rifampicin")]
+table_1 <- table_1[, c("Category", "Drug", "Chararcteristic", "n (%)")]
 
 ```
 
@@ -391,6 +415,46 @@ table_1 <- table_1[, c( "Category", "Characteristic", "n isoniazid", "n rifampic
 
 ```{r working, echo = F, warning=F}
 
+
+library(ggsankey)
+library(dplyr)
+library(ggplot2)
+
+df <- mtcars %>%
+  make_long(cyl, vs, am, gear, carb)
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_alluvial(flow.alpha = .6) +
+  geom_alluvial_text(size = 3, color = "white") +
+  scale_fill_viridis_d() +
+  theme_alluvial(base_size = 18) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5)) +
+  ggtitle("Car features")
+
+
+summaries
+
+
+
+df <- data.frame(source = rep("security", 3), target = c("Asylum", "Internal", "IT"), value = c(738, 454, 13), id_source = rep(0, 3), id_target = 1:3)
+
+
+
+
+dat <- make_long(df, source, target)
+
+ggplot(dat, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d() +
+  theme_sankey(base_size = 18) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5)) +
+  ggtitle("Car features")
 
 
 
