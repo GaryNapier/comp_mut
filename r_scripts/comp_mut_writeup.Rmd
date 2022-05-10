@@ -416,45 +416,42 @@ table_1 <- table_1[, c("Category", "Drug", "Chararcteristic", "n (%)")]
 ```{r working, echo = F, warning=F}
 
 
+find_pos <- function(x){
+  sub("\\-", "", gsub("[^0-9\\-]+", "", x))
+}
+
+binary_expand_PRM <- lapply(binary_tables, function(x){
+  data.frame(x %>%
+  mutate(PRM = strsplit(as.character(PRM), "; ")) %>%
+  unnest(PRM))
+})
+
+inh <- binary_expand_PRM$isoniazid
+inh_PRM <- subset(inh, !(is.na(PRM)))
+inh_PRM <- select(inh_PRM, CM, PRM)
+
 library(ggsankey)
 library(dplyr)
 library(ggplot2)
 
-df <- mtcars %>%
-  make_long(cyl, vs, am, gear, carb)
+inh_PRM_pos <- data.frame(apply(inh_PRM, 2, find_pos))
 
-ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
-  geom_alluvial(flow.alpha = .6) +
-  geom_alluvial_text(size = 3, color = "white") +
-  scale_fill_viridis_d() +
-  theme_alluvial(base_size = 18) +
-  labs(x = NULL) +
+colnames(inh_PRM_pos) <- c("ahpC", "katG")
+
+df <- inh_PRM_pos %>%
+  make_long(ahpC, katG)
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, label = node)) +
+  coord_flip()+
+  geom_sankey(flow.alpha = .6, fill = 'lightblue') +
+  geom_sankey_text(size = 3, color = "black", angle = 45, width = 1) +
+  theme_minimal()+
+  labs(x = NULL)+
   theme(legend.position = "none",
-        plot.title = element_text(hjust = .5)) +
-  ggtitle("Car features")
-
-
-summaries
-
-
-
-df <- data.frame(source = rep("security", 3), target = c("Asylum", "Internal", "IT"), value = c(738, 454, 13), id_source = rep(0, 3), id_target = 1:3)
-
-
-
-
-dat <- make_long(df, source, target)
-
-ggplot(dat, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
-  geom_sankey(flow.alpha = .6,
-              node.color = "gray30") +
-  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
-  scale_fill_viridis_d() +
-  theme_sankey(base_size = 18) +
-  labs(x = NULL) +
-  theme(legend.position = "none",
-        plot.title = element_text(hjust = .5)) +
-  ggtitle("Car features")
+        plot.title = element_text(hjust = .5),
+        axis.text.x=element_blank()) +
+  ggtitle("Isoniazid")
+  
 
 
 
@@ -476,12 +473,12 @@ ggplot(dat, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill
 
 ## Abstract
 
-**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in Mycobacterium tuberculosis (multidrug-resistant TB; MDR-TB) threatens disease control. In the development of M. tuberculosis resistance to anti-TB drugs, genetic mutations often come with a fitness cost. To overcome these fitness costs, M. tuberculosis can develop further, beneficial, compensatory mutations in genes that code for similar proteins. Here we leverage the presence of known resistance a
-nd compensatory mutations and phenotypic data to detect the presence of novel mutations occurring in the target genes of INH (e.g., katG) and RIF (e.g., rpoB). 
+**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in *Mycobacterium tuberculosis* (multidrug-resistant TB; MDR-TB) threatens disease control. In the development of *M. tuberculosis* resistance to anti-TB drugs, genetic mutations often come with a fitness cost. To overcome these fitness costs, *M. tuberculosis* can develop further, beneficial, compensatory mutations in genes that code for similar proteins. Here we leverage the presence of known and putative compensatory mutations along with phenotypic and genotypic data to detect the presence of novel mutations occurring in the target genes of INH (*katG*) and RIF (*rpoB*).
 
-**Results:** Across XX isolates, there was XXX (XX%) with INH and XXX (XX%) with RIF phenotypic resistance. Known mutations in rpoB (n=XXX/XXX;) and katG (XXX/XXXX) explained most of the resistance…. Known compensatory mutations were identified XXXXXX. By examining isolates with resistance, but known compensatory mutations, we identified XXXXX novel resistance markers where no known resistance ones were present. XXX look at combinations for MDR XXXX
+**Results:** Across XX isolates, there was XXX (XX%) with INH and XXX (XX%) with RIF phenotypic resistance. Known mutations in rpoB (n=XXX/XXX;) and katG (XXX/XXXX) explained most of the resistance. XXX known compensatory mutations were identified in XXX samples. By examining isolates with phenotypic resistance to INH or RIF, (predicted) genotypic resistance to other drugs and presence of compensatory mutations, we identified XXX novel resistance mutations where no known resistance ones were present.  XXX look at combinations for MDR XXXX
 
-**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new markers linked to resistance. We have identified XXX new resistance markers, and after validation, added to list of mutations for genotypic predictions.
+**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new variants linked to resistance. We have identified XXX new resistance markers, and after validation, added to a list of mutations for genotypic predictions.
+
 
 **URL:**
 
