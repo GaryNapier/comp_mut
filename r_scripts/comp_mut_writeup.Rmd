@@ -485,6 +485,9 @@ Known mutations in *katG* and *rpoB* explained most of the resistance. However, 
 ## Results
 
 Isolate collection - Number that are INH, RIF and MDR resistant 
+
+
+
 Resistance mutations, and how many explain the phenotype
 Compensatory mutations
 Filling in the gaps of phenotypic resistance, leveraging compensatory, and revealing novel resistance markers
