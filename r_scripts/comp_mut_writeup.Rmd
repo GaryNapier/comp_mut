@@ -32,6 +32,8 @@ library(dplyr)
 library(knitr)
 library(reshape2)
 library(janitor)
+library(ggsankey)
+library(ggplot2)
 
 ```
 
@@ -153,6 +155,13 @@ add_drug_col <- function(df_list, drugs){
   drug_col_front(lapply_mod(df_list, function(i){df_list[[i]]$Drug <- rep(drugs[i], nrow(df_list[[i]])); df_list[[i]]}))
 }
 
+find_pos <- function(x){
+  sub("\\-", "", gsub("[^0-9\\-]+", "", x))
+}
+
+fmt_pc <- function(x){
+  paste0(fmt(x*100), "%")
+}
 
 
 ```
@@ -364,6 +373,9 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 meta_tables <- add_drug_col(binary_tables, drugs)
 meta_table <- do.call('rbind', lapply(meta_tables, function(x){ select(x, Drug, wgs_id, main_lineage, sublin, country_code, drtype, dst)}))
 
+# Trim whitespace
+meta_table$dst <- trimws(meta_table$dst)
+
 # Lin
 lin_pivot <- pivot(meta_table, formula(main_lineage ~ 'n') )
 
@@ -409,52 +421,35 @@ table_1 <- table_1[, c("Category", "Drug", "Chararcteristic", "n (%)")]
 
 ```{r basic-stats, echo = F, warning=F}
 
+inh_bin <- binary_tables$isoniazid
+rif_bin <- binary_tables$rifampicin
+total_samps <- nrow(binary_tables[[1]])
 
+inh_n_samps_DST_res <- nrow(subset(meta_table, Drug == "isoniazid" & dst == "1"))
+rif_n_samps_DST_res <- nrow(subset(meta_table, Drug == "rifampicin" & dst == "1"))
+
+inh_n_samps_CM <- nrow(subset(inh_bin, !(is.na(CM))))
+
+inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, !(is.na(CM)) & is.na(KRM)))
+rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
 
 ```
 
 ```{r working, echo = F, warning=F}
 
-
-find_pos <- function(x){
-  sub("\\-", "", gsub("[^0-9\\-]+", "", x))
-}
-
-binary_expand_PRM <- lapply(binary_tables, function(x){
-  data.frame(x %>%
-  mutate(PRM = strsplit(as.character(PRM), "; ")) %>%
-  unnest(PRM))
-})
-
-inh <- binary_expand_PRM$isoniazid
-inh_PRM <- subset(inh, !(is.na(PRM)))
-inh_PRM <- select(inh_PRM, CM, PRM)
-
-library(ggsankey)
-library(dplyr)
-library(ggplot2)
-
-inh_PRM_pos <- data.frame(apply(inh_PRM, 2, find_pos))
-
-colnames(inh_PRM_pos) <- c("ahpC", "katG")
-
-df <- inh_PRM_pos %>%
-  make_long(ahpC, katG)
-
-ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, label = node)) +
-  coord_flip()+
-  geom_sankey(flow.alpha = .6, fill = 'lightblue') +
-  geom_sankey_text(size = 3, color = "black", angle = 45, width = 1) +
-  theme_minimal()+
-  labs(x = NULL)+
-  theme(legend.position = "none",
-        plot.title = element_text(hjust = .5),
-        axis.text.x=element_blank()) +
-  ggtitle("Isoniazid")
-  
-
-
-
+# hier_tabs <- lapply(binary_tables, function(x){
+#   
+#   tab <- select(x, CM, KRM, PRM)
+#   
+#   tab_bin <- data.frame(apply(tab, 2, function(x){
+#     ifelse(is.na(x), "absent", "present")
+#   }))
+#   
+#   table(select(tab_bin, CM))
+#   table(select(tab_bin, CM, KRM))
+#   table(tab_bin)
+#   
+# })
 
 ```
 
@@ -473,12 +468,13 @@ ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, label
 
 ## Abstract
 
-**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in *Mycobacterium tuberculosis* (multidrug-resistant TB; MDR-TB) threatens disease control. In the development of *M. tuberculosis* resistance to anti-TB drugs, genetic mutations often come with a fitness cost. To overcome these fitness costs, *M. tuberculosis* can develop further, beneficial, compensatory mutations in genes that code for similar proteins. Here we leverage the presence of known and putative compensatory mutations along with phenotypic and genotypic data to detect the presence of novel mutations occurring in the target genes of INH (*katG*) and RIF (*rpoB*).
+**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in Mycobacterium tuberculosis (multidrug-resistant TB; MDR-TB) threatens disease control. Mutations that confer resistance to anti-TB drugs often come with a fitness cost. To overcome these fitness costs, *M. tuberculosis* can develop further, beneficial, compensatory mutations in genes that code for proteins performing similar biological roles or interact with drug-targets. Here we leverage the presence of known and putative compensatory mutations along with phenotypic and genotypic data to detect the presence of novel mutations occurring in the target genes of INH (*katG*) and RIF (*rpoB*), inferring their causative role in resistance to these drugs.
 
-**Results:** Across XX isolates, there was XXX (XX%) with INH and XXX (XX%) with RIF phenotypic resistance. Known mutations in rpoB (n=XXX/XXX;) and katG (XXX/XXXX) explained most of the resistance. XXX known compensatory mutations were identified in XXX samples. By examining isolates with phenotypic resistance to INH or RIF, (predicted) genotypic resistance to other drugs and presence of compensatory mutations, we identified XXX novel resistance mutations where no known resistance ones were present.  XXX look at combinations for MDR XXXX
+**Results:** Across ~32k isolates, there were `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/total_samps)`) with INH and `r rif_n_samps_DST_res` (`r fmt_pc(rif_n_samps_DST_res/total_samps)`) with RIF phenotypic resistance.
 
-**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new variants linked to resistance. We have identified XXX new resistance markers, and after validation, added to a list of mutations for genotypic predictions.
+Known mutations in *katG* and *rpoB* explained most of the resistance. However, `r fmt(inh_n_samps_CM_and_no_KRM)` (`r fmt_pc(inh_n_samps_CM_and_no_KRM/total_samps)`) and `r fmt(rif_n_samps_CM_and_no_KRM)` (`r fmt_pc(rif_n_samps_CM_and_no_KRM/total_samps)`) samples had compensatory mutations, but did not have any known resistance mutations in INH or RIF target genes, respectively. By examining isolates with compensatory mutations but no known resistance mutation, we identified a number of inferred novel resistance mutations. We also characterise the putative *katG* mutations in terms of their co-occurrence with other INH variants - *katG*-Ser315Thr and other INH genes, e.g. *fabG1*. 
 
+**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new variants linked to resistance. We have identified new resistance markers and, after validation, have added to a list of mutations for genotypic drug-resistance predictions.
 
 **URL:**
 
@@ -530,7 +526,7 @@ These successful mutations were then combined with the list of known compensator
 
 To find putative resistance mutations, all non-synonymous mutations in the relevant resistance genes were pulled from the TB-profiler database (katG for INH and rpoB for RIF), with the exclusion of mutations coming from isolates with mixed lineages. 
 
-Some variants were excluded from consideration for PRM. katG-Arg463Leu is known not to be associated with INH resistance [@Doorn2001]. 
+Some variants were excluded from consideration for PRM. *katG*-Arg463Leu is known not to be associated with INH resistance [@Doorn2001]. 
 
 
 
@@ -639,6 +635,47 @@ knitr::include_graphics(tree_files[grep("isoniazid", tree_files)])
 ```{r rifmpicin-tree, echo=FALSE, out.width = "2000px", fig.cap="Tree of rifampicin samples with potential new proB mutations" }
 
 knitr::include_graphics(tree_files[grep("rifampicin", tree_files)])
+
+```
+
+
+```{r inh-ahpc-katg-links, echo=FALSE, out.width = "2000px", fig.cap="Co-occurrences between *ahpC* compensatory mutation positions and *katG* positions. Gaps in *katG* positions indicate no compensatory mutation was found for that sample." }
+
+binary_expand_PRM <- lapply(binary_tables, function(x){
+  data.frame(x %>%
+  mutate(PRM = strsplit(as.character(PRM), "; ")) %>%
+  unnest(PRM))
+})
+
+inh <- binary_expand_PRM$isoniazid
+inh_PRM <- subset(inh, !(is.na(PRM)))
+inh_PRM <- select(inh_PRM, CM, PRM)
+
+inh_PRM_pos <- data.frame(apply(inh_PRM, 2, find_pos))
+
+colnames(inh_PRM_pos) <- c("ahpC", "katG")
+
+df <- inh_PRM_pos %>%
+  make_long(ahpC, katG)
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, label = node)) +
+  coord_flip()+
+  geom_sankey(flow.alpha = .6, fill = 'lightblue') +
+  geom_sankey_text(size = 3, color = "black", angle = 45, width = 1) +
+  theme_minimal()+
+  labs(x = NULL)+
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5),
+        axis.text.x=element_blank()) +
+  ggtitle("Isoniazid")
+
+
+
+
+
+
+
+
 
 ```
 
