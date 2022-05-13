@@ -175,6 +175,17 @@ uniq_vars <- function(x){
   unique(unlist(strsplit(x, "; ")))
 }
 
+rm_null <- function(x){
+  x[!sapply(x,is.null)] 
+}
+
+rm_norow <- function(x){
+  x[sapply(x, nrow) > 0]
+}
+
+rm_na <- function(x){
+  x[!is.na(x)]
+}
 
 ```
 
@@ -237,6 +248,8 @@ PCM_merged_files <- paste0(results_path,  drugs, "_PCM_merged.csv")
 summary_files <- paste0(results_path, drugs, "_summary.csv")
 PRM_stats_files <- paste0(results_path, drugs, "_PRM_stats.csv")
 tree_files <- paste0(results_path, drugs, "_tree.png")
+inh_numbers_file <- paste0(results_path, "isoniazid_numbers.png")
+rif_numbers_file <- paste0(results_path, "rifampicin_numbers.png")
 
 ```
 
@@ -266,6 +279,8 @@ PRM_stats <- lapply_nms(PRM_stats_files, read.csv, drugs)
 
 ```{r clean-data, echo = F, warning=F, message=F}
 
+# Binary tables 
+
 # Remove all the "[]" present in the binary table caused by python's lists
 binary_tables <- lapply(binary_tables, clean_binary_table)
 
@@ -285,6 +300,21 @@ binary_tables_dup <- lapply(binary_tables, function(x){
 
 # Make col for just the other_vars genes, stripping out the change
 binary_tables_dup <- lapply(binary_tables_dup, function(x){x$other_vars_gene <- gsub("-.*", "", x$other_vars); x})
+
+# Rifampicin filter - remove lineage-specific PRMS
+# NB - TOTAL HACK TO REMOVE THE LINEAGE-SPECIFIC RIF PRMs
+rif_lin_PRM <- c("rpoB-p.Val695Leu", "rpoB-c.-199C>T", "rpoB-p.Ile925Val")
+binary_tables$rifampicin$PRM <- ifelse(binary_tables$rifampicin$PRM %in% rif_lin_PRM,
+       NA,
+       binary_tables$rifampicin$PRM)
+
+# Make binary cols for CM KRM and PRM
+binary_tables <- lapply(binary_tables, function(x){
+  data.frame(cbind(x, 
+                   CM_bin = ifelse(is.na(x$CM), "absent", "present"), 
+                   KRM_bin = ifelse(is.na(x$KRM), "absent", "present"), 
+                   PRM_bin = ifelse(is.na(x$PRM), "absent", "present")))
+})
 
 # KCM - combine gene-change
 KCM$gene_change <- paste0(KCM$Gene, "-", KCM$Mutation)
@@ -321,10 +351,12 @@ names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "D
 ```{r PRM-summary, echo = F, warning=F}
 
 # PRM subset and summary
-# isoniazid_PRM_tab <- subset(isoniazid_binary_table, !(is.na(PRM)))
 PRM_tabs <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
-# isoniazid_PRM_summary <- sort_pos(pivot(isoniazid_PRM_tab, formula(PRM ~ 'n')), 'PRM')
-PRM_tabs <- lapply(PRM_tabs, function(x){sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')})
+PRM_tabs <- rm_null(lapply(PRM_tabs, function(x){
+  tryCatch({
+    sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')
+  }, error = function(e){})
+            }))
 PRM_tabs <- add_drug_col(PRM_tabs, drugs)
 PRM_summary <- do.call("rbind", PRM_tabs)
 PRM_summary <- select(PRM_summary, Drug, PRM, n)
@@ -334,7 +366,7 @@ PRM_summary <- select(PRM_summary, Drug, PRM, n)
 ```{r isoniazid-rare-mutations-cnts, echo = F, warning=F}
 
 isoniazid_binary_table <- binary_tables$isoniazid
-rare_katg_table <- subset(isoniazid_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & !(is.na(katG)) )
+rare_katg_table <- subset(isoniazid_binary_table, is.na(KRM) & !(is.na(CM)) & is.na(PRM) & !(is.na(katG)) )
 n_samps_rare_katg <- nrow(rare_katg_table)
 n_rare_katg <- length(uniq_col(rare_katg_table$katG))
 rare_katg_cnts <- tab2df(table(table(unlist(strsplit(rare_katg_table$katG, "; ")))))
@@ -344,7 +376,7 @@ rare_katg_cnts <- tab2df(table(table(unlist(strsplit(rare_katg_table$katG, "; ")
 ```{r rifampicin-rare-mutations-cnts, echo = F, warning=F}
 
 rifampicin_binary_table <- binary_tables$rifampicin
-rare_rpob_table <- subset(rifampicin_binary_table, !(is.na(CM)) & is.na(KRM) & is.na(PRM) & !(is.na(rpoB)) )
+rare_rpob_table <- subset(rifampicin_binary_table, is.na(KRM) & !(is.na(CM)) & is.na(PRM) & !(is.na(rpoB)) )
 n_samps_rare_rpob <- nrow(rare_rpob_table)
 n_rare_rpob <- length(uniq_col(rare_rpob_table$rpoB))
 rare_rpob_cnts <- tab2df(table(table(unlist(strsplit(rare_rpob_table$rpoB, "; ")))))
@@ -358,20 +390,39 @@ row.names(rare_cnts) <- drugs
 
 ```
 
-```{r PRM-KRM, echo = F, warning=F}
+```{r PRM-KRM-co-occurrence, echo = F, warning=F}
 
-PRM_KRM <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
-PRM_KRM <- lapply(PRM_KRM, function(x) {reshape2::dcast(x, PRM + KRM + other_vars ~ 'n', value.var = 'wgs_id', fun.aggregate = len_uniq) } )
+PRM_KRM <- rm_norow(lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))}))
+PRM_KRM <- lapply(PRM_KRM, function(x) {
+  reshape2::dcast(x, PRM + KRM + other_vars ~ 'n', value.var = 'wgs_id', fun.aggregate = len_uniq) 
+  })
 PRM_KRM <- do.call("rbind", add_drug_col(PRM_KRM, drugs))
 PRM_KRM <- dplyr::rename(PRM_KRM, unknown = other_vars)
 
 ```
 
+```{r KRM-CM-or-no-CM-PRM-co-occurrence, echo = F, warning=F}
+
+# 4
+# a
+KRM_and_CM_and_PRM <- subset(inh_bin, KRM_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "present")
+
+n_samps_KRM_and_CM_and_PRM_rare_katg <- length(rm_na(KRM_and_CM_and_PRM$katG))
+
+# c
+KRM_and_no_CM_and_PRM <- subset(inh_bin, KRM_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "present")
+
+n_samps_KRM_and_no_CM_and_PRM_rare_katg <- length(rm_na(KRM_and_no_CM_and_PRM$katG))
+
+```
+
 ```{r isoniazid-Ser315Thr, echo = F, warning=F}
 
-
 ser315thr_tab <- subset(isoniazid_binary_table, grepl("Ser315Thr", isoniazid_binary_table$KRM))
-
 # Move ser315thr string to front e.g. fabG1-c.-15C>T; katG-p.Ser315Thr -> katG-p.Ser315Thr; fabG1-c.-15C>T
 ser315thr_tab$KRM <- ifelse(grepl("; katG-p.Ser315Thr", ser315thr_tab$KRM), swap_str(ser315thr_tab$KRM), ser315thr_tab$KRM)
 # Drop the specific change for the co-occurring gene - e.g. katG-p.Ser315Thr; fabG1-c.-15C>T ->  katG-p.Ser315Thr; fabG1
@@ -431,17 +482,6 @@ table_1$Category <- c(rep("Lineage", nrow(lin_pivot)),
                       rep("DST", nrow(dst_pivot)))
 
 table_1 <- table_1[, c("Category", "Drug", "Chararcteristic", "n (%)")]
-
-```
-
-```{r binary-CM-KRM-PRM, echo = F, warning=F}
-
-binary_tables <- lapply(binary_tables, function(x){
-  data.frame(cbind(x, 
-                   CM_bin = ifelse(is.na(x$CM), "absent", "present"), 
-                   KRM_bin = ifelse(is.na(x$KRM), "absent", "present"), 
-                   PRM_bin = ifelse(is.na(x$PRM), "absent", "present")))
-})
 
 ```
 
@@ -511,6 +551,111 @@ rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
 
 In gaining resistance against anti-tuberculosis drugs, drug target proteins are often compromised in their usual function, and *M. tuberculosis* therefore also incurs a fitness cost. Costs can be manifest in terms of any phenotypic difference, say, virulence or transmissibility. For example the *katG* gene codes for the KatG enzyme, a catalase-peroxidase which protects the bacterium from reactive oxygen species (ROS) damage and to detoxify hydrogen peroxide [@Trivedi2012], two products of the immune system which attack the pathogen. The enzyme is also the target of the pro-drug isoniazid (INH), converting it to multiple reactive species [@Zhang2009]. When mutations occur in the KatG protein which disrupt INH binding, mediated by the *katG* gene, the bacteria is often left simultaneously with drug resistance and a faulty protein. This is not always the case, since some mutations can confer drug resistance without a fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects finess, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. 
 
+```{r n-samples-tree, echo = F, warning=F}
+
+# Tree
+
+# # INH
+# # 1
+# total_samps
+# # 2
+# nrow(subset(inh_bin, KRM_bin == "present"))
+# nrow(subset(inh_bin, KRM_bin == "absent"))
+# # 3
+# nrow(subset(inh_bin, KRM_bin == "present" &
+#          CM_bin == "present"))
+# nrow(subset(inh_bin, KRM_bin == "present" &
+#          CM_bin == "absent"))
+# nrow(subset(inh_bin, KRM_bin == "absent" &
+#          CM_bin == "present"))
+# nrow(subset(inh_bin, KRM_bin == "absent" &
+#          CM_bin == "absent"))
+# # 4
+# # a
+# nrow(subset(inh_bin, KRM_bin == "present" &
+#          CM_bin == "present" &
+#          PRM_bin == "present"))
+# # b
+# nrow(subset(inh_bin, KRM_bin == "present" &
+#          CM_bin == "present" &
+#          PRM_bin == "absent"))
+# # c
+# nrow(subset(inh_bin, KRM_bin == "present" &
+#          CM_bin == "absent" &
+#          PRM_bin == "present"))
+# # d
+# nrow(subset(inh_bin, KRM_bin == "present" &
+#          CM_bin == "absent" &
+#          PRM_bin == "absent"))
+# # e
+# nrow(subset(inh_bin, KRM_bin == "absent" &
+#          CM_bin == "present" &
+#          PRM_bin == "present"))
+# # f
+# nrow(subset(inh_bin, KRM_bin == "absent" &
+#          CM_bin == "present" &
+#          PRM_bin == "absent"))
+# # g
+# nrow(subset(inh_bin, KRM_bin == "absent" &
+#          CM_bin == "absent" &
+#          PRM_bin == "present"))
+# # h
+# nrow(subset(inh_bin, KRM_bin == "absent" &
+#          CM_bin == "absent" &
+#          PRM_bin == "absent"))
+# 
+# 
+# # RIF
+# # 1
+# total_samps
+# # 2
+# nrow(subset(rif_bin, KRM_bin == "present"))
+# nrow(rif_n_samps_no_KRM <- subset(rif_bin, KRM_bin == "absent"))
+# # 3
+# nrow(subset(rif_bin, KRM_bin == "present" &
+#          CM_bin == "present"))
+# nrow(subset(rif_bin, KRM_bin == "present" &
+#          CM_bin == "absent"))
+# nrow(subset(rif_bin, KRM_bin == "absent" &
+#          CM_bin == "present"))
+# nrow(subset(rif_bin, KRM_bin == "absent" &
+#          CM_bin == "absent"))
+# # 4
+# # a
+# nrow(subset(rif_bin, KRM_bin == "present" &
+#          CM_bin == "present" &
+#          PRM_bin == "present"))
+# # b
+# nrow(subset(rif_bin, KRM_bin == "present" &
+#          CM_bin == "present" &
+#          PRM_bin == "absent"))
+# # c
+# nrow(subset(rif_bin, KRM_bin == "present" &
+#          CM_bin == "absent" &
+#          PRM_bin == "present"))
+# # d
+# nrow(subset(rif_bin, KRM_bin == "present" &
+#          CM_bin == "absent" &
+#          PRM_bin == "absent"))
+# # e
+# nrow(subset(rif_bin, KRM_bin == "absent" &
+#          CM_bin == "present" &
+#          PRM_bin == "present"))
+# # f
+# nrow(subset(rif_bin, KRM_bin == "absent" &
+#          CM_bin == "present" &
+#          PRM_bin == "absent"))
+# # g
+# nrow(subset(rif_bin, KRM_bin == "absent" &
+#          CM_bin == "absent" &
+#          PRM_bin == "present"))
+# # h
+# nrow(subset(rif_bin, KRM_bin == "absent" &
+#          CM_bin == "absent" &
+#          PRM_bin == "absent"))
+
+
+```
 
 ```{r results-stats, echo = F, warning=F}
 
@@ -520,6 +665,12 @@ rif_n_samps_TBP_res <- KRM_pivot[KRM_pivot[, "Drug"] == "rifampicin" & KRM_pivot
 n_samps_MDR <- drtype_pivot[drtype_pivot[, "drtype"] == "MDR-TB", "n"]
 
 # **Resistance mutations, and how many explain the phenotype**
+inh_n_samps_KRM <- nrow(subset(inh_bin, KRM_bin == "present"))
+rif_n_samps_KRM <- nrow(subset(rif_bin, KRM_bin == "present"))
+
+inh_n_samps_KRM_pc <- fmt_pc(nrow(subset(inh_bin, KRM_bin == "present"))/total_samps)
+rif_n_samps_KRM_pc <- fmt_pc(nrow(subset(rif_bin, KRM_bin == "present"))/total_samps)
+
 inh_n_samps_DST_res_KRM_present <- nrow(subset(inh_bin, dst == "1" & KRM_bin == "present"))
 inh_n_samps_DST_res_KRM_present_pc <- fmt_pc(inh_n_samps_DST_res_KRM_present/tonum(inh_n_samps_DST_res))
 
@@ -528,12 +679,20 @@ rif_n_samps_DST_res_KRM_present_pc <- fmt_pc(rif_n_samps_DST_res_KRM_present/ton
 
 # **Compensatory mutations**
 inh_CM <- select(subset(inh_bin, CM_bin == "present"), CM)
+inh_n_samps_KRM_CM <- nrow(subset(inh_bin, KRM_bin == "present" & 
+                                    CM_bin == "present"))
+inh_n_samps_KRM_no_CM <- nrow(subset(inh_bin, KRM_bin == "absent" & 
+                                    CM_bin == "present"))
 inh_n_CM_haplotypes <- length(unique(inh_CM$CM))
 inh_CM_uniq <- uniq_vars(inh_CM$CM)
 inh_CM_uniq_in_KCM <- inh_CM_uniq[inh_CM_uniq %in% inh_KCM$gene_change]
 inh_PCM <- inh_CM_uniq[!(inh_CM_uniq %in% inh_KCM$gene_change)]
 
 rif_CM <- select(subset(rif_bin, CM_bin == "present"), CM)
+rif_n_samps_KRM_CM <- nrow(subset(rif_bin, KRM_bin == "present" & 
+                                    CM_bin == "present"))
+rif_n_samps_KRM_no_CM <- nrow(subset(rif_bin, KRM_bin == "absent" & 
+                                    CM_bin == "present"))
 rif_n_CM_haplotypes <- length(unique(rif_CM$CM))
 rif_CM_uniq <- uniq_vars(rif_CM$CM)
 rif_CM_uniq_in_KCM <- rif_CM_uniq[rif_CM_uniq %in% rif_KCM$gene_change]
@@ -564,23 +723,32 @@ rif_n_samps_PRM_no_CM <- nrow(subset(rif_bin, CM_bin == "absent" & PRM_bin == "p
 
 ```
 
+
+
 ## Results
 
 **Isolate collection**
 
 *Summary* \
 Number INH resistant (DST) - `r inh_n_samps_DST_res` \
-Number INH resistant (TBprofiler) - `r inh_n_samps_TBP_res`
-
 Number RIF resistant (DST) - `r rif_n_samps_DST_res` \
-Number RIF resistant (TBprofiler) - `r rif_n_samps_TBP_res`
+
+Number INH resistant (TBprofiler) - `r inh_n_samps_TBP_res`
+Number RIF resistant (TBprofiler) - `r rif_n_samps_TBP_res` \
 
 Number MDR resistant (TBprofiler) - `r n_samps_MDR`
 
+A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table_1)**)
+
 **Resistance mutations, and how many explain the phenotype**
 
+*Summary* \
 Number INH samples DST resistant and have a known resistance mutation - `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) \
 Number RIF samples DST resistant and have a known resistance mutation - `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) \
+
+The total number of samples with a known resistance mutation in an INH target gene (*katG*, *fabG1*, *inhA*) was `r inh_n_samps_KRM` (`r inh_n_samps_KRM_pc`), and `r rif_n_samps_KRM` (`r rif_n_samps_KRM_pc`) for the RIF target gene (*rpoB*).
+
+Explaining the DST resistance status, `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) samples had a known resistance mutation in an INH target gene, while `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) samples had an *rpoB* mutation (RIF).
 
 **Compensatory mutations**
 Number INH samples with a CM - `r inh_n_samps_CM` \
@@ -594,6 +762,12 @@ Number RIF CM haplotypes - `r rif_n_CM_haplotypes` \
 Number RIF unique CM - `r length(rif_CM_uniq)` \
 Number RIF CM in known CM list - `r length(rif_CM_uniq_in_KCM)` \
 Number RIF CM previously non-DR associated - `r length(rif_PCM)` \
+
+There were `r inh_n_samps_CM` and `r fmt(rif_n_samps_CM)` samples with a compensatory mutation, of which `r fmt(inh_n_samps_KRM_CM)` and `r fmt(rif_n_samps_KRM_CM)` samples had a known resistance mutation, and `r fmt(inh_n_samps_KRM_no_CM)` and `r fmt(inh_n_samps_KRM_no_CM)` did not have known resistance mutations in INH and RIF, respectively. 
+
+The number of compensatory mutation haplotypes were `r inh_n_CM_haplotypes` (INH) and `r rif_n_CM_haplotypes` (RIF), while the number of unique compensatory mutations were `r length(inh_CM_uniq)` (INH) and `r length(rif_CM_uniq)` (RIF).
+
+Of these, `r length(inh_CM_uniq_in_KCM)` (INH) and `r length(rif_CM_uniq_in_KCM)` (RIF) were from compensatory mutations previously known, whereas `r length(inh_PCM)` INH and `r length(rif_PCM)` RIF compensatory mutations were putative. 
 
 **Filling in the gaps of phenotypic resistance, leveraging compensatory, and revealing novel resistance markers**
 Number INH samples with a PRM - `r nrow(inh_PRM)` \
@@ -609,6 +783,8 @@ Number INH samples having a PRM but no CM - `r inh_n_samps_PRM_no_CM` \
 
 Number RIF samples having a CM which also have a PRM - `r rif_n_samps_CM_and_PRM` \
 Number RIF samples having a PRM but no CM - `r rif_n_samps_PRM_no_CM`
+
+<!-- HOW MANY SAMPS WITH PRM HAVE PUTATIVE CM? -->
 
 
 ## Discussion
@@ -741,11 +917,19 @@ knitr::kable(ser315thr_pivot, row.names = F, caption = cap, format = "pipe")
 
 ## Figures
 
-```{r samples-brakdown, echo=FALSE, out.width = "2000px", fig.cap="Breakdown of sample numbers by presence of mutation type for INH" }
+```{r samples-breakdown, echo=FALSE, out.width = "2000px", fig.cap="Breakdown of sample numbers by presence of mutation type for INH and RIF" }
 
-knitr::include_graphics("../results/samples_breakdown_inh.png")
+knitr::include_graphics(inh_numbers_file)
+knitr::include_graphics(rif_numbers_file)
 
 ```
+
+
+<!-- ```{r samples-breakdown, echo=FALSE, out.width = "2000px", fig.cap="Breakdown of sample numbers by presence of mutation type for INH" } -->
+
+<!-- knitr::include_graphics("../results/samples_breakdown_inh.png") -->
+
+<!-- ``` -->
 
 
 ```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap="Phylogenetic tree of isolates with resistance; Isoniazid resistance (n=XX), with potentially new katG mutations"}
