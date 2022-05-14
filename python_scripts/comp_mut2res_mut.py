@@ -338,7 +338,15 @@ def main(args):
         other_var_genes = [x[0] for x in binary_table[samp]['other_vars']]
         for gene in other_var_genes:
             vars_gene = [var for var in other_vars if var[0] == gene]
-            binary_table[samp].update({gene: vars_gene})
+            binary_table[samp].update({"other_"+gene: vars_gene})
+
+    # Split out KRM
+    for samp in binary_table:
+        KRM_vars = binary_table[samp]['KRM']
+        KRM_genes = [x[0] for x in KRM_vars]
+        for gene in KRM_genes:
+            vars_gene = [var for var in KRM_vars if var[0] == gene]
+            binary_table[samp].update({"KRM_"+gene: vars_gene})
 
     # Fill out the keys for the rest of the samples, getting all unique keys first
     binary_table_keys = []
