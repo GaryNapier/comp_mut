@@ -371,17 +371,19 @@ PRM_summary <- select(PRM_summary, Drug, PRM, n)
 ```{r isoniazid-rare-mutations-cnts, echo = F, warning=F}
 
 isoniazid_binary_table <- binary_tables$isoniazid
-rare_katg_table <- subset(isoniazid_binary_table, is.na(KRM) & !(is.na(CM)) & is.na(PRM) & !(is.na(other_katG)) )
+rare_katg_table <- subset(isoniazid_binary_table, is.na(KRM_katG) & !(is.na(CM)) & is.na(PRM) & !(is.na(other_katG)) )
 n_samps_rare_katg <- nrow(rare_katg_table)
 n_rare_katg <- length(uniq_col(rare_katg_table$other_katG))
 rare_katg_cnts <- tab2df(table(table(unlist(strsplit(rare_katg_table$other_katG, "; ")))))
+
+rare_katg_table[rare_katg_table$other_katG == "katG-p.Gln439His", ]
 
 ```
 
 ```{r rifampicin-rare-mutations-cnts, echo = F, warning=F}
 
 rifampicin_binary_table <- binary_tables$rifampicin
-rare_rpob_table <- subset(rifampicin_binary_table, is.na(KRM) & !(is.na(CM)) & is.na(PRM) & !(is.na(other_rpoB)) )
+rare_rpob_table <- subset(rifampicin_binary_table, is.na(KRM_rpoB) & !(is.na(CM)) & is.na(PRM) & !(is.na(other_rpoB)) )
 n_samps_rare_rpob <- nrow(rare_rpob_table)
 n_rare_rpob <- length(uniq_col(rare_rpob_table$other_rpoB))
 rare_rpob_cnts <- tab2df(table(table(unlist(strsplit(rare_rpob_table$other_rpoB, "; ")))))
@@ -512,21 +514,18 @@ rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
 ```{r working, echo = F, warning=F}
 
 # hier_tabs <- lapply(binary_tables, function(x){
-#   
+# 
 #   tab <- select(x, CM, KRM, PRM)
-#   
+# 
 #   tab_bin <- data.frame(apply(tab, 2, function(x){
 #     ifelse(is.na(x), "absent", "present")
 #   }))
-#   
+# 
 #   table(select(tab_bin, CM))
 #   table(select(tab_bin, CM, KRM))
 #   table(tab_bin)
-#   
+# 
 # })
-
-
-
 
 ```
 
@@ -613,6 +612,20 @@ In gaining resistance against anti-tuberculosis drugs, drug target proteins are 
 # nrow(subset(inh_bin, KRM_katG_bin == "absent" &
 #          CM_bin == "absent" &
 #          PRM_bin == "absent"))
+# # 5
+# # a
+# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+#          CM_bin == "present" &
+#          PRM_bin == "absent" & 
+#            !(is.na(other_katG))))
+# # b
+# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+#          CM_bin == "present" &
+#          PRM_bin == "absent" & 
+#            is.na(other_katG)))
+
+
+
 
 # # RIF
 # # 1
@@ -705,12 +718,32 @@ for(i in seq(letters[1:8])){
 
 ```
 
-```{r results-stats, echo = F, warning=F}
+## Results
+
+```{r results-isolate-collection, echo = F, warning=F}
 
 # **Isolate collection**
 inh_n_samps_TBP_res <- KRM_pivot[KRM_pivot[, "Drug"] == "isoniazid" & KRM_pivot[, "KRM_binary"] == "1", "n"]
 rif_n_samps_TBP_res <- KRM_pivot[KRM_pivot[, "Drug"] == "rifampicin" & KRM_pivot[, "KRM_binary"] == "1", "n"]
 n_samps_MDR <- drtype_pivot[drtype_pivot[, "drtype"] == "MDR-TB", "n"]
+
+
+```
+
+**Isolate collection**
+
+*Summary* \
+Number INH resistant (DST) - `r inh_n_samps_DST_res` \
+Number RIF resistant (DST) - `r rif_n_samps_DST_res` \
+
+Number INH resistant (TBprofiler) - `r inh_n_samps_TBP_res`
+Number RIF resistant (TBprofiler) - `r rif_n_samps_TBP_res` \
+
+Number MDR resistant (TBprofiler) - `r n_samps_MDR`
+
+A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table_1)**)
+
+```{r results-resistance-mutations, echo = F, warning=F}
 
 # **Resistance mutations, and how many explain the phenotype**
 inh_n_samps_KRM <- nrow(subset(inh_bin, KRM_bin == "present"))
@@ -724,6 +757,21 @@ inh_n_samps_DST_res_KRM_present_pc <- fmt_pc(inh_n_samps_DST_res_KRM_present/ton
 
 rif_n_samps_DST_res_KRM_present <- nrow(subset(rif_bin, dst == "1" & KRM_bin == "present"))
 rif_n_samps_DST_res_KRM_present_pc <- fmt_pc(rif_n_samps_DST_res_KRM_present/tonum(rif_n_samps_DST_res))
+
+```
+
+**Resistance mutations, and how many explain the phenotype**
+
+*Summary* \
+Number INH samples DST resistant and have a known resistance mutation - `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) \
+Number RIF samples DST resistant and have a known resistance mutation - `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) \
+
+The total number of samples with a known resistance mutation in an INH target gene (*katG*, *fabG1*, *inhA*) was `r inh_n_samps_KRM` (`r inh_n_samps_KRM_pc`), and `r rif_n_samps_KRM` (`r rif_n_samps_KRM_pc`) for the RIF target gene (*rpoB*).
+
+Explaining the DST resistance status, `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) samples had a known resistance mutation in an INH target gene, while `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) samples had an *rpoB* mutation (RIF).
+
+
+```{r results-compensatory-mutations, echo = F, warning=F}
 
 # **Compensatory mutations**
 inh_CM <- select(subset(inh_bin, CM_bin == "present"), CM)
@@ -751,52 +799,10 @@ rif_PCM <-  rif_CM_uniq[!(rif_CM_uniq %in% rif_KCM$gene_change)]
 # Number of CM mutations in samples where there are no KRM
 # inh_CM_no_KRM_uniq <- uniq_vars(subset(inh_bin, !(is.na(CM)) & is.na(KRM))$CM)
 
-# **Filling in the gaps of phenotypic resistance, leveraging compensatory, and revealing novel resistance markers**
-inh_PRM <- select(subset(inh_bin, PRM_bin == "present"), PRM)
-inh_n_PRM_haplotypes <- length(unique(inh_PRM$PRM))
-inh_PRM_uniq <- unique(unlist(strsplit(inh_PRM$PRM, "; ")))
 
-rif_PRM <- select(subset(rif_bin, PRM_bin == "present"), PRM)
-rif_n_PRM_haplotypes <- length(unique(rif_PRM$PRM))
-rif_PRM_uniq <- unique(unlist(strsplit(rif_PRM$PRM, "; ")))
 
-# Number of samples having a CM which also have a PRM
-inh_n_samps_CM_and_PRM <- nrow(subset(inh_bin, CM_bin == "present" & PRM_bin == "present"))
-# Number of samples having a PRM but no CM
-inh_n_samps_PRM_no_CM <- nrow(subset(inh_bin, CM_bin == "absent" & PRM_bin == "present"))
-# Number of samples having a CM which also have a PRM
-rif_n_samps_CM_and_PRM <- nrow(subset(rif_bin, CM_bin == "present" & PRM_bin == "present"))
-# Number of samples having a PRM but no CM
-rif_n_samps_PRM_no_CM <- nrow(subset(rif_bin, CM_bin == "absent" & PRM_bin == "present"))
 
 ```
-
-
-
-## Results
-
-**Isolate collection**
-
-*Summary* \
-Number INH resistant (DST) - `r inh_n_samps_DST_res` \
-Number RIF resistant (DST) - `r rif_n_samps_DST_res` \
-
-Number INH resistant (TBprofiler) - `r inh_n_samps_TBP_res`
-Number RIF resistant (TBprofiler) - `r rif_n_samps_TBP_res` \
-
-Number MDR resistant (TBprofiler) - `r n_samps_MDR`
-
-A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table_1)**)
-
-**Resistance mutations, and how many explain the phenotype**
-
-*Summary* \
-Number INH samples DST resistant and have a known resistance mutation - `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) \
-Number RIF samples DST resistant and have a known resistance mutation - `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) \
-
-The total number of samples with a known resistance mutation in an INH target gene (*katG*, *fabG1*, *inhA*) was `r inh_n_samps_KRM` (`r inh_n_samps_KRM_pc`), and `r rif_n_samps_KRM` (`r rif_n_samps_KRM_pc`) for the RIF target gene (*rpoB*).
-
-Explaining the DST resistance status, `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) samples had a known resistance mutation in an INH target gene, while `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) samples had an *rpoB* mutation (RIF).
 
 **Compensatory mutations**
 
@@ -819,6 +825,19 @@ The number of compensatory mutation haplotypes were `r inh_n_CM_haplotypes` (INH
 
 Of these, `r length(inh_CM_uniq_in_KCM)` (INH) and `r length(rif_CM_uniq_in_KCM)` (RIF) were from compensatory mutations previously known, whereas `r length(inh_PCM)` INH and `r length(rif_PCM)` RIF compensatory mutations were putative. 
 
+```{r results-PRMs, echo = F, warning=F}
+
+# **Filling in the gaps of phenotypic resistance, leveraging compensatory, and revealing novel resistance markers**
+inh_PRM <- select(subset(inh_bin, PRM_bin == "present"), PRM)
+inh_n_PRM_haplotypes <- length(unique(inh_PRM$PRM))
+inh_PRM_uniq <- unique(unlist(strsplit(inh_PRM$PRM, "; ")))
+
+rif_PRM <- select(subset(rif_bin, PRM_bin == "present"), PRM)
+rif_n_PRM_haplotypes <- length(unique(rif_PRM$PRM))
+rif_PRM_uniq <- unique(unlist(strsplit(rif_PRM$PRM, "; ")))
+
+```
+
 **Filling in the gaps of phenotypic resistance, leveraging compensatory, and revealing novel resistance markers**
 
 *Summary* \
@@ -830,17 +849,24 @@ Number RIF samples with a PRM - `r nrow(rif_PRM)` \
 Number RIF PRM haplotypes - `r rif_n_PRM_haplotypes` \
 Number RIF unique PRM - `r length(rif_PRM_uniq)` \
 
-Number INH samples having a CM which also have a PRM - `r inh_n_samps_CM_and_PRM` \
-Number INH samples having a PRM but no CM - `r inh_n_samps_PRM_no_CM` \
+<!-- LAYER 4 -->
+Number INH samples with KRM (*katG*) and CM and PRM - `r fmt(length(a))`
+Number INH samples with KRM (*katG*), no CM and PRM - `r fmt(length(c))`
+Number INH samples with no KRM (*katG*) and CM and PRM - `r fmt(length(e))`
+Number INH samples with no KRM (*katG*), no CM and PRM - `r fmt(length(g))`
 
-Number RIF samples having a CM which also have a PRM - `r rif_n_samps_CM_and_PRM` \
-Number RIF samples having a PRM but no CM - `r rif_n_samps_PRM_no_CM`
+<!-- LAYER 5 --> 
+Number INH samples with no KRM (*katG*), CM, no PRM, other *katG* - `r inh_n_samps_no_KRM_CM_PRM_other_katG`
+Number INH unique rare *katG* mutations - `r `
 
-After applying filters to the samples with compensatory mutations to find potential resistance mutations, and then re-searching the full TB-profiler database for samples with said mutations, `r nrow(inh_PRM)` INH samples were found. No samples were found with potential resistance mutations in *rpoB*. In these INH samples, `r inh_n_PRM_haplotypes` were found, with `r length(inh_PRM_uniq)` unique mutations (see **Table \@ref(tab:PRM-summary-table) and Table \@ref(tab:PRM-stats-table)**).
+After applying filters to the samples with compensatory mutations to find potential resistance mutations, and then re-searching the full TB-profiler database for samples with said mutations, `r nrow(inh_PRM)` INH isolates were found. No samples were found with potential resistance mutations in *rpoB*. In these INH samples, there were `r inh_n_PRM_haplotypes`, with `r length(inh_PRM_uniq)` unique mutations (see **Table \@ref(tab:PRM-summary-table) and Table \@ref(tab:PRM-stats-table)**).
+
+Within the INH samples with putative resistance mutations, `r fmt(length(c))` samples had a known *katG* mutation but no compensatory mutations (see **Table \@ref(tab:PRM-KRM-other-table)**), `r fmt(length(e))` samples had no known *katG* mutation, but did have a compensatory mutation, while the majority, `r fmt(length(g))` had no known *katG* mutation and no compensatory mutations (see **Figure \@ref(fig:samples-breakdown)**).
+
+Further to the potential resistance mutations, there were also found `r n_samps_rare_katg` `r n_samps_rare_rpob` samples with no known *katG* resistance mutation, having a compensatory mutation, but not having a potential resistance mutation by the criteria outlined in *Methods*, nevertheless with a non-drug-resistance-associated *katG* mutation ('rare *katG* mutation'). 
 
 
-
-<!-- HOW MANY SAMPS WITH PRM HAVE PUTATIVE CM? -->
+<!-- SENSITIVITY -->
 
 
 ## Discussion
@@ -948,7 +974,7 @@ knitr::kable(PRM_stats, row.names = F, caption = cap, format = "pipe")
 
 ```{r rare-counts-table, echo = F, warning=F}
 
-cap <- "Number of variants by frequency of occurrence for katG (isoniazid) and rpoB (rifampicin) among samples with at least one CM, no KRM. These variants are not counted as ‘PRM’ because of their low frequency (only one or two samples). Variants occurring more than twice were rejected either because most samples were DR-type sensitive or DST sensitive."
+cap <- "Number of variants by frequency of occurrence for *katG* (isoniazid) and *rpoB* (rifampicin) among samples with no KRM, at least one CM, but no PRM. These variants are not counted as ‘PRM’ because of their low frequency (only one or two samples). Variants occurring more than twice were rejected because most samples were DR-type sensitive or DST sensitive, or in the case of INH, the samples already have a known resistance mutation in a gene other than *katG*."
 knitr::kable(rare_cnts, caption = cap, format = "pipe")
 
 ```
@@ -958,7 +984,7 @@ knitr::kable(rare_cnts, caption = cap, format = "pipe")
 ```{r PRM-KRM-other-table, echo = F, warning=F}
 
 cap <- "Known resistance mutations and non-DR-associated (‘unknown’) mutations co-occurring in samples with putative drug resistance"
-knitr::kable(PRM_KRM,  row.names = F, caption = cap, format = "pipe")
+knitr::kable(PRM_KRM, row.names = F, caption = cap, format = "pipe")
 
 ```
 
