@@ -78,7 +78,8 @@ gvcf_file_suffix=.g.vcf.gz
 multi_samp_vcf=${vcf_dir}${drug_of_interest}.val.gt.g.vcf.gz
 filt_multi_samp_vcf_file=${vcf_dir}${drug_of_interest}.filt.val.gt.g.vcf.gz
 fasta_file=${fasta_dir}/${drug_of_interest}.filt.val.gt.g.snps.fa
-newick_file=${newick_dir}${drug_of_interest}.filt.val.gt.g.snps.fa.treefile 
+# newick_file=${newick_dir}${drug_of_interest}.filt.val.gt.g.snps.fa.treefile 
+newick_file=${newick_dir}${drug_of_interest}.treefile 
 # comp_mut_tree.R
 tree_png=${results_dir}${drug_of_interest}_tree.png
 
