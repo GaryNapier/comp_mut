@@ -302,14 +302,16 @@ def main(args):
                     and var not in resistance_mutations[drug_of_interest]]
 
         # Make sure there are no RM genes in res_var e.g. all the res_var can be all fabG1 and no katG
-        res_var_in_RM_genes = {var[0] for var in res_var if var in RM_genes}
+        res_var_in_RM_genes = {var[0] for var in res_var if var[0] in RM_genes}
         
         # If there is at least one comp variant and there are no (known) resistance variants
         if len(comp_var)>0 and len(res_var_in_RM_genes)==0:
-
+                
             # Store the 'other' vars as potential resistance variants
             for var in other_vars:
-                PRM.add(var)
+                # Filter out promoters
+                if 'c.-' not in var[1]:
+                    PRM.add(var)
 
     # Filter the potential resistance variants in the same way as filtering the potential comp. variants
     PRM_filtered, PRM_stats = filter_vars(PRM, mutation2sample, meta_dict, drug_of_interest, RM_genes, do_lineage)
