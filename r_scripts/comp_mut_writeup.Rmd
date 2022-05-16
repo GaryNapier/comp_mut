@@ -344,8 +344,8 @@ names(summaries) <- drugs
 
 # PRM stats
 PRM_stats <- lapply(PRM_stats, sort_pos, 'mutation')
-# Clean RIF of the lineage-specific PRMs 
-PRM_stats$rifampicin <- PRM_stats$rifampicin[!(PRM_stats$rifampicin$gene_mutation %in% rif_lin_PRM)]
+# Clean RIF of the lineage-specific PRMs
+PRM_stats$rifampicin <- PRM_stats$rifampicin[!(PRM_stats$rifampicin$gene_mutation %in% rif_lin_PRM), ]
 PRM_stats <- do.call("rbind", PRM_stats)
 PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
 PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
@@ -376,7 +376,7 @@ n_samps_rare_katg <- nrow(rare_katg_table)
 n_rare_katg <- length(uniq_col(rare_katg_table$other_katG))
 rare_katg_cnts <- tab2df(table(table(unlist(strsplit(rare_katg_table$other_katG, "; ")))))
 
-rare_katg_table[rare_katg_table$other_katG == "katG-p.Gln439His", ]
+# rare_katg_table[rare_katg_table$other_katG == "katG-p.Gln439His", ]
 
 ```
 
@@ -564,65 +564,65 @@ In gaining resistance against anti-tuberculosis drugs, drug target proteins are 
 
 # Tree
 
-# # INH
-# # 1
-# total_samps
-# # 2
-# nrow(subset(inh_bin, KRM_katG_bin == "present"))
-# nrow(subset(inh_bin, KRM_katG_bin == "absent"))
-# # 3
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "present"))
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "absent"))
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present"))
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "absent"))
-# # 4
-# # a
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "present" &
-#          PRM_bin == "present"))
-# # b
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent"))
-# # c
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "absent" &
-#          PRM_bin == "present"))
-# # d
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "absent" &
-#          PRM_bin == "absent"))
-# # e
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "present"))
-# # f
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent"))
-# # g
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "absent" &
-#          PRM_bin == "present"))
-# # h
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "absent" &
-#          PRM_bin == "absent"))
-# # 5
-# # a
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" & 
-#            !(is.na(other_katG))))
-# # b
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" & 
-#            is.na(other_katG)))
+# INH
+# 1
+total_samps
+# 2
+nrow(subset(inh_bin, KRM_katG_bin == "present"))
+nrow(subset(inh_bin, KRM_katG_bin == "absent"))
+# 3
+nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "present"))
+nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "absent"))
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present"))
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "absent"))
+# 4
+# a
+nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "present"))
+# b
+nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "absent"))
+# c
+nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "present"))
+# d
+nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "absent"))
+# e
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "present"))
+# f
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent"))
+# g
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "absent" &
+         PRM_bin == "present"))
+# h
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "absent" &
+         PRM_bin == "absent"))
+# 5
+# a
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent" &
+           !(is.na(other_katG))))
+# b
+nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent" &
+           is.na(other_katG)))
 
 
 
