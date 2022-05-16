@@ -57,7 +57,7 @@ def get_meta_proportion(meta,samples,column,targets):
     target_count = sum([tmp.get(c,0) for c in targets])
     # Make sure no division by 0
     if len(tmp) == 0:
-        return 0
+        return None
     else:
         # Get the proportion of target to the rest
         return round(target_count/sum(tmp.values()), 3)
@@ -81,32 +81,60 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes, d
 
         # Filter and add to dict
         if do_lineage == 1:
-            if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes and num_lins > 1:    
                 
-                variants_passed.add(var)
-
-                stats_dict[var] = {'drug': drug_of_interest, 
-                                    'gene': var[0], 
-                                    'mutation': var[1],
-                                    'gene_mutation': var[0] + '-' + var[1],
-                                    'n_samps' : len(samps), 
-                                    'dst_prop': dst_proportion, 
-                                    'dr_prop': sensitive_geno_proportion, 
-                                    'n_lins': num_lins}
+            if dst_proportion is not None:
+                
+                if dst_proportion >= 0.5 and \
+                sensitive_geno_proportion <= 0.5 and var[0] in genes and num_lins > 1: 
+                    variants_passed.add(var)
+                    stats_dict[var] = {'drug': drug_of_interest, 
+                                        'gene': var[0], 
+                                        'mutation': var[1],
+                                        'gene_mutation': var[0] + '-' + var[1],
+                                        'n_samps' : len(samps), 
+                                        'dst_prop': dst_proportion, 
+                                        'dr_prop': sensitive_geno_proportion, 
+                                        'n_lins': num_lins}
+                    
+            else:
+                if sensitive_geno_proportion <= 0.5 and var[0] in genes: 
+                    variants_passed.add(var)
+                    stats_dict[var] = {'drug': drug_of_interest, 
+                                        'gene': var[0], 
+                                        'mutation': var[1],
+                                        'gene_mutation': var[0] + '-' + var[1],
+                                        'n_samps' : len(samps), 
+                                        'dst_prop': dst_proportion, 
+                                        'dr_prop': sensitive_geno_proportion, 
+                                        'n_lins': num_lins}
 
         else:
-            if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes:
+            
+            if dst_proportion is not None:
                 
-                variants_passed.add(var)
-
-                stats_dict[var] = {'drug': drug_of_interest, 
-                                    'gene': var[0], 
-                                    'mutation': var[1],
-                                    'gene_mutation': var[0] + '-' + var[1],
-                                    'n_samps' : len(samps), 
-                                    'dst_prop': dst_proportion, 
-                                    'dr_prop': sensitive_geno_proportion, 
-                                    'n_lins': num_lins}
+                if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes:
+                    variants_passed.add(var)
+                    stats_dict[var] = {'drug': drug_of_interest, 
+                                        'gene': var[0], 
+                                        'mutation': var[1],
+                                        'gene_mutation': var[0] + '-' + var[1],
+                                        'n_samps' : len(samps), 
+                                        'dst_prop': dst_proportion, 
+                                        'dr_prop': sensitive_geno_proportion, 
+                                        'n_lins': num_lins}
+                        
+                        
+            else:
+                if sensitive_geno_proportion <= 0.5 and var[0] in genes:
+                    variants_passed.add(var)
+                    stats_dict[var] = {'drug': drug_of_interest, 
+                                        'gene': var[0], 
+                                        'mutation': var[1],
+                                        'gene_mutation': var[0] + '-' + var[1],
+                                        'n_samps' : len(samps), 
+                                        'dst_prop': dst_proportion, 
+                                        'dr_prop': sensitive_geno_proportion, 
+                                        'n_lins': num_lins}
 
     return (variants_passed, stats_dict)
 
@@ -267,15 +295,18 @@ def main(args):
     # set up sample count vectors
     samps_CM = []
     for s in tqdm(samples):
-    #     # Get the comp, res and other variants for each sample in the full sample list
+        # Get the comp, res and other variants for each sample in the full sample list
         comp_var = [var for var in sample2mutation[s] if var in CM]
         res_var = [var for var in sample2mutation[s] if var in resistance_mutations[drug_of_interest]]
         other_vars = [var for var in sample2mutation[s] if var not in CM\
                     and var not in resistance_mutations[drug_of_interest]]
 
+        # Make sure there are no RM genes in res_var e.g. all the res_var can be all fabG1 and no katG
+        res_var_in_RM_genes = {var[0] for var in res_var if var in RM_genes}
+        
         # If there is at least one comp variant and there are no (known) resistance variants
-        if len(comp_var)>0 and len(res_var)==0:
-                
+        if len(comp_var)>0 and len(res_var_in_RM_genes)==0:
+
             # Store the 'other' vars as potential resistance variants
             for var in other_vars:
                 PRM.add(var)
