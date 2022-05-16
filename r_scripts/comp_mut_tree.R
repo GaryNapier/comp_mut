@@ -107,7 +107,7 @@ for(drug in seq(drugs)){
   # metadata_file <- paste0("results/", project_code, "_binary_table.csv")
   # outfile <- paste0("results/", project_code, "_tree.png")
   
-  tree_file <- paste0("results/newick/", drugs[drug], ".filt.val.gt.g.snps.fa.treefile")
+  tree_file <- paste0("results/newick/", drugs[drug], ".treefile")
   # metadata_file <- paste0("results/", project_code, "_PRM_samps.csv")
   metadata_file <- paste0("results/", drugs[drug], "_binary_table.csv")
   outfile <- paste0("results/", drugs[drug], "_tree.png")
@@ -253,7 +253,7 @@ for(drug in seq(drugs)){
   
   if (drugs[drug] == "isoniazid"){
     
-    sz <- 2.1
+    sz <- 1.5
     
   }else if(drugs[drug] == "rifampicin"){
     
