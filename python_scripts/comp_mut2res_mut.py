@@ -349,10 +349,18 @@ def main(args):
         CM_vars = [var for var in sample2mutation[samp] if var in CM]
         KRM_vars = [var for var in sample2mutation[samp] if var in resistance_mutations[drug_of_interest]]
         PRM_vars = [var for var in sample2mutation[samp] if var in PRM_filtered]
-        other_vars = [var for var in sample2mutation[samp] \
-                    if var not in CM and \
-                    var not in resistance_mutations[drug_of_interest] and \
-                    var not in PRM_filtered]
+        # Take out promoters in RIF
+        if drug_of_interest == 'rifampicin':
+            other_vars = [var for var in sample2mutation[samp] \
+                        if var not in CM and \
+                        var not in resistance_mutations[drug_of_interest] and \
+                        var not in PRM_filtered and \
+                        'c.-' not in var[1]]
+        else:
+            other_vars = [var for var in sample2mutation[samp] \
+                        if var not in CM and \
+                        var not in resistance_mutations[drug_of_interest] and \
+                        var not in PRM_filtered]
 
         binary_table[samp] = {'wgs_id': samp, \
                             'main_lineage': meta_dict[samp]['main_lineage'], \
