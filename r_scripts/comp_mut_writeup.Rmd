@@ -187,6 +187,16 @@ rm_na <- function(x){
   x[!is.na(x)]
 }
 
+pivot_numeric <- function(x, my_formula, value_var = "wgs_id"){
+  reshape2::dcast(x, my_formula, value.var = value_var, fun.aggregate = len_uniq)
+}
+
+print_chisq <- function(chisq_result, scientific = T, rnd = 3){
+  paste0("X-sq = ", round(chisq_result$statistic, rnd), 
+        "; df = ", round(chisq_result$parameter, rnd), 
+        "; p = ", format(chisq_result$p.value, scientific = scientific))
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -408,8 +418,6 @@ row.names(rare_cnts) <- drugs
 
 ```
 
-
-
 ```{r table-1, echo = F, warning=F}
 
 # Make pivot tables of basic stats
@@ -514,7 +522,12 @@ rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
 
 [Generic remark about tuberculosis being bad and being caused by the *M. tuberculosis* pathogen]
 
-In gaining resistance against anti-tuberculosis drugs, drug target proteins are often compromised in their usual function, and *M. tuberculosis* therefore also incurs a fitness cost. Costs can be manifest in terms of any phenotypic difference, say, virulence or transmissibility. For example the *katG* gene codes for the KatG enzyme, a catalase-peroxidase which protects the bacterium from reactive oxygen species (ROS) damage and to detoxify hydrogen peroxide [@Trivedi2012], two products of the immune system which attack the pathogen. The enzyme is also the target of the pro-drug isoniazid (INH), converting it to multiple reactive species [@Zhang2009]. When mutations occur in the KatG protein, mediated by the *katG* gene, that disrupt INH binding, the bacteria is often left simultaneously with drug resistance and a faulty protein. This is not always the case, since some mutations can confer drug resistance without a fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects fitness, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. 
+In gaining resistance against anti-tuberculosis drugs, drug target proteins are often compromised in their usual function, and *M. tuberculosis* therefore also incurs a fitness cost. Costs can be manifest in terms of any phenotypic difference, say, virulence or transmissibility. For example the *katG* gene codes for the KatG enzyme, a catalase-peroxidase which protects the bacterium from reactive oxygen species (ROS) damage and to detoxify hydrogen peroxide [@Trivedi2012], two products of the immune system which attack the pathogen. The enzyme is also the target of the pro-drug isoniazid (INH), converting it to multiple reactive species [@Zhang2009]. When mutations occur in the KatG protein that disrupt INH binding, mediated by the *katG* gene, the bacteria is often left simultaneously with drug resistance and a faulty protein. This is not always the case, since some mutations can confer drug resistance without a punitive fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects fitness, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. In the case of RIF, the target is the $\beta$ subunit of RNA polymerase, coded by *rpoB*. Mutations here prevent RIF from binding, but incur high fitness cost since the intricate machinery of RNA polymerase is intolerant to large structural changes, with the exception of Ser450Leu, which is highly prevalent in RIF-resistant strains [@Heep2001]. 
+
+To overcome this fitness cost, secondary mutations can occur which improve or promote either the target protein itself or in another protein with a similar function. In the case of INH/*katG* the protein AhpC, being another reducing enzyme, is often promoted via mutations in the promoter portion of the *ahpC* gene [@Sherman1999][@Sherman1996]. Rather than mutations occurring in a totally different protein or in promoter regions, RIF compensatory mutations occur in the other RNA polymerase subunits $\alpha$ (*rpoA*), $\beta$' (*rpoC*) or even in the $\beta$ subunit itself. These mutations restore stability to the protein complex while maintaining a compromised binding site in the $\beta$ subunit.
+
+
+
 
 ```{r n-samples-tree, echo = F, warning=F}
 
@@ -906,14 +919,47 @@ inh_PRM_other <- subset(PRM_other, Drug == "isoniazid" & !(is.na(other_vars)))
 inh_n_PRM_hap_other <- length(unique(inh_PRM_other$PRM))
 inh_most_common_other_with_PRM <- names(which.max(table(inh_PRM_other$other_vars)))
 
-
-
 # PIvot table with 'other' - displayed later as PRM-KRM-other-table
 PRM_KRM_other <- lapply(PRM_table, function(x) {
   reshape2::dcast(x, PRM + KRM + other_vars ~ 'n', value.var = 'wgs_id', fun.aggregate = len_uniq) 
   })
 PRM_KRM_other <- do.call("rbind", add_drug_col(PRM_KRM_other, drugs))
 PRM_KRM_other <- dplyr::rename(PRM_KRM_other, unknown = other_vars)
+
+
+
+```
+
+```{r CM-kat315-PRM-table, echo = F, warning=F}
+
+# Fitness
+# Ser315Thr is low fitness cost so should not have many CMs
+
+# Compensatory	kat315	PRMs
+# Yes	          5	      20
+# No	          100	    3
+# (exclude PRM-katG - katG-p.Ser315Thr pairs)
+
+
+inh_kat315_no_PRM <- subset(inh_bin, KRM == "katG-p.Ser315Thr" & PRM_bin == "absent")
+inh_kat315_no_PRM_pivot <- pivot(inh_kat315_no_PRM, formula(CM_bin ~ KRM))
+
+inh_PRM_no_katG_KRM <- subset(inh_bin, PRM_bin == "present" & !(grepl("katG", KRM)))
+inh_PRM_no_katG_KRM_pivot <- pivot(inh_PRM_no_katG_KRM, formula(CM_bin ~ PRM_bin))
+
+CM_kat315_PRM_table <- merge(inh_kat315_no_PRM_pivot, inh_PRM_no_katG_KRM_pivot, 
+                             by = "CM_bin", sort = F)
+
+names(CM_kat315_PRM_table) <- c("CM", "katG-p.Ser315Thr", "PRM")
+
+# Do chi-sq test
+x <- table(inh_kat315_no_PRM$CM_bin, inh_kat315_no_PRM$KRM)
+y <- table(inh_PRM_no_katG_KRM$CM_bin, inh_PRM_no_katG_KRM$PRM_bin)
+tab <- cbind(x, y)
+x_sq <- print_chisq(chisq.test(tab), rnd = rnd)
+
+
+
 
 
 
@@ -929,10 +975,23 @@ ser315thr_tab$KRM_2 <- drop_change(ser315thr_tab$KRM)
 ser315thr_pivot <- pivot(ser315thr_tab, formula(KRM_2 ~ 'n'))
 ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
+ser315thr_pivot[grepl("; katG", ser315thr_pivot$mutation)]
+ 
+PRM_KRM_other[grepl("Ser315Thr", PRM_KRM_other$KRM), ]
+
+
+# Resistance level
+
+# Multiple KRMs	kat315	PRMs
+# Yes	          5	      20
+# No	          100	    3
+
+
 ```
 
 **katG potential resistance mutations - co-occurrence with other resistance mutations and comparison to Ser315Thr**
 
+*Summary* \
 Number of *katG* PRM haplotypes occurring with a KRM - `r inh_n_PRM_hap_KRM` (`r fmt_pc(inh_n_PRM_hap_KRM/inh_n_PRM_haplotypes)`, `r sum(inh_PRM_KRM$n)` samples) \
 Most common KRM occurring with *katG* PRM - `r inh_most_common_KRM_with_PRM`
 
@@ -940,6 +999,8 @@ Number of *katG* PRM haplotypes occurring with an unknown mutation -  `r inh_n_P
 Most common unknown occurring with *katG* PRM - `r inh_most_common_other_with_PRM`
 
 **Table \@ref(tab:PRM-KRM-other-table)** shows the co-occurrence of the INH potential resistance mutation haplotypes and co-occurrence of known resistance mutations and unknown mutations in relevant resistance genes (i.e. co-occurrence of *katG* potential resistance mutations with known/unknown *ahpC*, *inhA*, *fabG1* and *kasA*). There were `r inh_n_PRM_hap_KRM` (`r fmt_pc(inh_n_PRM_hap_KRM/inh_n_PRM_haplotypes)`) *katG* potential resistance mutation haplotypes occurring with a known resistance mutation (`r sum(inh_PRM_KRM$n)` samples), the most common of which was `r inh_most_common_KRM_with_PRM`.
+
+
 
 
 ## Discussion
@@ -1075,6 +1136,14 @@ knitr::kable(PRM_KRM_other, row.names = F, caption = cap, format = "pipe")
 ```
 
 **Isoniazid**
+
+```{r isoniazid-Ser315Thr-table, echo = F, warning=F, }
+
+cap <- 
+CM_kat315_PRM_table
+
+
+```
 
 ```{r isoniazid-Ser315Thr-table, echo = F, warning=F, }
 
