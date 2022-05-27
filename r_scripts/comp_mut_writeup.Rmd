@@ -483,8 +483,10 @@ rif_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "rifampicin" & dst_pivot
 inh_n_samps_CM <- nrow(subset(inh_bin, !(is.na(CM))))
 rif_n_samps_CM <- nrow(subset(rif_bin, !(is.na(CM))))
 
-inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, !(is.na(CM)) & is.na(KRM)))
-rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
+# inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, !(is.na(CM)) & is.na(KRM)))
+inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, KRM_katG_bin == "absent" & CM_bin == "present"))
+# rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
+rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, KRM_katG_bin = "absent" & CM_bin == "present"))
 
 ```
 
@@ -957,6 +959,12 @@ x <- table(inh_kat315_no_PRM$CM_bin, inh_kat315_no_PRM$KRM)
 y <- table(inh_PRM_no_katG_KRM$CM_bin, inh_PRM_no_katG_KRM$PRM_bin)
 tab <- cbind(x, y)
 fitness_x_sq <- print_chisq(chisq.test(tab), rnd = rnd)
+
+
+
+
+
+
 
 ```
 
