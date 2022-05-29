@@ -72,6 +72,10 @@ pivot <- function(x, my_formula, value_var = "wgs_id"){
             'Total')
 }
 
+pivot_num <- function(x, my_formula,value_var = "wgs_id"){
+  reshape2::dcast(x, my_formula, value.var = value_var, fun.aggregate = len_uniq)
+}
+
 split_pivot <- function(df, my_formula, leave_col, value_var = "wgs_id", split_on_col = "Drug"){
   
   to_table_split_pivot <- function(x, col){
@@ -197,6 +201,20 @@ print_chisq <- function(chisq_result, scientific = T, rnd = 3){
         "; p = ", format(chisq_result$p.value, scientific = scientific))
 }
 
+clean_del_ins_dup <- function(x){
+  gsub("(del|ins|dup).*", "\\1", x)
+}
+
+drop_col_name <- function(x, name){
+  # Return col names except named col names
+  names(x)[!(names(x) %in% name)]
+}
+
+rbind_mod <- function(df1, df2, names){
+  rbind(setNames(df1, names), setNames(df2, names))
+}
+
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -302,16 +320,6 @@ binary_tables <- lapply(binary_tables, function(x) {x$sublin <- gsub("lineage", 
 # Trim white space
 binary_tables <- lapply(binary_tables, trimws_df)
 
-# Duplicate sample row if other_vars has more than one var (i.e. on the "; " character/string)
-binary_tables_dup <- lapply(binary_tables, function(x){
-  data.frame(x %>%
-  mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
-  unnest(other_vars))
-})
-
-# Make col for just the other_vars genes, stripping out the change
-binary_tables_dup <- lapply(binary_tables_dup, function(x){x$other_vars_gene <- gsub("-.*", "", x$other_vars); x})
-
 # Rifampicin filter - remove lineage-specific PRMS
 # NB - TOTAL HACK TO REMOVE THE LINEAGE-SPECIFIC RIF PRMs
 binary_tables$rifampicin$PRM <- ifelse(binary_tables$rifampicin$PRM %in% rif_lin_PRM,
@@ -329,6 +337,28 @@ binary_tables <- lapply(binary_tables, function(x){
 # Make katG and rpoB binary
 binary_tables$isoniazid$KRM_katG_bin <- ifelse(is.na(binary_tables$isoniazid$KRM_katG), "absent", "present")
 binary_tables$rifampicin$KRM_rpoB_bin <- ifelse(is.na(binary_tables$rifampicin$KRM_rpoB), "absent", "present")
+
+# ---
+
+# Duplicate sample row if other_vars has more than one var (i.e. on the "; " character/string)
+binary_tables_dup <- lapply(binary_tables, function(x){
+  data.frame(x %>%
+  mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
+  unnest(other_vars))
+})
+
+# Make col for just the other_vars genes, stripping out the change
+binary_tables_dup <- lapply(binary_tables_dup, function(x){x$other_vars_gene <- gsub("-.*", "", x$other_vars); x})
+
+# ---
+
+# Split out as sep vars
+
+inh_bin <- binary_tables$isoniazid
+rif_bin <- binary_tables$rifampicin
+
+inh_bin_dup <- binary_tables_dup$isoniazid
+rif_bin_dup <- binary_tables_dup$rifampicin
 
 # --- 
 
@@ -473,8 +503,6 @@ table_1 <- table_1[, c("Category", "Drug", "Chararcteristic", "n (%)")]
 
 ```{r basic-stats, echo = F, warning=F}
 
-inh_bin <- binary_tables$isoniazid
-rif_bin <- binary_tables$rifampicin
 total_samps <- nrow(binary_tables[[1]])
 
 inh_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "isoniazid" & dst_pivot[, "dst"] == "1", "n"]
@@ -960,11 +988,53 @@ y <- table(inh_PRM_no_katG_KRM$CM_bin, inh_PRM_no_katG_KRM$PRM_bin)
 tab <- cbind(x, y)
 fitness_x_sq <- print_chisq(chisq.test(tab), rnd = rnd)
 
+```
 
+```{r make-fitness-plot, echo = F, warning=F}
 
+# KRM
+# KRM <- subset(inh_bin, KRM_bin == "present")
+# KRM <- data.frame(KRM %>% mutate(KRM = strsplit(as.character(KRM), "; ")) %>% unnest(KRM))
+# KRM_tab <- pivot_num(KRM, formula(KRM ~ CM_bin))
+# KRM_tab$KRM <- clean_del_ins_dup(KRM_tab$KRM)
 
+# Just take Ser315Thr for now - all samples with Ser315Thr (but no PRM)
+# KRM_tab <- subset(KRM_tab, grepl("Ser315Thr", KRM_tab$KRM))
+KRM_tab <- pivot_num(inh_kat315_no_PRM, formula(KRM ~ CM_bin))
+KRM_tab$prop <- KRM_tab$present/KRM_tab$absent
+KRM_tab$status <- rep('known', nrow(KRM_tab))
 
+# PRM
+# PRM <- subset(inh_bin, PRM_bin == "present")
+# Split out PRM haplotypes (one row per PRM, duplicating the ID and everything else in the row)
+# PRM <- data.frame(PRM %>% mutate(PRM = strsplit(as.character(PRM), "; ")) %>% unnest(PRM))
+# PRM_tab <- pivot_num(PRM, formula(PRM ~ CM_bin))
 
+# Split out PRM haplotypes (one row per PRM, duplicating the ID and everything else in the row)
+# Use PRM with no known katG
+PRM <- data.frame(inh_PRM_no_katG_KRM %>% 
+                    mutate(PRM = strsplit(as.character(PRM), "; ")) 
+                  %>% unnest(PRM))
+PRM_tab <- pivot_num(PRM, formula(PRM ~ CM_bin))
+PRM_tab$prop <- PRM_tab$present/PRM_tab$absent
+PRM_tab$prop <- ifelse(is.infinite(PRM_tab$prop), 1, PRM_tab$prop)
+PRM_med <- median(PRM_tab$prop)
+# Clean up
+PRM_tab$PRM <- clean_del_ins_dup(PRM_tab$PRM)
+PRM_tab <- sort_pos(PRM_tab, "PRM")
+PRM_tab$status <- rep('unknown', nrow(PRM_tab))
+# Put together
+KRM_PRM_tab <- rbind_mod(KRM_tab, PRM_tab, c("change", drop_col_name(KRM_tab, "KRM")))
+
+fitness_plot <- ggplot() + geom_point(data = KRM_PRM_tab, 
+                                      aes(x = factor(change, level = change), y = prop, 
+                                          colour = status), size = 3)
+fitness_plot <- fitness_plot + scale_x_discrete(name="") + 
+  scale_y_continuous(name="proportion of samples with CM/no CM")
+fitness_plot <- fitness_plot + theme_bw()
+fitness_plot <- fitness_plot + theme(axis.text.x = element_text(angle=45, hjust = 1))
+fitness_plot <- fitness_plot + theme(aspect.ratio=50/100)
+fitness_plot <- fitness_plot + geom_hline(yintercept=PRM_med, linetype="dashed", color = "red")
 
 ```
 
@@ -1169,21 +1239,27 @@ knitr::kable(PRM_KRM_other, row.names = F, caption = cap, format = "pipe")
 
 **Isoniazid**
 
-```{r fitness-table, echo = F, warning=F, }
+```{r fitness-table, echo = F, warning=F}
 
 cap <- "Sample counts comparing presence and absence of compensatory mutations in *katG*-Ser315Thr and potential resistance mutations. Samples with known *katG* resistance mutations co-occurring with potential resistance mutations were excluded from counts."
 knitr::kable(fitness_table, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-```{r resistance-table, echo = F, warning=F, }
+```{r fitness-plot, echo = F, warning=F, fig.cap="Proportions of samples with and without compensatory mutations among the potential resistance mutations. *katG*-Ser315Thr is shown for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Red line - median proportion for potential resistance mutations."}
+
+fitness_plot
+
+```
+
+```{r resistance-table, echo = F, warning=F}
 
 cap <- "Samples counts of presence/absence of known resistance mutations co-occurring with *katG*-Ser315Thr and the potential resistance mutations. Samples with known *katG* resistance mutations co-occurring with potential resistance mutations were excluded from counts."
 knitr::kable(resistance_table, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-```{r isoniazid-Ser315Thr-table, echo = F, warning=F, }
+```{r isoniazid-Ser315Thr-table, echo = F, warning=F}
 
 cap <- "Comparison to katG-Ser315Thr and katG-Ser315Thr-KRM in other isoniazid resistance genes."
 knitr::kable(ser315thr_pivot, row.names = F, caption = cap, format = "pipe")
