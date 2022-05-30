@@ -215,6 +215,11 @@ rbind_mod <- function(df1, df2, names){
 }
 
 
+split_df_on_haplotype <- function(df, col){
+  # Duplicate sample row if other_vars has more than one var (i.e. on the "; " character/string)
+  data.frame(df %>% mutate(col = strsplit(as.character(col), "; ")) %>% unnest(col))
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -516,6 +521,22 @@ inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, KRM_katG_bin == "absent" & CM_
 # rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
 rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, KRM_katG_bin = "absent" & CM_bin == "present"))
 
+
+# In total, XXX unique non-synonymous mutations were found in katG.
+inh_n_uniq_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), "KRM_katG"]), "; "))))
+
+
+
+# 
+# %>%
+#   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
+#   unnest(other_vars))
+# 
+#   data.frame(x %>%
+#   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
+#   unnest(other_vars))
+#  
+
 ```
 
 ```{r working, echo = F, warning=F}
@@ -559,213 +580,221 @@ To overcome this fitness cost, secondary mutations can occur which improve or pr
 The TB-profiler platform [@phelan2019] contains a whole genome sequence (WGS) database of ~32k samples. Each sample is profiled for known drug resistance-associated mutations but also includes any mutation that has not previously been associated with resistance ('non-drug resistance-associated mutation'). by investigating those samples with known (and unknown) compensatory mutations but no known resistance mutations, we reasoned that the presence of these mutations could be leveraged to reveal hitherto non-drug resistance-associated mutations in drug target genes for isoniazid and rifampicin. 
 
 
-```{r n-samples-tree, echo = F, warning=F}
+
+
+```{r n-samples-tree-inh, echo = F, warning=F}
 
 # Tree
 
-# # INH
+# INH
 # # 1
 # total_samps
 # # 2
-# nrow(subset(inh_bin, KRM_katG_bin == "present"))
-# nrow(subset(inh_bin, KRM_katG_bin == "absent"))
+inh_2_a <- nrow(subset(inh_bin, KRM_katG_bin == "present"))
+inh_2_b <- nrow(subset(inh_bin, KRM_katG_bin == "absent"))
+inh_2_a_b <- inh_2_a + inh_2_b
 # # 3
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "present"))
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "absent"))
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present"))
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "absent"))
+inh_3_a <- nrow(subset(inh_bin, KRM_katG_bin == "present" & CM_bin == "present"))
+inh_3_b <- nrow(subset(inh_bin, KRM_katG_bin == "present" & CM_bin == "absent"))
+inh_3_c <- nrow(subset(inh_bin, KRM_katG_bin == "absent" & CM_bin == "present"))
+inh_3_d <- nrow(subset(inh_bin, KRM_katG_bin == "absent" & CM_bin == "absent"))
+inh_3_a_c <- inh_3_a + inh_3_c
+# 4
+# a
+inh_4_a <- nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "present"))
+# b
+inh_4_b <- nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "absent"))
+# c
+inh_4_c <- nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "present"))
+# d
+inh_4_d <- nrow(subset(inh_bin, KRM_katG_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "absent"))
+# e
+inh_4_e <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "present"))
+# f
+inh_4_f <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent"))
+# g
+inh_4_g <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "absent" &
+         PRM_bin == "present"))
+# h
+inh_4_h <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "absent" &
+         PRM_bin == "absent"))
+
+inh_4_a_c_e_g <- inh_4_a + inh_4_c + inh_4_e + inh_4_g
+# 5
+# a
+inh_5_a <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent" &
+           !(is.na(other_katG))))
+# b
+inh_5_b <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent" &
+           is.na(other_katG)))
+
+# # INH
 # # 4
 # # a
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
+# inh_4_a <- subset(inh_bin, KRM_katG_bin == "present" &
 #          CM_bin == "present" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # b
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
+# inh_4_a <- subset(inh_bin, KRM_katG_bin == "present" &
 #          CM_bin == "present" &
-#          PRM_bin == "absent"))
+#          PRM_bin == "absent")$wgs_id
 # # c
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
+# inh_4_c <- subset(inh_bin, KRM_katG_bin == "present" &
 #          CM_bin == "absent" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # d
-# nrow(subset(inh_bin, KRM_katG_bin == "present" &
+# inh_4_d <- subset(inh_bin, KRM_katG_bin == "present" &
 #          CM_bin == "absent" &
-#          PRM_bin == "absent"))
+#          PRM_bin == "absent")$wgs_id
 # # e
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+# inh_4_e <- subset(inh_bin, KRM_katG_bin == "absent" &
 #          CM_bin == "present" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # f
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+# inh_4_f <- subset(inh_bin, KRM_katG_bin == "absent" &
 #          CM_bin == "present" &
-#          PRM_bin == "absent"))
+#          PRM_bin == "absent")$wgs_id
 # # g
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+# inh_4_g <- subset(inh_bin, KRM_katG_bin == "absent" &
 #          CM_bin == "absent" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # h
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
+# inh_4_h <- subset(inh_bin, KRM_katG_bin == "absent" &
 #          CM_bin == "absent" &
-#          PRM_bin == "absent"))
-# # 5
-# # a
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" &
-#            !(is.na(other_katG))))
-# # b
-# nrow(subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" &
-#            is.na(other_katG)))
+#          PRM_bin == "absent")$wgs_id
+# # inh_4_a_c_e_g <- inh_4_a + inh_4_c + inh_4_e + inh_4_g
 # 
-# 
+# samps_list <- list(inh_4_a, inh_4_b, inh_4_c, inh_4_d, inh_4_e, inh_4_f, inh_4_g, inh_4_h)
+# for(i in seq(letters[1:8])){
+#   write.table(samps_list[[i]], file = paste0("../results/INH_", letters[i], ".txt"),
+#               quote = F, col.names = F, row.names = F)
+# }
+
+```
+
+
+```{r n-samples-tree-rif, echo = F, warning=F}
+
+
+
 # # RIF
 # # 1
 # total_samps
 # # 2
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present"))
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent"))
-# # 3
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
-#          CM_bin == "present"))
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
-#          CM_bin == "absent"))
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "present"))
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "absent"))
-# # 4
+rif_2_a <- nrow(subset(rif_bin, KRM_rpoB_bin == "present"))
+rif_2_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent"))
+# 3
+rif_3_a <- nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+         CM_bin == "present"))
+rif_3_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+         CM_bin == "absent"))
+rif_3_c <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "present"))
+rif_3_d <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "absent"))
+rif_3_a_c <- rif_3_a + rif_3_c
+# 4
+# a
+rif_4_a <- nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "present"))
+# b
+rif_4_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+         CM_bin == "present" &
+         PRM_bin == "absent"))
+# c
+rif_4_c <- nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "present"))
+# d
+rif_4_d <- nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+         CM_bin == "absent" &
+         PRM_bin == "absent"))
+# e
+rif_4_e <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "present"))
+# f
+rif_4_f <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent"))
+# g
+rif_4_g <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "absent" &
+         PRM_bin == "present"))
+# h
+rif_4_h <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "absent" &
+         PRM_bin == "absent"))
+# 5
+# a
+rif_5_a <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent" &
+           !(is.na(other_rpoB))))
+# b
+rif_5_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+         CM_bin == "present" &
+         PRM_bin == "absent" &
+           is.na(other_rpoB)))
+
+# # RIF
 # # a
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+# rif_4_a <- subset(rif_bin, KRM_rpoB_bin == "present" &
 #          CM_bin == "present" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # b
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+# rif_4_b <- subset(rif_bin, KRM_rpoB_bin == "present" &
 #          CM_bin == "present" &
-#          PRM_bin == "absent"))
+#          PRM_bin == "absent")$wgs_id
 # # c
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+# rif_4_c <- subset(rif_bin, KRM_rpoB_bin == "present" &
 #          CM_bin == "absent" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # d
-# nrow(subset(rif_bin, KRM_rpoB_bin == "present" &
+# rif_4_d <- subset(rif_bin, KRM_rpoB_bin == "present" &
 #          CM_bin == "absent" &
-#          PRM_bin == "absent"))
+#          PRM_bin == "absent")$wgs_id
 # # e
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+# rif_4_e <- subset(rif_bin, KRM_rpoB_bin == "absent" &
 #          CM_bin == "present" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # f
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+# rif_4_f <- subset(rif_bin, KRM_rpoB_bin == "absent" &
 #          CM_bin == "present" &
-#          PRM_bin == "absent"))
+#          PRM_bin == "absent")$wgs_id
 # # g
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+# rif_4_g <- subset(rif_bin, KRM_rpoB_bin == "absent" &
 #          CM_bin == "absent" &
-#          PRM_bin == "present"))
+#          PRM_bin == "present")$wgs_id
 # # h
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
+# rif_4_h <- subset(rif_bin, KRM_rpoB_bin == "absent" &
 #          CM_bin == "absent" &
-#          PRM_bin == "absent"))
-# # 5
-# # a
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" &
-#            !(is.na(other_rpoB))))
-# # b
-# nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" &
-#            is.na(other_rpoB)))
-
-
-
-# INH
-# a
-inh_4_a <- subset(inh_bin, KRM_katG_bin == "present" &
-         CM_bin == "present" &
-         PRM_bin == "present")$wgs_id
-# b
-inh_4_b <- subset(inh_bin, KRM_katG_bin == "present" &
-         CM_bin == "present" &
-         PRM_bin == "absent")$wgs_id
-# c
-inh_4_c <- subset(inh_bin, KRM_katG_bin == "present" &
-         CM_bin == "absent" &
-         PRM_bin == "present")$wgs_id
-# d
-inh_4_d <- subset(inh_bin, KRM_katG_bin == "present" &
-         CM_bin == "absent" &
-         PRM_bin == "absent")$wgs_id
-# e
-inh_4_e <- subset(inh_bin, KRM_katG_bin == "absent" &
-         CM_bin == "present" &
-         PRM_bin == "present")$wgs_id
-# f
-inh_4_f <- subset(inh_bin, KRM_katG_bin == "absent" &
-         CM_bin == "present" &
-         PRM_bin == "absent")$wgs_id
-# g
-inh_4_g <- subset(inh_bin, KRM_katG_bin == "absent" &
-         CM_bin == "absent" &
-         PRM_bin == "present")$wgs_id
-# h
-inh_4_h <- subset(inh_bin, KRM_katG_bin == "absent" &
-         CM_bin == "absent" &
-         PRM_bin == "absent")$wgs_id
-
-samps_list <- list(inh_4_a, inh_4_b, inh_4_c, inh_4_d, inh_4_e, inh_4_f, inh_4_g, inh_4_h)
-for(i in seq(letters[1:8])){
-  write.table(samps_list[[i]], file = paste0("../results/INH_", letters[i], ".txt"),
-              quote = F, col.names = F, row.names = F)
-}
-
-
-# RIF
-# a
-rif_4_a <- subset(rif_bin, KRM_rpoB_bin == "present" &
-         CM_bin == "present" &
-         PRM_bin == "present")$wgs_id
-# b
-rif_4_b <- subset(rif_bin, KRM_rpoB_bin == "present" &
-         CM_bin == "present" &
-         PRM_bin == "absent")$wgs_id
-# c
-rif_4_c <- subset(rif_bin, KRM_rpoB_bin == "present" &
-         CM_bin == "absent" &
-         PRM_bin == "present")$wgs_id
-# d
-rif_4_d <- subset(rif_bin, KRM_rpoB_bin == "present" &
-         CM_bin == "absent" &
-         PRM_bin == "absent")$wgs_id
-# e
-rif_4_e <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-         CM_bin == "present" &
-         PRM_bin == "present")$wgs_id
-# f
-rif_4_f <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-         CM_bin == "present" &
-         PRM_bin == "absent")$wgs_id
-# g
-rif_4_g <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-         CM_bin == "absent" &
-         PRM_bin == "present")$wgs_id
-# h
-rif_4_h <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-         CM_bin == "absent" &
-         PRM_bin == "absent")$wgs_id
-
-samps_list <- list(rif_4_a, rif_4_b, rif_4_c, rif_4_d, rif_4_e, rif_4_f, rif_4_g, rif_4_h)
-for(i in seq(letters[1:8])){
-  write.table(samps_list[[i]], file = paste0("../results/RIF_", letters[i], ".txt"),
-              quote = F, col.names = F, row.names = F)
-}
+#          PRM_bin == "absent")$wgs_id
+# 
+# samps_list <- list(rif_4_a, rif_4_b, rif_4_c, rif_4_d, rif_4_e, rif_4_f, rif_4_g, rif_4_h)
+# for(i in seq(letters[1:8])){
+#   write.table(samps_list[[i]], file = paste0("../results/RIF_", letters[i], ".txt"),
+#               quote = F, col.names = F, row.names = F)
+# }
 
 # 5
 # a
@@ -834,10 +863,13 @@ Explaining the DST resistance status, `r fmt(inh_n_samps_DST_res_KRM_present)` (
 
 # **Compensatory mutations**
 inh_CM <- select(subset(inh_bin, CM_bin == "present"), CM)
-inh_n_samps_KRM_CM <- nrow(subset(inh_bin, KRM_bin == "present" & 
-                                    CM_bin == "present"))
-inh_n_samps_KRM_no_CM <- nrow(subset(inh_bin, KRM_bin == "absent" & 
-                                    CM_bin == "present"))
+# inh_n_samps_KRM_CM <- nrow(subset(inh_bin, KRM_bin == "present" &
+#                                     CM_bin == "present"))
+# inh_n_samps_KRM_no_CM <- nrow(subset(inh_bin, KRM_bin == "present" & 
+#                                     CM_bin == "absent"))
+# inh_n_samps_no_KRM_CM <- nrow(subset(inh_bin, KRM_bin == "absent" & 
+#                                     CM_bin == "present"))
+
 inh_n_CM_haplotypes <- length(unique(inh_CM$CM))
 inh_CM_uniq <- uniq_vars(inh_CM$CM)
 inh_CM_uniq_in_KCM <- inh_CM_uniq[inh_CM_uniq %in% inh_KCM$gene_change]
@@ -864,19 +896,19 @@ rif_PCM <-  rif_CM_uniq[!(rif_CM_uniq %in% rif_KCM$gene_change)]
 **Compensatory mutations**
 
 *summary* \
-Number INH samples with a CM - `r inh_n_samps_CM` \
+Number INH samples with a CM - `r inh_3_a_c` \
 Number INH CM haplotypes - `r inh_n_CM_haplotypes` \
 Number INH unique CM - `r length(inh_CM_uniq)` \
 Number INH CM in known CM list - `r length(inh_CM_uniq_in_KCM)` \
 Number INH CM previously non-DR associated - `r length(inh_PCM)` \
 
-Number RIF samples with a CM - `r rif_n_samps_CM` \
+Number RIF samples with a CM - `r rif_3_a_c` \
 Number RIF CM haplotypes - `r rif_n_CM_haplotypes` \
 Number RIF unique CM - `r length(rif_CM_uniq)` \
 Number RIF CM in known CM list - `r length(rif_CM_uniq_in_KCM)` \
 Number RIF CM previously non-DR associated - `r length(rif_PCM)` \
 
-There were `r inh_n_samps_CM` and `r fmt(rif_n_samps_CM)` samples with a compensatory mutation, of which `r fmt(inh_n_samps_KRM_CM)` and `r fmt(rif_n_samps_KRM_CM)` samples had a known resistance mutation, and `r fmt(inh_n_samps_KRM_no_CM)` and `r fmt(inh_n_samps_KRM_no_CM)` did not have known resistance mutations in INH and RIF, respectively. 
+There were `r fmt(inh_3_a_c)` and `r fmt(rif_3_a_c)` samples with a compensatory mutation, of which `r fmt(inh_3_a)` and `r fmt(rif_3_a)` samples had a known resistance mutation, and `r fmt(inh_3_c)` and `r fmt(rif_3_c)` did not have known resistance mutations in INH and RIF, respectively. 
 
 The number of compensatory mutation haplotypes were `r inh_n_CM_haplotypes` (INH) and `r rif_n_CM_haplotypes` (RIF), while the number of unique compensatory mutations were `r length(inh_CM_uniq)` (INH) and `r length(rif_CM_uniq)` (RIF).
 
@@ -1000,8 +1032,13 @@ fitness_x_sq <- print_chisq(chisq.test(tab), rnd = rnd)
 
 # Just take Ser315Thr for now - all samples with Ser315Thr (but no PRM)
 # KRM_tab <- subset(KRM_tab, grepl("Ser315Thr", KRM_tab$KRM))
-KRM_tab <- pivot_num(inh_kat315_no_PRM, formula(KRM ~ CM_bin))
-KRM_tab$prop <- KRM_tab$present/KRM_tab$absent
+# KRM_tab <- pivot_num(inh_kat315_no_PRM, formula(KRM ~ CM_bin))
+
+KRM <- subset(inh_bin, KRM_bin == "present" & PRM_bin == "absent")
+KRM <- data.frame(KRM %>% mutate(KRM = strsplit(as.character(KRM), "; ")) %>% unnest(KRM))
+KRM_tab <- pivot_num(KRM, formula(KRM ~ CM_bin))
+KRM_tab$KRM <- clean_del_ins_dup(KRM_tab$KRM)
+KRM_tab <- subset(KRM_tab, grepl("katG", KRM_tab$KRM))
 KRM_tab$status <- rep('known', nrow(KRM_tab))
 
 # PRM
@@ -1016,25 +1053,37 @@ PRM <- data.frame(inh_PRM_no_katG_KRM %>%
                     mutate(PRM = strsplit(as.character(PRM), "; ")) 
                   %>% unnest(PRM))
 PRM_tab <- pivot_num(PRM, formula(PRM ~ CM_bin))
-PRM_tab$prop <- PRM_tab$present/PRM_tab$absent
-PRM_tab$prop <- ifelse(is.infinite(PRM_tab$prop), 1, PRM_tab$prop)
-PRM_med <- median(PRM_tab$prop)
 # Clean up
 PRM_tab$PRM <- clean_del_ins_dup(PRM_tab$PRM)
 PRM_tab <- sort_pos(PRM_tab, "PRM")
 PRM_tab$status <- rep('unknown', nrow(PRM_tab))
 # Put together
 KRM_PRM_tab <- rbind_mod(KRM_tab, PRM_tab, c("change", drop_col_name(KRM_tab, "KRM")))
+KRM_PRM_tab$pc <- (KRM_PRM_tab$present / (KRM_PRM_tab$absent + KRM_PRM_tab$present) )*100
 
-fitness_plot <- ggplot() + geom_point(data = KRM_PRM_tab, 
-                                      aes(x = factor(change, level = change), y = prop, 
+PRM_med <- median(subset(KRM_PRM_tab, status == 'unknown')$pc)
+
+# Plot each PRM % of samples with a CM with only 
+fitness_plot <- ggplot() + geom_point(data = subset(KRM_PRM_tab, status == "unknown" | change == "katG-p.Ser315Thr"), 
+                                      aes(x = factor(change, level = change), y = pc, 
                                           colour = status), size = 3)
 fitness_plot <- fitness_plot + scale_x_discrete(name="") + 
-  scale_y_continuous(name="proportion of samples with CM/no CM")
+  scale_y_continuous(name="% of samples with CM")
 fitness_plot <- fitness_plot + theme_bw()
 fitness_plot <- fitness_plot + theme(axis.text.x = element_text(angle=45, hjust = 1))
 fitness_plot <- fitness_plot + theme(aspect.ratio=50/100)
 fitness_plot <- fitness_plot + geom_hline(yintercept=PRM_med, linetype="dashed", color = "red")
+
+# Plot number of samples vs % of samples with a CM
+fitness_pc_total_plot <- ggplot() + geom_point(data = KRM_PRM_tab, 
+                                      aes(x = log(absent + present), y = pc, 
+                                          colour = status), size = 3)
+fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="log(sum) of samples") + scale_y_continuous(name="% samples with CM")
+fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
+fitness_pc_total_plot <- fitness_pc_total_plot + theme(aspect.ratio=50/100)
+fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_tab, change == "katG-p.Ser315Thr"),
+                                                           aes(x = log(absent + present), y = pc, label = change), 
+                                                           hjust = 1.1)
 
 ```
 
@@ -1246,9 +1295,15 @@ knitr::kable(fitness_table, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-```{r fitness-plot, echo = F, warning=F, fig.cap="Proportions of samples with and without compensatory mutations among the potential resistance mutations. *katG*-Ser315Thr is shown for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Red line - median proportion for potential resistance mutations."}
+```{r fitness-plot, echo = F, warning=F, fig.cap="Percentage of samples with compensatory mutations among the potential resistance mutations. *katG*-Ser315Thr is shown for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Red line - median percentage of samples with compensatory mutations in samples with potential resistance mutations. Samples with *katG*-Ser315Thr and a potential resistance mutation have been excluded. Samples with a potential resistance mutation and a known *katG* resistance mutation have been excluded."}
 
 fitness_plot
+
+```
+
+```{r fitness-plot, echo = F, warning=F, fig.cap="Number of samples vs percentage of samples with a compensatory mutation for known *katG* mutations and potential *katG* resistance mutations. *katG*-Ser315Thr is labeled for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Samples with *katG*-Ser315Thr and a potential resistance mutation have been excluded. Samples with a potential resistance mutation and a known *katG* resistance mutation have been excluded."}
+
+fitness_pc_total_plot
 
 ```
 
@@ -1301,18 +1356,24 @@ binary_expand_PRM <- lapply(binary_tables, function(x){
 inh <- binary_expand_PRM$isoniazid
 inh_PRM <- subset(inh, !(is.na(PRM)))
 inh_PRM <- select(inh_PRM, CM, PRM)
-
+# Split and process del/dup/ins separately 
+del_dup_ins <- inh_PRM[grepl("del|dup|ins", inh_PRM$PRM), ]
+inh_PRM <- inh_PRM[!(grepl("del|dup|ins", inh_PRM$PRM)), ]
 inh_PRM_pos <- data.frame(apply(inh_PRM, 2, find_pos))
+del_dup_ins$CM <- find_pos(del_dup_ins$CM)
+del_dup_ins$PRM <- gsub("[^0-9_del|dup|ins]", "", del_dup_ins$PRM)
+inh_PRM_pos <- rbind(inh_PRM_pos, del_dup_ins)
 
 colnames(inh_PRM_pos) <- c("ahpC", "katG")
 
-df <- inh_PRM_pos %>%
-  make_long(ahpC, katG)
-
+df <- inh_PRM_pos %>% make_long(ahpC, katG)
+# Remove NAs from first node col - removes ahpCs that do not linek to a katG
+df <- subset(df, !(is.na(node)))
 ahpc_katg_links <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, label = node)) +
   coord_flip()+
   geom_sankey(flow.alpha = .6, fill = 'lightblue', na.rm = T) +
-  geom_sankey_text(size = 2.25, color = "black", angle = 45, width = 1, na.rm = T) +
+  # geom_sankey_text(size = 2.25, color = "black", angle = 45, width = 1, na.rm = T) +
+  geom_sankey_text(size = 3, color = "black", angle = 45, width = 2, na.rm = T) +
   theme_minimal()+
   labs(x = NULL)+
   theme(legend.position = "none",
