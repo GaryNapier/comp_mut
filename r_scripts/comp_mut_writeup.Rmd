@@ -523,19 +523,10 @@ rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, KRM_katG_bin = "absent" & CM_b
 
 
 # In total, XXX unique non-synonymous mutations were found in katG.
-inh_n_uniq_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), "KRM_katG"]), "; "))))
-
-
-
-# 
-# %>%
-#   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
-#   unnest(other_vars))
-# 
-#   data.frame(x %>%
-#   mutate(other_vars = strsplit(as.character(other_vars), "; ")) %>%
-#   unnest(other_vars))
-#  
+inh_n_uniq_KRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), "KRM_katG"]), "; "))))
+inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "other_katG"])), "other_katG"]), "; "))))
+inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
+total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
 
 ```
 
@@ -577,9 +568,7 @@ In gaining resistance against anti-tuberculosis drugs, drug target proteins are 
 
 To overcome this fitness cost, secondary mutations can occur which improve or promote either the target protein itself or in another protein with a similar function. In the case of INH/*katG* the protein AhpC, being another reducing enzyme, is often promoted via mutations in the promoter portion of the *ahpC* gene [@Sherman1999][@Sherman1996]. Rather than mutations occurring in a totally different protein or in promoter regions, RIF compensatory mutations occur in the other RNA polymerase subunits $\alpha$ (*rpoA*), $\beta$' (*rpoC*) or even in the $\beta$ subunit itself. These mutations are thought to occur at the interfaces of the subunits, helping to restore overall RNA polymerase function while maintaining a compromised binding site in the $\beta$ subunit [@Comas2011].
 
-The TB-profiler platform [@phelan2019] contains a whole genome sequence (WGS) database of ~32k samples. Each sample is profiled for known drug resistance-associated mutations but also includes any mutation that has not previously been associated with resistance ('non-drug resistance-associated mutation'). by investigating those samples with known (and unknown) compensatory mutations but no known resistance mutations, we reasoned that the presence of these mutations could be leveraged to reveal hitherto non-drug resistance-associated mutations in drug target genes for isoniazid and rifampicin. 
-
-
+The TB-profiler platform [@Phelan2019] contains a whole genome sequence (WGS) database of ~32k samples. Each sample is profiled for known drug resistance-associated mutations but also includes any mutation that has not previously been associated with resistance ('non-drug resistance-associated mutation'). by investigating those samples with known (and unknown) compensatory mutations but no known resistance mutations, we reasoned that the presence of these mutations could be leveraged to reveal hitherto non-drug resistance-associated mutations in drug target genes for isoniazid and rifampicin. 
 
 
 ```{r n-samples-tree-inh, echo = F, warning=F}
@@ -633,6 +622,7 @@ inh_4_h <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
          CM_bin == "absent" &
          PRM_bin == "absent"))
 
+inh_4_c_g <- inh_4_c + inh_4_g
 inh_4_a_c_e_g <- inh_4_a + inh_4_c + inh_4_e + inh_4_g
 # 5
 # a
@@ -689,7 +679,6 @@ inh_5_b <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
 # }
 
 ```
-
 
 ```{r n-samples-tree-rif, echo = F, warning=F}
 
@@ -1301,7 +1290,7 @@ fitness_plot
 
 ```
 
-```{r fitness-plot, echo = F, warning=F, fig.cap="Number of samples vs percentage of samples with a compensatory mutation for known *katG* mutations and potential *katG* resistance mutations. *katG*-Ser315Thr is labeled for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Samples with *katG*-Ser315Thr and a potential resistance mutation have been excluded. Samples with a potential resistance mutation and a known *katG* resistance mutation have been excluded."}
+```{r fitness-pc-plot, echo = F, warning=F, fig.cap="Number of samples vs percentage of samples with a compensatory mutation for known *katG* mutations and potential *katG* resistance mutations. *katG*-Ser315Thr is labeled for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Samples with *katG*-Ser315Thr and a potential resistance mutation have been excluded. Samples with a potential resistance mutation and a known *katG* resistance mutation have been excluded."}
 
 fitness_pc_total_plot
 
