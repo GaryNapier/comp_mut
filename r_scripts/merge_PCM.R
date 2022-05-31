@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# clean_novel_comp_mut.R
+# merge_PCM.R
 
 
 # Description
@@ -104,6 +104,14 @@ KCM_genes <- unique(KCM[KCM["Drug"] == drug_of_interest, "Gene"])
 
 # Filter out any results that are not in the KCM genes list
 results <- results[results[, "gene"] %in% KCM_genes, ]
+
+# Filter ahpC mutations
+if(drug_of_interest == "isoniazid"){
+  
+  # Remove non-promoters from ahpC PCM
+  results <- results[!(grepl("p.", results$change)), ]
+  
+}
 
 if (!TESTING){
   write.csv(results, file = outfile, quote = F, row.names = F)
