@@ -84,8 +84,7 @@ def filter_vars(variants, mutation2sample, meta_dict, drug_of_interest, genes, d
                 
             if dst_proportion is not None:
                 
-                if dst_proportion >= 0.5 and \
-                sensitive_geno_proportion <= 0.5 and var[0] in genes and num_lins > 1: 
+                if dst_proportion >= 0.5 and sensitive_geno_proportion <= 0.5 and var[0] in genes and num_lins > 1: 
                     variants_passed.add(var)
                     stats_dict[var] = {'drug': drug_of_interest, 
                                         'gene': var[0], 
@@ -151,6 +150,7 @@ def main(args):
     tbprofiler_results_dir = args.tbprofiler_results_dir
     vars_exclude_file = args.vars_exclude_file
     PRM_stats_file = args.PRM_stats_file
+    PCM_stats_file = args.PCM_stats_file
     PRM_samples_file = args.PRM_samples_file
     binary_table_file = args.binary_table_file
     summary_file = args.summary_file
@@ -276,11 +276,17 @@ def main(args):
     ########################################################
     PCM_filtered, PCM_stats = filter_vars(PCM_list, mutation2sample, meta_dict, drug_of_interest, CM_genes, do_lineage)
 
-    print(" --- list of potential comp mutations after filtering --- ")
-    print(PCM_filtered)
-    print(" --- stats: --- ")
-    print(PCM_stats)
     print()
+    print("FOUND %s POTENTIAL COMPENSATORY MUTATIONS FOR %s" % (len(PCM_filtered), drug_of_interest))
+    print()
+
+    # WRITE PCM FILES
+    with open(PCM_stats_file, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PCM_stats)))
+        writer.writeheader()
+        for row in PCM_stats:
+            writer.writerow(PCM_stats[row])
+    clean_file(PCM_stats_file)
 
     # Add the filtered potential compensatory mutations 
     # to the list of known compensatory mutations for the drug of interest
@@ -323,7 +329,7 @@ def main(args):
         print("FOUND %s POTENTIAL RESISTANCE MUTATIONS FOR %s" % (len(PRM_filtered), drug_of_interest))
         print()
 
-        # WRITE FILES
+        # WRITE PRM FILES
 
         with open(PRM_stats_file, 'w') as f:
             writer = csv.DictWriter(f, fieldnames = list(get_embedded_keys(PRM_stats)))
@@ -331,7 +337,6 @@ def main(args):
             for row in PRM_stats:
                 writer.writerow(PRM_stats[row])
 
-        # clean_file(PRM_samples_file)
         clean_file(PRM_stats_file)
 
     else:
@@ -490,8 +495,9 @@ parser.add_argument('--drtypes-file', default = '', type = str, help = 'json con
 parser.add_argument('--KCM-file', default = '', type = str, help = 'csv of all known compensatory mutations; https://github.com/GaryNapier/pipeline/blob/main/db/compensatory_mutations.csv')
 parser.add_argument('--tbprofiler-results-dir', default = '', type = str, help = 'directory of tbprofiler results containing one json per sample')
 parser.add_argument('--vars-exclude-file', default = '', type = str, help = 'csv of gene,mutation to exclude. No header')
-parser.add_argument('--PRM-stats-file', default = '', type = str, help = 'name of output file of variants and their stats')
-parser.add_argument('--PRM-samples-file', default = '', type = str, help = 'name of output file of variants and their stats')
+parser.add_argument('--PRM-stats-file', default = '', type = str, help = 'name of output file of PRMs and their stats')
+parser.add_argument('--PCM-stats-file', default = '', type = str, help = 'name of output file of PCMs and their stats')
+parser.add_argument('--PRM-samples-file', default = '', type = str, help = 'name of output file of samples with PRMs')
 parser.add_argument('--binary-table-file', default = '', type = str, help = 'name of output file of samples and all their types of mutation - CM, KRM, PRM, other')
 parser.add_argument('--summary-file', default = '', type = str, help = 'name of output file of CM, KRM etc counts')
 parser.add_argument('--suffix', default = '.results.json', type = str, help = 'suffix of json files in tbprofiler_results_dir')

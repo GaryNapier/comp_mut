@@ -69,6 +69,7 @@ PCM_model_results_file=${results_dir}${drug_of_interest}_PCM_model_results.csv
 PCM_merged_file=${results_dir}${drug_of_interest}_PCM_merged.csv
 # comp_mut2res_mut.py files
 PRM_stats_file=${results_dir}${drug_of_interest}_PRM_stats.csv
+PCM_stats_file=${results_dir}${drug_of_interest}_PCM_stats.csv
 PRM_samples_file=${results_dir}${drug_of_interest}_PRM_samps.txt
 # samples_for_vcf_file=${results_dir}${drug_of_interest}_PRM_samps.txt
 binary_table_file=${results_dir}${drug_of_interest}_binary_table.csv
@@ -166,6 +167,7 @@ python python_scripts/comp_mut2res_mut.py \
 --tbprofiler-results-dir ${tbp_results_dir} \
 --vars-exclude-file ${vars_exclude_file} \
 --PRM-stats-file ${PRM_stats_file} \
+--PCM-stats-file ${PCM_stats_file} \
 --PRM-samples-file ${PRM_samples_file} \
 --binary-table-file ${binary_table_file} \
 --summary-file ${summary_file} \
