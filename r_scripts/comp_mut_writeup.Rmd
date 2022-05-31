@@ -636,6 +636,33 @@ inh_5_b <- nrow(subset(inh_bin, KRM_katG_bin == "absent" &
          PRM_bin == "absent" &
            is.na(other_katG)))
 
+layer_2 <- data.frame(n = c(inh_2_a, inh_2_b))
+layer_3 <- data.frame(n = c(inh_3_a, 
+                            inh_3_b, 
+                            inh_3_c, 
+                            inh_3_d))
+layer_4 <- data.frame(n = c(inh_4_a, 
+                            inh_4_b, 
+                            inh_4_c, 
+                            inh_4_d, 
+                            inh_4_e, 
+                            inh_4_f, 
+                            inh_4_g, 
+                            inh_4_h))
+layer_5 <- data.frame(n = c(inh_5_a, inh_5_b))
+
+n_df <- rbind(layer_2, layer_3, layer_4, layer_5)
+
+layer <- data.frame(c(
+  paste0(rep("2", nrow(layer_2)), "_", letters[1:nrow(layer_2)]), 
+  paste0(rep("3", nrow(layer_3)), "_", letters[1:nrow(layer_3)]), 
+  paste0(rep("4", nrow(layer_4)), "_", letters[1:nrow(layer_4)]), 
+  paste0(rep("5", nrow(layer_5)), "_", letters[1:nrow(layer_5)])
+))
+
+inh_samp_tree <- setNames(cbind(layer, n_df), c("layer", "n"))
+
+
 # # INH
 # # 4
 # # a
@@ -1170,7 +1197,9 @@ Drug resistance types and lineages were predicted *in silico* with TB-Profiler (
 
 From the database of TB-profiler - all non-synonymous mutations in the relevant compensatory genes were found (*ahpC* in the case of INH and *rpoC* and *rpoA* for RIF).
 
-All non-drug resistance associated ('unknown') mutations in compensatory genes were filtered such that they were present in three or more samples, <50% samples were predicted *Sensitive* by TB-profiler and <50% of samples were DST sensitive, for each relevant drug.
+All non-drug resistance associated ('unknown') mutations in compensatory genes were filtered such that they were present in three or more samples, <50% samples were predicted *Sensitive* by TB-profiler and <50% of samples were DST sensitive, for each relevant drug. 
+
+As there were many potential *ahpC* mutations, further filtering criteria were applied to these - mutations were retained if they were associated with loss of function in *katG* mutations, occurred in the same position as known *ahpC* mutations and if they appeared in multiple lineages. Only one of these criteria need be met for retention in the final list of potential compensatory *ahpC* mutations. 
 
 These successful mutations were then combined with the list of known compensatory mutations [@Phelan2019] to form a full list of compensatory mutations.
 
