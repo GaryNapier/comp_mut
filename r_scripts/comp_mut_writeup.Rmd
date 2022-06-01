@@ -1343,7 +1343,7 @@ knitr::kable(ser315thr_pivot, row.names = F, caption = cap, format = "pipe")
 
 ```{r samples-breakdown, echo=FALSE, out.width = "2000px", fig.show='hold', fig.cap="Breakdown of sample numbers by presence of mutation type for INH (A) and RIF (B)" }
 
-knitr::include_graphics("../results/numbers.png")
+knitr::include_graphics("../results/samples_trees.png")
 # knitr::include_graphics(rif_numbers_file)
 
 ```
@@ -1363,7 +1363,7 @@ knitr::include_graphics(tree_files[grep("isoniazid", tree_files)])
 ```
 
 
-```{r inh-ahpc-katg-links, echo=FALSE, out.width = "2000px", fig.cap="Co-occurrences between *ahpC* compensatory mutation positions and *katG* positions. Gaps in *katG* positions indicate no compensatory mutation was found for that sample." }
+```{r inh-ahpc-katg-links, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Co-occurrences between *ahpC* compensatory mutation positions and *katG* positions. Gaps in *katG* positions indicate no compensatory mutation was found for that sample." }
 
 binary_expand_PRM <- lapply(binary_tables, function(x){
   data.frame(x %>%
@@ -1387,24 +1387,31 @@ colnames(inh_PRM_pos) <- c("ahpC", "katG")
 df <- inh_PRM_pos %>% make_long(ahpC, katG)
 # Remove NAs from first node col - removes ahpCs that do not linek to a katG
 df <- subset(df, !(is.na(node)))
-ahpc_katg_links <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, label = node)) +
-  coord_flip()+
-  geom_sankey(flow.alpha = .6, fill = 'lightblue', na.rm = T) +
-  # geom_sankey_text(size = 2.25, color = "black", angle = 45, width = 1, na.rm = T) +
-  geom_sankey_text(size = 3, color = "black", angle = 45, width = 2, na.rm = T) +
-  theme_minimal()+
-  labs(x = NULL)+
-  theme(legend.position = "none",
+
+# Move the node col to two separate cols according to the gene (i.e. group) so that the text can be plotted separately 
+# - each row of text can be adjusted separately 
+df$katG <- ifelse(df$x == 'katG', df$node, NA)
+df$ahpC <- ifelse(df$x == 'ahpC', df$node, NA)
+
+sank <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node))
+sank <- sank + coord_flip()
+sank <- sank + geom_sankey(flow.alpha = .6, fill = 'lightblue', na.rm = T)
+sank <- sank + geom_sankey_text(aes(label = katG), size = 3, angle = 45, width = 2, na.rm = T, vjust = -2, hjust = 0)
+sank <- sank + geom_sankey_text(aes(label = ahpC), size = 3, angle = 48, width = 2, na.rm = T, vjust = 2, hjust = 1.5)
+sank <- sank + theme_minimal()
+sank <- sank + labs(x = NULL)
+sank <- sank + theme(legend.position = "none",
         plot.title = element_text(hjust = .5),
         axis.text.x=element_blank(), 
-        panel.grid = element_blank()) +
-  ggtitle("INH")
+        panel.grid = element_blank())
+sank <- sank + ggtitle("INH")
+sank
 
-ahpc_katg_links_file <- "../results/ahpc_katg_links.png"
+sank_file <- "../results/ahpc_katg_links.png"
 
-ggsave(ahpc_katg_links, file = ahpc_katg_links_file)
+ggsave(sank, file = sank_file)
 
-knitr::include_graphics(ahpc_katg_links_file)
+knitr::include_graphics(sank_file)
 
 ```
 
