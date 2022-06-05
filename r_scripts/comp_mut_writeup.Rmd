@@ -1,5 +1,5 @@
 ---
-title: "Large-scale genomic analysis of *Mycobacterium tuberculosis* reveals extent of target and compensatory mutations linked to isoniazid, rifampicin and multi-drug resistance"
+title: "Large-scale genomic analysis of *Mycobacterium tuberculosis* reveals extent of target and compensatory mutations linked to isoniazid, rifampicin, and multi-drug resistance"
 output: 
   bookdown::word_document2: 
     fig_caption: yes
@@ -163,8 +163,8 @@ find_pos <- function(x){
   sub("\\-", "", gsub("[^0-9\\-]+", "", x))
 }
 
-fmt_pc <- function(x){
-  paste0(fmt(x*100), "%")
+fmt_pc <- function(x, ...){
+  paste0(fmt(x*100, ...), "%")
 }
 
 trimws_df <- function(x){
@@ -459,7 +459,10 @@ row.names(rare_cnts) <- drugs
 
 # Add drug col, select and bind
 meta_tables <- add_drug_col(binary_tables, drugs)
-meta_table <- do.call('rbind', lapply(meta_tables, function(x){ select(x, Drug, wgs_id, main_lineage, sublin, country_code, drtype, dst)}))
+meta_table <- do.call('rbind', lapply(meta_tables, 
+                                      function(x){ 
+                                        select(x, Drug, wgs_id, main_lineage, sublin, country_code, drtype, dst)
+                                        }))
 
 # Trim whitespace
 meta_table$dst <- trimws(meta_table$dst)
@@ -505,71 +508,6 @@ table_1$Category <- c(rep("Lineage", nrow(lin_pivot)),
 table_1 <- table_1[, c("Category", "Drug", "Chararcteristic", "n (%)")]
 
 ```
-
-```{r basic-stats, echo = F, warning=F}
-
-total_samps <- nrow(binary_tables[[1]])
-
-inh_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "isoniazid" & dst_pivot[, "dst"] == "1", "n"]
-rif_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "rifampicin" & dst_pivot[, "dst"] == "1", "n"]
-
-inh_n_samps_CM <- nrow(subset(inh_bin, !(is.na(CM))))
-rif_n_samps_CM <- nrow(subset(rif_bin, !(is.na(CM))))
-
-# inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, !(is.na(CM)) & is.na(KRM)))
-inh_n_samps_CM_and_no_KRM <- nrow(subset(inh_bin, KRM_katG_bin == "absent" & CM_bin == "present"))
-# rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, !(is.na(CM)) & is.na(KRM)))
-rif_n_samps_CM_and_no_KRM <- nrow(subset(rif_bin, KRM_katG_bin = "absent" & CM_bin == "present"))
-
-
-# In total, XXX unique non-synonymous mutations were found in katG.
-inh_n_uniq_KRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), "KRM_katG"]), "; "))))
-inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "other_katG"])), "other_katG"]), "; "))))
-inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
-total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
-
-```
-
-```{r working, echo = F, warning=F}
-
-
-```
-
-| | |
-| ----------- | ----------- |
-|Gary Napier^1^ | gary.napier@lshtm.ac.uk |
-|Susana Campino^1^ | susana.campino@lshtm.ac.uk |
-|Jody E. Phelan^1^,* | jody.phelan@lshtm.ac.uk |
-|Taane G. Clark^1^,^2^,* | taane.clark@lshtm.ac.uk |
-
-^1^Faculty of Infectious and Tropical Diseases, London School of Hygiene & Tropical Medicine, WC1E 7HT London, UK
-^2^Faculty of Epidemiology and Population Health, London School of Hygiene & Tropical Medicine, WC1E 7HT London, UK
-
-\* joint authors
-
-
-## Abstract
-
-**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in *Mycobacterium tuberculosis* (multidrug-resistant TB; MDR-TB) threatens disease control. Mutations that confer resistance to anti-TB drugs often come with a fitness cost. To overcome these fitness costs, *M. tuberculosis* can develop further, beneficial, compensatory mutations in genes that code for proteins performing similar biological roles or interact with drug-targets. Here we leverage the presence of known and putative compensatory mutations along with phenotypic and genotypic data to detect the presence of novel mutations occurring in the target genes of INH (*katG*) and RIF (*rpoB*), inferring their causative role in resistance to these drugs.
-
-**Results:** Across ~32k isolates, there were `r inh_n_samps_DST_res` with INH and `r rif_n_samps_DST_res` with RIF phenotypic resistance. Known mutations in *katG* and *rpoB* explained most of the resistance. However, `r fmt(inh_n_samps_CM_and_no_KRM)` (`r fmt_pc(inh_n_samps_CM_and_no_KRM/total_samps)`) and `r fmt(rif_n_samps_CM_and_no_KRM)` (`r fmt_pc(rif_n_samps_CM_and_no_KRM/total_samps)`) samples had compensatory mutations, but did not have any known resistance mutations in INH or RIF target genes, respectively. By examining isolates with compensatory mutations but no known resistance mutation, we identified a number of inferred novel resistance mutations. We also characterise the putative *katG* mutations in terms of their co-occurrence with other INH variants - *katG*-Ser315Thr and other INH genes, e.g. *fabG1*. 
-
-**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new variants linked to resistance. We have identified new resistance markers and, after validation, have added to a list of mutations for genotypic drug-resistance predictions.
-
-**URL:**https://github.com/GaryNapier/comp_mut
-
-**Keywords:** *Mycobacterium tuberculosis*, isoniazid, rifampicin, *katG*, *rpoB*, compensatory/resistance mutations
-
-## Background
-
-[Generic remark about tuberculosis being bad and being caused by the *M. tuberculosis* pathogen]
-
-In gaining resistance against anti-tuberculosis drugs, drug target proteins are often compromised in their usual function, and *M. tuberculosis* therefore also incurs a fitness cost. Costs can be manifest in terms of any phenotypic difference, say, virulence or transmissibility. For example the *katG* gene codes for the KatG enzyme, a catalase-peroxidase which protects the bacterium from reactive oxygen species (ROS) damage and to detoxify hydrogen peroxide [@Trivedi2012], two products of the immune system which attack the pathogen. The enzyme is also the target of the pro-drug isoniazid (INH), converting it to multiple reactive species [@Zhang2009]. When mutations occur in the KatG protein that disrupt INH binding, mediated by the *katG* gene, the bacteria is often left simultaneously with drug resistance and a faulty protein. This is not always the case, since some mutations can confer drug resistance without a punitive fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects fitness, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. In the case of RIF, the target is the $\beta$ subunit of RNA polymerase, coded by *rpoB*. Mutations here prevent RIF from binding, but incur high fitness cost since the intricate machinery of RNA polymerase is intolerant to large structural changes[@Telenti1997], with the exception of Ser450Leu, which is highly prevalent in RIF-resistant strains [@Heep2001]. Indeed, so restrictive are changes to the $\beta$ subunit that over 95% of drug resistance mutations occur in the 'rifampicin resistance determining region' (RRDR), an 81 base-pair section of *rpoB* [@Cao2019].
-
-To overcome this fitness cost, secondary mutations can occur which improve or promote either the target protein itself or in another protein with a similar function. In the case of INH/*katG* the protein AhpC, being another reducing enzyme, is often promoted via mutations in the promoter portion of the *ahpC* gene [@Sherman1999][@Sherman1996]. Rather than mutations occurring in a totally different protein or in promoter regions, RIF compensatory mutations occur in the other RNA polymerase subunits $\alpha$ (*rpoA*), $\beta$' (*rpoC*) or even in the $\beta$ subunit itself. These mutations are thought to occur at the interfaces of the subunits, helping to restore overall RNA polymerase function while maintaining a compromised binding site in the $\beta$ subunit [@Comas2011].
-
-The TB-profiler platform [@Phelan2019] contains a whole genome sequence (WGS) database of ~32k samples. Each sample is profiled for known drug resistance-associated mutations but also includes any mutation that has not previously been associated with resistance ('non-drug resistance-associated mutation'). by investigating those samples with known (and unknown) compensatory mutations but no known resistance mutations, we reasoned that the presence of these mutations could be leveraged to reveal hitherto non-drug resistance-associated mutations in drug target genes for isoniazid and rifampicin. 
-
 
 ```{r n-samples-tree-inh, echo = F, warning=F}
 
@@ -662,49 +600,6 @@ layer <- data.frame(c(
 
 inh_samp_tree <- setNames(cbind(layer, n_df), c("layer", "n"))
 
-
-# # INH
-# # 4
-# # a
-# inh_4_a <- subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "present" &
-#          PRM_bin == "present")$wgs_id
-# # b
-# inh_4_a <- subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent")$wgs_id
-# # c
-# inh_4_c <- subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "absent" &
-#          PRM_bin == "present")$wgs_id
-# # d
-# inh_4_d <- subset(inh_bin, KRM_katG_bin == "present" &
-#          CM_bin == "absent" &
-#          PRM_bin == "absent")$wgs_id
-# # e
-# inh_4_e <- subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "present")$wgs_id
-# # f
-# inh_4_f <- subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent")$wgs_id
-# # g
-# inh_4_g <- subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "absent" &
-#          PRM_bin == "present")$wgs_id
-# # h
-# inh_4_h <- subset(inh_bin, KRM_katG_bin == "absent" &
-#          CM_bin == "absent" &
-#          PRM_bin == "absent")$wgs_id
-# # inh_4_a_c_e_g <- inh_4_a + inh_4_c + inh_4_e + inh_4_g
-# 
-# samps_list <- list(inh_4_a, inh_4_b, inh_4_c, inh_4_d, inh_4_e, inh_4_f, inh_4_g, inh_4_h)
-# for(i in seq(letters[1:8])){
-#   write.table(samps_list[[i]], file = paste0("../results/INH_", letters[i], ".txt"),
-#               quote = F, col.names = F, row.names = F)
-# }
-
 ```
 
 ```{r n-samples-tree-rif, echo = F, warning=F}
@@ -772,69 +667,86 @@ rif_5_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
          PRM_bin == "absent" &
            is.na(other_rpoB)))
 
-# # RIF
-# # a
-# rif_4_a <- subset(rif_bin, KRM_rpoB_bin == "present" &
-#          CM_bin == "present" &
-#          PRM_bin == "present")$wgs_id
-# # b
-# rif_4_b <- subset(rif_bin, KRM_rpoB_bin == "present" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent")$wgs_id
-# # c
-# rif_4_c <- subset(rif_bin, KRM_rpoB_bin == "present" &
-#          CM_bin == "absent" &
-#          PRM_bin == "present")$wgs_id
-# # d
-# rif_4_d <- subset(rif_bin, KRM_rpoB_bin == "present" &
-#          CM_bin == "absent" &
-#          PRM_bin == "absent")$wgs_id
-# # e
-# rif_4_e <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "present")$wgs_id
-# # f
-# rif_4_f <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent")$wgs_id
-# # g
-# rif_4_g <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "absent" &
-#          PRM_bin == "present")$wgs_id
-# # h
-# rif_4_h <- subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "absent" &
-#          PRM_bin == "absent")$wgs_id
-# 
-# samps_list <- list(rif_4_a, rif_4_b, rif_4_c, rif_4_d, rif_4_e, rif_4_f, rif_4_g, rif_4_h)
-# for(i in seq(letters[1:8])){
-#   write.table(samps_list[[i]], file = paste0("../results/RIF_", letters[i], ".txt"),
-#               quote = F, col.names = F, row.names = F)
-# }
 
-# 5
-# a
-# subset(rif_bin, KRM_rpoB_bin == "absent" &
-#          CM_bin == "present" &
-#          PRM_bin == "absent" & 
-#          !(is.na(other_rpoB)) )[c("wgs_id", "other_rpoB")]
+```
+
+```{r basic-stats, echo = F, warning=F}
+
+total_samps <- nrow(binary_tables[[1]])
+
+# inh_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "isoniazid" & dst_pivot[, "dst"] == "1", "n"]
+# rif_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "rifampicin" & dst_pivot[, "dst"] == "1", "n"]
+
+inh_n_samps_dst <- nrow(subset(meta_table, Drug == "isoniazid" & !is.na(dst)))
+rif_n_samps_dst <- nrow(subset(meta_table, Drug == "rifampicin" & !is.na(dst)))
+
+inh_n_samps_DST_res <- nrow(subset(meta_table, Drug == "isoniazid" & dst == "1"))
+rif_n_samps_DST_res <- nrow(subset(meta_table, Drug == "rifampicin" & dst == "1"))
+
+# In total, XXX unique non-synonymous mutations were found in katG.
+inh_n_uniq_KRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), 
+                                                                    "KRM_katG"]), "; "))))
+inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "other_katG"])), 
+                                                                      "other_katG"]), "; "))))
+inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
+total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
+
+```
+
+```{r working, echo = F, warning=F}
 
 
 ```
 
-## Results
+| | |
+| ----------- | ----------- |
+|Gary Napier^1^ | gary.napier@lshtm.ac.uk |
+|Julian Libiseller-Egger^1^ | julian.libiseller-egger@lshtm.ac.uk | 
+|Susana Campino^1^ | susana.campino@lshtm.ac.uk |
+|Jody E. Phelan^1^,* | jody.phelan@lshtm.ac.uk |
+|Taane G. Clark^1^,^2^,* | taane.clark@lshtm.ac.uk |
+
+^1^Faculty of Infectious and Tropical Diseases, London School of Hygiene & Tropical Medicine, WC1E 7HT London, UK
+^2^Faculty of Epidemiology and Population Health, London School of Hygiene & Tropical Medicine, WC1E 7HT London, UK
+
+\* joint authors
+
+
+## ABSTRACT
+
+**Background:** Resistance to the first-line drugs isoniazid (INH) and rifampicin (RIF) in *Mycobacterium tuberculosis* (multidrug-resistant TB; MDR-TB) threatens tuberculosis disease (TB) control. Mutations in *katG* and *rpoB*, which confer resistance to INH and RIF, often come with a fitness cost. To overcome these fitness costs, M. tuberculosis compensatory mutations have arisen in *rpoC*, *rpoA* (RIF) and *ahpC* (INH) genes. Here we leverage the presence of known and putative compensatory mutations along with phenotypic and genotypic data to detect the presence of novel resistance mutations occurring in the target genes of INH and RIF.
+
+**Results:** Across ~32k isolates, there were `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 3)`) with INH and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 3)` with RIF phenotypic resistance. Known mutations in *katG* and *rpoB* explained most of the resistance. However, `r fmt(inh_3_c)` (`r fmt_pc(inh_3_c/total_samps, digits = 1)`) and `r fmt(rif_3_c)` (`r fmt_pc(rif_3_c/total_samps, digits = 2)`) isolates had *ahpC* and *rpoC* compensatory mutations, respectively, but did not have any known resistance mutations in INH or RIF target genes. By examining isolates with compensatory mutations but no known resistance mutation, we identified a number of inferred novel resistance mutations. We also characterise the putative *katG* mutations in terms of their co-occurrence with other INH variants - *katG*-Ser315Thr and other INH genes, e.g. *fabG1*. 
+
+**Conclusions:** Detecting resistance mutations from whole genome sequencing can inform clinical management, but also revealed new variants linked to resistance. We have identified new resistance markers and, after validation, have added to a list of mutations for genotypic drug-resistance predictions.
+
+**URL:**https://github.com/GaryNapier/comp_mut
+
+**Keywords:** *Mycobacterium tuberculosis*, isoniazid, rifampicin, *katG*, *rpoB*, compensatory/resistance mutations
+
+## BACKGROUND
+
+
+Tuberculosis, caused by *Mycobacterium tuberculosis* bacteria, is a major global public health problem, with control made difficult by drug resistance. In gaining resistance against anti-tuberculosis drugs, drug target or activating proteins are often compromised in their usual function, and the bacterium therefore also incurs a fitness cost. Costs can be manifest as a phenotypic difference, e.g. reduced virulence or transmissibility. For example, the *katG* gene codes for the KatG enzyme, a catalase-peroxidase which protects the bacterium from reactive oxygen species (ROS) damage and to detoxify hydrogen peroxide [@Trivedi2012], two products of the immune system which attack the pathogen. The enzyme also activates the pro-drug isoniazid (INH), converting it to multiple reactive species [@Zhang2009]. 
+
+When mutations occur in the katG gene that disrupt INH binding to KatG, the bacteria is often left simultaneously with drug resistance and a protein with impaired enzymatic function. This is not always the case, since some mutations can confer drug resistance without a punitive fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects fitness, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. In the case of rifampicin (RIF), the target is the $\beta$' subunit of RNA polymerase, coded by *rpoB*. Mutations here prevent RIF from binding, but incur high fitness cost since the intricate machinery of RNA polymerase is intolerant to large structural changes [@Telenti1997], with the exception of Ser450Leu, which is highly prevalent in RIF-resistant strains [@Heep2001]. Indeed, so restrictive are changes to the $\beta$ subunit that over 95% of drug resistance mutations occur in the 'rifampicin resistance determining region' (RRDR), an 81 base-pair section of *rpoB* [@Cao2019].
+
+To overcome this fitness cost, secondary mutations can occur which improve or promote either the target protein itself or in another protein with a similar function. In the case of INH/*katG* the protein AhpC, which has a similar enzymatic function, is often promoted via mutations in the promoter of the *ahpC* gene [@Sherman1999][@Sherman1996]. RIF compensatory mutations occur in the other RNA polymerase subunits $\alpha$ (*rpoA*), $\beta$' (*rpoC*) or even within the $\beta$ subunit itself. These mutations are thought to occur at the interfaces of the subunits, helping to restore overall RNA polymerase function while maintaining an altered binding site in the $\beta$ subunit [@Comas2011]. The TB-profiler platform [@Phelan2019] contains a whole genome sequence (WGS) database of ~32k samples. Each sample is profiled for known drug resistance-associated mutations but also includes any mutation that has not previously been associated with resistance ('non-drug resistance-associated mutation'). By investigating those samples with known (and unknown) compensatory mutations but no known resistance mutations, we reasoned that the presence of these mutations could be leveraged to reveal hitherto non-drug resistance-associated mutations in drug target genes for isoniazid and rifampicin.
+
+## RESULTS
 
 ```{r results-isolate-collection, echo = F, warning=F}
 
 # **Isolate collection**
-inh_n_samps_TBP_res <- KRM_pivot[KRM_pivot[, "Drug"] == "isoniazid" & KRM_pivot[, "KRM_binary"] == "1", "n"]
-rif_n_samps_TBP_res <- KRM_pivot[KRM_pivot[, "Drug"] == "rifampicin" & KRM_pivot[, "KRM_binary"] == "1", "n"]
-n_samps_MDR <- drtype_pivot[drtype_pivot[, "drtype"] == "MDR-TB", "n"]
+inh_n_samps_TBP_res <- nrow(subset(KRM_table, Drug == "isoniazid" & KRM_binary == "1"))
+rif_n_samps_TBP_res <- nrow(subset(KRM_table, Drug == "rifampicin" & KRM_binary == "1"))
 
+
+n_samps_MDR <- drtype_pivot[drtype_pivot[, "drtype"] == "MDR-TB", "n"]
 
 ```
 
-**Isolate collection**
+**Input data**
 
 *Summary* \
 Number INH resistant (DST) - `r inh_n_samps_DST_res` \
@@ -845,7 +757,15 @@ Number RIF resistant (TBprofiler) - `r rif_n_samps_TBP_res` \
 
 Number MDR resistant (TBprofiler) - `r n_samps_MDR`\
 
-A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@Phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**)
+<!-- A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@Phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**) -->
+
+A total of `r total_samps` *M. tuberculosis* isolates with whole genome sequencing data were suitable for analysis and encompassed all major lineages (**Table \@ref(tab:table-1-display)**). Almost all had undergone drug susceptibility testing, with `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 2)` and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 2)` resistant to isoniazid and rifampicin, respectively. Genotypic resistance prediction using TB-profiler inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to isoniazid and rifampicin, respectively. 
+
+
+
+
+
+
 
 ```{r results-resistance-mutations, echo = F, warning=F}
 
