@@ -220,6 +220,43 @@ split_df_on_haplotype <- function(df, col){
   data.frame(df %>% mutate(col = strsplit(as.character(col), "; ")) %>% unnest(col))
 }
 
+strsplit_mod <- function(x,
+                     split,
+                     type = "remove",
+                     perl = FALSE,
+                     ...) {
+  if (type == "remove") {
+    # use base::strsplit
+    out <- base::strsplit(x = x, split = split, perl = perl, ...)
+  } else if (type == "before") {
+    # split before the delimiter and keep it
+    out <- base::strsplit(x = x,
+                          split = paste0("(?<=.)(?=", split, ")"),
+                          perl = TRUE,
+                          ...)
+  } else if (type == "after") {
+    # split after the delimiter and keep it
+    out <- base::strsplit(x = x,
+                          split = paste0("(?<=", split, ")"),
+                          perl = TRUE,
+                          ...)
+  } else {
+    # wrong type input
+    stop("type must be remove, after or before!")
+  }
+  return(out)
+}
+
+get_gene <- function(x, split_on = "-"){
+  unlist(lapply(strsplit(x, split_on), function(x){x[1]}))
+}
+
+drop_gene <- function(x, split_on = "-"){
+unlist(lapply(strsplit_mod(x, split_on, "before"), function(x){
+  paste0(x[3:length(x)], collapse = "")
+  }))
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -729,7 +766,7 @@ total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PR
 
 Tuberculosis, caused by *Mycobacterium tuberculosis* bacteria, is a major global public health problem, with control made difficult by drug resistance. In gaining resistance against anti-tuberculosis drugs, drug target or activating proteins are often compromised in their usual function, and the bacterium therefore also incurs a fitness cost. Costs can be manifest as a phenotypic difference, e.g. reduced virulence or transmissibility. For example, the *katG* gene codes for the KatG enzyme, a catalase-peroxidase which protects the bacterium from reactive oxygen species (ROS) damage and to detoxify hydrogen peroxide [@Trivedi2012], two products of the immune system which attack the pathogen. The enzyme also activates the pro-drug isoniazid (INH), converting it to multiple reactive species [@Zhang2009]. 
 
-When mutations occur in the katG gene that disrupt INH binding to KatG, the bacteria is often left simultaneously with drug resistance and a protein with impaired enzymatic function. This is not always the case, since some mutations can confer drug resistance without a punitive fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects fitness, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. In the case of rifampicin (RIF), the target is the $\beta$' subunit of RNA polymerase, coded by *rpoB*. Mutations here prevent RIF from binding, but incur high fitness cost since the intricate machinery of RNA polymerase is intolerant to large structural changes [@Telenti1997], with the exception of Ser450Leu, which is highly prevalent in RIF-resistant strains [@Heep2001]. Indeed, so restrictive are changes to the $\beta$ subunit that over 95% of drug resistance mutations occur in the 'rifampicin resistance determining region' (RRDR), an 81 base-pair section of *rpoB* [@Cao2019].
+When mutations occur in the *katG* gene that disrupt INH binding to KatG, the bacteria is often left simultaneously with drug resistance and a protein with impaired enzymatic function. This is not always the case, since some mutations can confer drug resistance without a punitive fitness cost. For example the *katG*-Ser315Thr mutation confers resistance but minimally affects fitness, hence is highly prevalent among Pre-MDR-TB and MDR-TB strains [@Hazbon2006][@Phelan2019]. In the case of rifampicin (RIF), the target is the $\beta$' subunit of RNA polymerase, coded by *rpoB*. Mutations here prevent RIF from binding, but incur high fitness cost since the intricate machinery of RNA polymerase is intolerant to large structural changes [@Telenti1997], with the exception of Ser450Leu, which is highly prevalent in RIF-resistant strains [@Heep2001]. Indeed, so restrictive are changes to the $\beta$ subunit that over 95% of drug resistance mutations occur in the 'rifampicin resistance determining region' (RRDR), an 81 base-pair section of *rpoB* [@Cao2019].
 
 To overcome this fitness cost, secondary mutations can occur which improve or promote either the target protein itself or in another protein with a similar function. In the case of INH/*katG* the protein AhpC, which has a similar enzymatic function, is often promoted via mutations in the promoter of the *ahpC* gene [@Sherman1999][@Sherman1996]. RIF compensatory mutations occur in the other RNA polymerase subunits $\alpha$ (*rpoA*), $\beta$' (*rpoC*) or even within the $\beta$ subunit itself. These mutations are thought to occur at the interfaces of the subunits, helping to restore overall RNA polymerase function while maintaining an altered binding site in the $\beta$ subunit [@Comas2011]. The TB-profiler platform [@Phelan2019] contains a whole genome sequence (WGS) database of ~32k samples. Each sample is profiled for known drug resistance-associated mutations but also includes any mutation that has not previously been associated with resistance ('non-drug resistance-associated mutation'). By investigating those samples with known (and unknown) compensatory mutations but no known resistance mutations, we reasoned that the presence of these mutations could be leveraged to reveal hitherto non-drug resistance-associated mutations in drug target genes for isoniazid and rifampicin.
 
@@ -741,8 +778,7 @@ To overcome this fitness cost, secondary mutations can occur which improve or pr
 inh_n_samps_TBP_res <- nrow(subset(KRM_table, Drug == "isoniazid" & KRM_binary == "1"))
 rif_n_samps_TBP_res <- nrow(subset(KRM_table, Drug == "rifampicin" & KRM_binary == "1"))
 
-
-n_samps_MDR <- drtype_pivot[drtype_pivot[, "drtype"] == "MDR-TB", "n"]
+n_samps_MDR <- nrow(subset(meta_table, Drug == "isoniazid" & drtype == "MDR-TB"))
 
 ```
 
@@ -759,7 +795,82 @@ Number MDR resistant (TBprofiler) - `r n_samps_MDR`\
 
 <!-- A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@Phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**) -->
 
-A total of `r total_samps` *M. tuberculosis* isolates with whole genome sequencing data were suitable for analysis and encompassed all major lineages (**Table \@ref(tab:table-1-display)**). Almost all had undergone drug susceptibility testing, with `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 2)` and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 2)` resistant to isoniazid and rifampicin, respectively. Genotypic resistance prediction using TB-profiler inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to isoniazid and rifampicin, respectively. 
+A total of `r total_samps` *M. tuberculosis* isolates with whole genome sequencing data were suitable for analysis and encompassed all major lineages (**Table \@ref(tab:table-1-display)**). Almost all had undergone drug susceptibility testing, with `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 2)` and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 2)` resistant to isoniazid and rifampicin, respectively. Genotypic resistance prediction using TB-profiler inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to isoniazid and rifampicin, respectively. Further, `r fmt(n_samps_MDR)` (`r fmt_pc(n_samps_MDR/total_samps, digits = 3)`) samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**). 
+
+```{r results-compensatory-mutations, echo = F, warning=F}
+
+# **Compensatory mutations**
+inh_CM <- select(subset(inh_bin, CM_bin == "present"), CM)
+
+inh_n_CM_haplotypes <- length(unique(inh_CM$CM))
+inh_CM_uniq <- uniq_vars(inh_CM$CM)
+inh_CM_uniq_in_KCM <- inh_CM_uniq[inh_CM_uniq %in% inh_KCM$gene_change]
+inh_PCM <- inh_CM_uniq[!(inh_CM_uniq %in% inh_KCM$gene_change)]
+
+rif_CM <- select(subset(rif_bin, CM_bin == "present"), CM)
+rif_n_samps_KRM_CM <- nrow(subset(rif_bin, KRM_bin == "present" & 
+                                    CM_bin == "present"))
+rif_n_samps_KRM_no_CM <- nrow(subset(rif_bin, KRM_bin == "absent" & 
+                                    CM_bin == "present"))
+rif_n_CM_haplotypes <- length(unique(rif_CM$CM))
+rif_CM_uniq <- uniq_vars(rif_CM$CM)
+rif_rpoC <- subset(rif_CM_uniq, grepl("rpoC", rif_CM_uniq))
+rif_rpoA <- subset(rif_CM_uniq, grepl("rpoA", rif_CM_uniq))
+rif_CM_uniq_in_KCM <- rif_CM_uniq[rif_CM_uniq %in% rif_KCM$gene_change]
+rif_PCM <-  rif_CM_uniq[!(rif_CM_uniq %in% rif_KCM$gene_change)]
+
+```
+
+```{r CM-table, echo = F, warning=F}
+
+# Table of compensatory mutations - gene, mutation [n], status 
+inh_CM_data <- data.frame(inh_bin %>% mutate(CM = strsplit(as.character(CM), "; ")) %>% unnest(CM))
+inh_CM_tab <- sort_pos(pivot_num(subset(inh_CM_data, !is.na(CM)), formula(CM ~ 'n')), "CM")
+inh_CM_tab$gene <- get_gene(inh_CM_tab$CM)
+inh_CM_tab$mutation <- paste0(drop_gene(inh_CM_tab$CM), " [", inh_CM_tab$n, "]")
+inh_CM_tab$status <- ifelse(inh_CM_tab$CM %in% KCM$gene_change, "known", "unknown")
+inh_CM_tab$drug <- rep("isoniazid", nrow(inh_CM_tab))
+inh_CM_tab <- select(inh_CM_tab, drug, gene, mutation, status)
+
+rif_CM_data <- data.frame(rif_bin %>% mutate(CM = strsplit(as.character(CM), "; ")) %>% unnest(CM))
+rif_CM_tab <- sort_pos(pivot_num(subset(rif_CM_data, !is.na(CM)), formula(CM ~ 'n')), "CM")
+rif_CM_tab$gene <- get_gene(rif_CM_tab$CM)
+
+
+drop_gene(rif_CM_tab$CM)
+
+drop_gene <- function(x, split_on = "-"){
+unlist(lapply(strsplit_mod(x, split_on, "before"), function(x){
+  paste0(x[3:length(x)], collapse = "")
+  }))
+}
+
+
+
+
+
+
+rif_CM_tab$mutation <- paste0(, " [", rif_CM_tab$n, "]")
+
+
+
+rif_CM_tab$status <- ifelse(rif_CM_tab$CM %in% KCM$gene_change, "known", "unknown")
+rif_CM_tab$drug <- rep("rifampicin", nrow(rif_CM_tab))
+rif_CM_tab <- select(rif_CM_tab, drug, gene, mutation, status)
+
+
+
+
+```
+
+
+To characterise potential novel resistance mutations, we looked for samples which had a compensatory mutation, but no known resistance mutation. We used a used a manually curated list of compensatory mutations identified from the literature. For *ahpC*, this list was supplemented with extra mutations which were not previously reported in the literature but showed strong evidence indicating a compensatory mechanism including acquisition through convergent evolution, co-occurrence with frameshift and gene deletion loss of function as well as association with INH resistant isolates. 
+
+
+This led to a final list with `r length(inh_CM_uniq)` mutations in *ahpC*, `r length(rif_rpoC)` mutations in *rpoC* and `r length(rif_rpoA)` mutations in *rpoA* (**Table \@ref(tab: )**) 
+
+
+
 
 
 
@@ -793,41 +904,6 @@ Number RIF samples DST resistant and have a known resistance mutation - `r fmt(r
 The total number of samples with a known resistance mutation in an INH target gene (*katG*, *fabG1*, *inhA*) was `r inh_n_samps_KRM` (`r inh_n_samps_KRM_pc`), and `r rif_n_samps_KRM` (`r rif_n_samps_KRM_pc`) for the RIF target gene (*rpoB*).
 
 Explaining the DST resistance status, `r fmt(inh_n_samps_DST_res_KRM_present)` (`r inh_n_samps_DST_res_KRM_present_pc`) samples had a known resistance mutation in an INH target gene, while `r fmt(rif_n_samps_DST_res_KRM_present)` (`r rif_n_samps_DST_res_KRM_present_pc`) samples had an *rpoB* mutation (RIF).
-
-
-```{r results-compensatory-mutations, echo = F, warning=F}
-
-# **Compensatory mutations**
-inh_CM <- select(subset(inh_bin, CM_bin == "present"), CM)
-# inh_n_samps_KRM_CM <- nrow(subset(inh_bin, KRM_bin == "present" &
-#                                     CM_bin == "present"))
-# inh_n_samps_KRM_no_CM <- nrow(subset(inh_bin, KRM_bin == "present" & 
-#                                     CM_bin == "absent"))
-# inh_n_samps_no_KRM_CM <- nrow(subset(inh_bin, KRM_bin == "absent" & 
-#                                     CM_bin == "present"))
-
-inh_n_CM_haplotypes <- length(unique(inh_CM$CM))
-inh_CM_uniq <- uniq_vars(inh_CM$CM)
-inh_CM_uniq_in_KCM <- inh_CM_uniq[inh_CM_uniq %in% inh_KCM$gene_change]
-inh_PCM <- inh_CM_uniq[!(inh_CM_uniq %in% inh_KCM$gene_change)]
-
-rif_CM <- select(subset(rif_bin, CM_bin == "present"), CM)
-rif_n_samps_KRM_CM <- nrow(subset(rif_bin, KRM_bin == "present" & 
-                                    CM_bin == "present"))
-rif_n_samps_KRM_no_CM <- nrow(subset(rif_bin, KRM_bin == "absent" & 
-                                    CM_bin == "present"))
-rif_n_CM_haplotypes <- length(unique(rif_CM$CM))
-rif_CM_uniq <- uniq_vars(rif_CM$CM)
-rif_CM_uniq_in_KCM <- rif_CM_uniq[rif_CM_uniq %in% rif_KCM$gene_change]
-rif_PCM <-  rif_CM_uniq[!(rif_CM_uniq %in% rif_KCM$gene_change)]
-
-# Number of CM mutations in samples where there are KRM
-# inh_CM_KRM_uniq <- uniq_vars(subset(inh_bin, !(is.na(CM)) & !(is.na(KRM)))$CM)
-# Number of CM mutations in samples where there are no KRM
-# inh_CM_no_KRM_uniq <- uniq_vars(subset(inh_bin, !(is.na(CM)) & is.na(KRM))$CM)
-
-
-```
 
 **Compensatory mutations**
 
@@ -1157,7 +1233,7 @@ Not applicable
 The authors declare that they have no competing interests
 
 ## Funding
-GN is funded by an BBSRC-LiDO PhD studentship. JEP is funded by a Newton Institutional Links Grant (British Council, no. 261868591). TGC is funded by the Medical Research Council UK (Grant no. MR/M01360X/1, MR/N010469/1, MR/R025576/1, and MR/R020973/1). SC is funded by Medical Research Council UK grants (ref. MR/M01360X/1, MR/R025576/1, and MR/R020973/1). The authors declare no conflicts of interest. The funders had no role in the design of the study and collection, analysis, and interpretation of data and in writing the manuscript should be declared.
+GN is funded by an BBSRC-LIDo PhD studentship. JEP is funded by a Newton Institutional Links Grant (British Council, no. 261868591). TGC is funded by the Medical Research Council UK (Grant no. MR/M01360X/1, MR/N010469/1, MR/R025576/1, and MR/R020973/1). SC is funded by Medical Research Council UK grants (ref. MR/M01360X/1, MR/R025576/1, and MR/R020973/1). The authors declare no conflicts of interest. The funders had no role in the design of the study and collection, analysis, and interpretation of data and in writing the manuscript should be declared.
 
 ## Authors' contributions
 JEP and TGC conceived and directed the project. GN performed bioinformatic and statistical analyses under the supervision of SC, JEP and TGC. GN, SC, JEP and TGC interpreted results. GN wrote the first draft of the manuscript with inputs from JEP and TGC. All authors commented and edited on various versions of the draft manuscript and approved the final version. GN, SC, JEP, and TGC compiled the final manuscript.
