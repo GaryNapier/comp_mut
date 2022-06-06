@@ -365,6 +365,12 @@ def main(args):
                             'PRM': PRM_vars, \
                             'other_vars': other_vars}
 
+    # Get PRM samples
+    samps_PRM = []
+    for samp in binary_table:
+        if len(binary_table[samp]['PRM']) >0:
+            samps_PRM.append(samp) 
+
     # Split out other vars in case more than one in there
     for samp in binary_table:
         other_vars = binary_table[samp]['other_vars']
