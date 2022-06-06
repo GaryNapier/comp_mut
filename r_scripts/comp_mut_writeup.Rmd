@@ -253,7 +253,15 @@ get_gene <- function(x, split_on = "-"){
 
 drop_gene <- function(x, split_on = "-"){
 unlist(lapply(strsplit_mod(x, split_on, "before"), function(x){
-  paste0(x[3:length(x)], collapse = "")
+  if(length(x) < 3){
+    x <- paste0(x[2:length(x)], collapse = "")
+    x <- gsub("-p.", "", x)
+    gsub("-c.", "", x)
+  }else{
+    x <- paste0(x[3:length(x)], collapse = "")
+    x <- gsub("-p.", "", x)
+    gsub("-c.", "", x)
+  }
   }))
 }
 
@@ -427,31 +435,11 @@ PCM_merged <- PCM_merged[!(PCM_merged$gene_change %in% KCM$gene_change), ]
 summaries <- do.call('cbind', lapply(summaries, function(x){data.frame(n = t(x))}))
 names(summaries) <- drugs
 
-# PRM stats
-PRM_stats <- lapply(PRM_stats, sort_pos, 'mutation')
-# Clean RIF of the lineage-specific PRMs
-PRM_stats$rifampicin <- PRM_stats$rifampicin[!(PRM_stats$rifampicin$gene_mutation %in% rif_lin_PRM), ]
-PRM_stats <- do.call("rbind", PRM_stats)
-PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
-PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
-names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
+
 
 ```
 
-```{r PRM-summary, echo = F, warning=F}
 
-# PRM subset and summary
-PRM_tabs <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
-PRM_tabs <- rm_null(lapply(PRM_tabs, function(x){
-  tryCatch({
-    sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')
-  }, error = function(e){})
-            }))
-PRM_tabs <- add_drug_col(PRM_tabs, drugs)
-PRM_summary <- do.call("rbind", PRM_tabs)
-PRM_summary <- select(PRM_summary, Drug, PRM, n)
-
-```
 
 ```{r isoniazid-rare-mutations-cnts, echo = F, warning=F}
 
@@ -707,26 +695,15 @@ rif_5_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
 
 ```
 
-```{r basic-stats, echo = F, warning=F}
+```{r total-samps-and-dst, echo = F, warning=F}
 
 total_samps <- nrow(binary_tables[[1]])
-
-# inh_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "isoniazid" & dst_pivot[, "dst"] == "1", "n"]
-# rif_n_samps_DST_res <- dst_pivot[dst_pivot[, "Drug"] == "rifampicin" & dst_pivot[, "dst"] == "1", "n"]
 
 inh_n_samps_dst <- nrow(subset(meta_table, Drug == "isoniazid" & !is.na(dst)))
 rif_n_samps_dst <- nrow(subset(meta_table, Drug == "rifampicin" & !is.na(dst)))
 
 inh_n_samps_DST_res <- nrow(subset(meta_table, Drug == "isoniazid" & dst == "1"))
 rif_n_samps_DST_res <- nrow(subset(meta_table, Drug == "rifampicin" & dst == "1"))
-
-# In total, XXX unique non-synonymous mutations were found in katG.
-inh_n_uniq_KRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), 
-                                                                    "KRM_katG"]), "; "))))
-inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "other_katG"])), 
-                                                                      "other_katG"]), "; "))))
-inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
-total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
 
 ```
 
@@ -784,17 +761,6 @@ n_samps_MDR <- nrow(subset(meta_table, Drug == "isoniazid" & drtype == "MDR-TB")
 
 **Input data**
 
-*Summary* \
-Number INH resistant (DST) - `r inh_n_samps_DST_res` \
-Number RIF resistant (DST) - `r rif_n_samps_DST_res` \
-
-Number INH resistant (TBprofiler) - `r inh_n_samps_TBP_res`\
-Number RIF resistant (TBprofiler) - `r rif_n_samps_TBP_res` \
-
-Number MDR resistant (TBprofiler) - `r n_samps_MDR`\
-
-<!-- A total of `r total_samps` were suitable for analysis after filtering out mixed lineages. Of these, many had been tested as phenotypically resistant (INH = `r inh_n_samps_DST_res`; RIF = `r rif_n_samps_DST_res`). Supplementing the DST data, `r inh_n_samps_TBP_res` samples were predicted to be resistant to INH and `r rif_n_samps_TBP_res` samples were predicted to be resistant to RIF by the presence of known resistance mutations in TB-profiler [@Phelan2019]. Also predicted by genotypic profiling in TB-profiler, `r n_samps_MDR` samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**) -->
-
 A total of `r total_samps` *M. tuberculosis* isolates with whole genome sequencing data were suitable for analysis and encompassed all major lineages (**Table \@ref(tab:table-1-display)**). Almost all had undergone drug susceptibility testing, with `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 2)` and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 2)` resistant to isoniazid and rifampicin, respectively. Genotypic resistance prediction using TB-profiler inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to isoniazid and rifampicin, respectively. Further, `r fmt(n_samps_MDR)` (`r fmt_pc(n_samps_MDR/total_samps, digits = 3)`) samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**). 
 
 ```{r results-compensatory-mutations, echo = F, warning=F}
@@ -827,47 +793,69 @@ rif_PCM <-  rif_CM_uniq[!(rif_CM_uniq %in% rif_KCM$gene_change)]
 inh_CM_data <- data.frame(inh_bin %>% mutate(CM = strsplit(as.character(CM), "; ")) %>% unnest(CM))
 inh_CM_tab <- sort_pos(pivot_num(subset(inh_CM_data, !is.na(CM)), formula(CM ~ 'n')), "CM")
 inh_CM_tab$gene <- get_gene(inh_CM_tab$CM)
-inh_CM_tab$mutation <- paste0(drop_gene(inh_CM_tab$CM), " [", inh_CM_tab$n, "]")
+inh_CM_tab$mutation <- paste0(clean_del_ins_dup(drop_gene(inh_CM_tab$CM)), " [", inh_CM_tab$n, "]")
 inh_CM_tab$status <- ifelse(inh_CM_tab$CM %in% KCM$gene_change, "known", "unknown")
 inh_CM_tab$drug <- rep("isoniazid", nrow(inh_CM_tab))
 inh_CM_tab <- select(inh_CM_tab, drug, gene, mutation, status)
 
 rif_CM_data <- data.frame(rif_bin %>% mutate(CM = strsplit(as.character(CM), "; ")) %>% unnest(CM))
-rif_CM_tab <- sort_pos(pivot_num(subset(rif_CM_data, !is.na(CM)), formula(CM ~ 'n')), "CM")
+rif_CM_tab <- pivot_num(subset(rif_CM_data, !is.na(CM)), formula(CM ~ 'n'))
 rif_CM_tab$gene <- get_gene(rif_CM_tab$CM)
-
-
-drop_gene(rif_CM_tab$CM)
-
-drop_gene <- function(x, split_on = "-"){
-unlist(lapply(strsplit_mod(x, split_on, "before"), function(x){
-  paste0(x[3:length(x)], collapse = "")
-  }))
-}
-
-
-
-
-
-
-rif_CM_tab$mutation <- paste0(, " [", rif_CM_tab$n, "]")
-
-
-
+rif_CM_tab$mutation <- paste0(clean_del_ins_dup(drop_gene(rif_CM_tab$CM)), " [", rif_CM_tab$n, "]")
 rif_CM_tab$status <- ifelse(rif_CM_tab$CM %in% KCM$gene_change, "known", "unknown")
 rif_CM_tab$drug <- rep("rifampicin", nrow(rif_CM_tab))
 rif_CM_tab <- select(rif_CM_tab, drug, gene, mutation, status)
 
+CM_tab <- rbind(inh_CM_tab, rif_CM_tab)
+names(CM_tab) <- c("Drug", "Compensatory locus", "Mutation [frequency]", "Status")
 
+```
+
+To characterise potential novel resistance mutations, we looked for samples which had a compensatory mutation, but no known resistance mutation. We used a used a manually curated list of compensatory mutations identified from the literature. For *ahpC*, this list was supplemented with extra mutations which were not previously reported in the literature but showed strong evidence indicating a compensatory mechanism including acquisition through convergent evolution, co-occurrence with frameshift and gene deletion loss of function as well as association with INH resistant isolates. This led to a final list with `r length(inh_CM_uniq)` mutations in *ahpC*, `r length(rif_rpoC)` mutations in *rpoC* and `r length(rif_rpoA)` mutations in *rpoA* (**Table \@ref(tab:CM-table_display)**) 
+
+```{r inh-stats, echo = F, warning = F}
+
+# n katG mutations
+inh_n_uniq_KRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "KRM_katG"])), 
+                                                                    "KRM_katG"]), "; "))))
+inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "other_katG"])), 
+                                                                      "other_katG"]), "; "))))
+inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
+total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
 
 
 ```
 
+*Isoniazid*
 
-To characterise potential novel resistance mutations, we looked for samples which had a compensatory mutation, but no known resistance mutation. We used a used a manually curated list of compensatory mutations identified from the literature. For *ahpC*, this list was supplemented with extra mutations which were not previously reported in the literature but showed strong evidence indicating a compensatory mechanism including acquisition through convergent evolution, co-occurrence with frameshift and gene deletion loss of function as well as association with INH resistant isolates. 
+For INH there were `r inh_3_a_c` samples with a compensatory mutation, of which `r inh_3_c` had no known resistance mutation (**Figure \@ref(fig:samples-trees))**. Within the `r inh_3_c` samples we looked for mutations in *katG* that could potentially explain the emergence of the compensatory mutation. In total, `r total_unique_katg` unique non-synonymous mutations were found in *katG*. To reduce the possibility of identifying non-resistance associated mutations, they were filtered to retain those which occurred in at least three samples, where >50% of the samples had a resistant DST and where >50% of samples had genotypic resistance to at least one other drug. 
 
+```{r PRM-summary-stats, echo = F, warning=F}
 
-This led to a final list with `r length(inh_CM_uniq)` mutations in *ahpC*, `r length(rif_rpoC)` mutations in *rpoC* and `r length(rif_rpoA)` mutations in *rpoA* (**Table \@ref(tab: )**) 
+# PRM subset and summary
+PRM_tabs <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
+PRM_tabs <- rm_null(lapply(PRM_tabs, function(x){
+  tryCatch({
+    sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')
+  }, error = function(e){})
+            }))
+PRM_tabs <- add_drug_col(PRM_tabs, drugs)
+PRM_summary <- do.call("rbind", PRM_tabs)
+PRM_summary <- select(PRM_summary, Drug, PRM, n)
+
+# PRM stats
+PRM_stats <- lapply(PRM_stats, sort_pos, 'mutation')
+# Clean RIF of the lineage-specific PRMs
+PRM_stats$rifampicin <- PRM_stats$rifampicin[!(PRM_stats$rifampicin$gene_mutation %in% rif_lin_PRM), ]
+PRM_stats <- do.call("rbind", PRM_stats)
+PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
+PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
+names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
+
+```
+
+Using this approach reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` samples which we term putative resistance mutations (Table 2). 
+
 
 
 
@@ -1249,15 +1237,6 @@ knitr::kable(table_1, caption = cap, format = "pipe", row.names = F)
 
 ```
 
-
-<!-- ```{r summary-table, echo = F, warning=F} -->
-
-<!-- # knitr::kable(summaries,  caption = "Summary of each PRM") %>% kable_styling(font_size = table_font_sz) -->
-<!-- knitr::kable(summaries, caption = "Potential resistance mutations ", format = "pipe") -->
-
-<!-- ``` -->
-
-
 ```{r PRM-summary-table, echo = F, warning=F}
 
 cap <- sprintf("Potential resistance mutation (PRM) haplotypes for isoniazid (n=%s)", nrow(inh_PRM))
@@ -1335,9 +1314,16 @@ knitr::kable(ser315thr_pivot, row.names = F, caption = cap, format = "pipe")
 
 ```
 
+```{r CM-table-display, echo = F, warning=F}
+
+cap <- "Mutations in known compensatory genes and frequencies in 32k samples"
+knitr::kable(CM_tab)
+
+```
+
 ## Figures
 
-```{r samples-breakdown, echo=FALSE, out.width = "2000px", fig.show='hold', fig.cap="Breakdown of sample numbers by presence of mutation type for INH (A) and RIF (B)" }
+```{r samples-trees, echo=FALSE, out.width = "2000px", fig.show='hold', fig.cap="Analysis strategy and numbers of mutations" }
 
 knitr::include_graphics("../results/samples_trees.png")
 # knitr::include_graphics(rif_numbers_file)
