@@ -142,10 +142,8 @@ echo ""
 
 Rscript r_scripts/merge_PCM.R \
 --drug_of_interest ${drug_of_interest} \
-# --tc_file ${tc_file} \
-# --PCM_data_file ${PCM_data_file} \
 --KCM_file ${KCM_file} \
---PCM_file ${PCM_file}
+--PCM_file ${PCM_file} \
 --outfile ${PCM_KCM_merged_file}
 
 # fi
@@ -159,8 +157,7 @@ echo ""
 echo " --- GETTING POTENTIAL NEW RESISTANCE MUTATIONS FOR ${drug_of_interest}; RUNNING python_scripts/comp_mut2res_mut.py --- "
 echo ""
 python python_scripts/comp_mut2res_mut.py \
-# in
---do-lineage ${lineage}
+--do-lineage ${lineage} \
 --drug-of-interest ${drug_of_interest} \
 --KCM-file ${KCM_file} \
 --CM-file ${PCM_KCM_merged_file} \
@@ -170,9 +167,8 @@ python python_scripts/comp_mut2res_mut.py \
 --drtypes-file ${dr_types_file} \
 --tbprofiler-results-dir ${tbp_results_dir} \
 --vars-exclude-file ${vars_exclude_file} \
-# out
+--CM-stats-file ${PCM_stats_file} \
 --PRM-stats-file ${PRM_stats_file} \
---PCM-stats-file ${PCM_stats_file} \
 --PRM-samples-file ${PRM_samples_file} \
 --binary-table-file ${binary_table_file} \
 # --summary-file ${summary_file} \
