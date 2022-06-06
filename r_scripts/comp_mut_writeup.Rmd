@@ -265,6 +265,10 @@ unlist(lapply(strsplit_mod(x, split_on, "before"), function(x){
   }))
 }
 
+try_read_csv <- function(x){
+  tryCatch({read.csv(x)}, error = function(e){})
+}
+
 ```
 
 ```{r variables, echo = F, warning=F, message=F}
@@ -323,7 +327,7 @@ CM_RM_gene_assoc_file <- paste0(local_metadata_path, "CM_RM_gene_assoc.csv")
 ```{r drug-files, echo = F, warning=F, message=F}
 
 binary_table_files <- paste0(results_path, drugs, "_binary_table.csv")
-PCM_merged_files <- paste0(results_path,  drugs, "_PCM_merged.csv")
+PCM_KCM_merged_files <- paste0(results_path,  drugs, "_PCM_KCM_merged.csv")
 summary_files <- paste0(results_path, drugs, "_summary.csv")
 PRM_stats_files <- paste0(results_path, drugs, "_PRM_stats.csv")
 tree_files <- paste0(results_path, drugs, "_tree.png")
@@ -350,9 +354,9 @@ CM_RM_gene_assoc <- read.csv(CM_RM_gene_assoc_file)
 ```{r drugs-read-in-data, echo = F, warning=F, message=F}
 
 binary_tables <- lapply_nms(binary_table_files, read.csv, drugs)
-PCM_merged <- lapply_nms(PCM_merged_files, read.csv, drugs)
-summaries <- lapply_nms(summary_files, read.csv, drugs)
-PRM_stats <- lapply_nms(PRM_stats_files, read.csv, drugs)
+PCM_KCM_merged <- lapply_nms(PCM_KCM_merged_files, read.csv, drugs)
+# summaries <- lapply_nms(summary_files, read.csv, drugs)
+PRM_stats <- rm_null(lapply_nms(PRM_stats_files, try_read_csv, drugs))
 
 ```
 
@@ -432,14 +436,12 @@ PCM_merged <- merge(PCM_merged, CM_RM_gene_assoc,
 PCM_merged <- PCM_merged[!(PCM_merged$gene_change %in% KCM$gene_change), ]
 
 # Transpose summary
-summaries <- do.call('cbind', lapply(summaries, function(x){data.frame(n = t(x))}))
-names(summaries) <- drugs
+# summaries <- do.call('cbind', lapply(summaries, function(x){data.frame(n = t(x))}))
+# names(summaries) <- drugs
 
 
 
 ```
-
-
 
 ```{r isoniazid-rare-mutations-cnts, echo = F, warning=F}
 
@@ -692,6 +694,32 @@ rif_5_b <- nrow(subset(rif_bin, KRM_rpoB_bin == "absent" &
          PRM_bin == "absent" &
            is.na(other_rpoB)))
 
+layer_2 <- data.frame(n = c(rif_2_a, rif_2_b))
+layer_3 <- data.frame(n = c(rif_3_a, 
+                            rif_3_b, 
+                            rif_3_c, 
+                            rif_3_d))
+layer_4 <- data.frame(n = c(rif_4_a, 
+                            rif_4_b, 
+                            rif_4_c, 
+                            rif_4_d, 
+                            rif_4_e, 
+                            rif_4_f, 
+                            rif_4_g, 
+                            rif_4_h))
+layer_5 <- data.frame(n = c(rif_5_a, rif_5_b))
+
+n_df <- rbind(layer_2, layer_3, layer_4, layer_5)
+
+layer <- data.frame(c(
+  paste0(rep("2", nrow(layer_2)), "_", letters[1:nrow(layer_2)]), 
+  paste0(rep("3", nrow(layer_3)), "_", letters[1:nrow(layer_3)]), 
+  paste0(rep("4", nrow(layer_4)), "_", letters[1:nrow(layer_4)]), 
+  paste0(rep("5", nrow(layer_5)), "_", letters[1:nrow(layer_5)])
+))
+
+rif_samp_tree <- setNames(cbind(layer, n_df), c("layer", "n"))
+
 
 ```
 
@@ -833,7 +861,15 @@ For INH there were `r inh_3_a_c` samples with a compensatory mutation, of which 
 ```{r PRM-summary-stats, echo = F, warning=F}
 
 # PRM subset and summary
-PRM_tabs <- lapply(binary_tables, function(x){subset(x, !(is.na(PRM)))})
+PRM_tabs <- lapply(binary_tables, function(x){subset(x, PRM_bin == "present")})
+
+
+rm_null(lapply(PRM_tabs, function(x){
+  sort_pos(pivot_num(x, formula(PRM ~ 'n')), 'PRM')
+}))
+
+
+
 PRM_tabs <- rm_null(lapply(PRM_tabs, function(x){
   tryCatch({
     sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')
@@ -843,6 +879,9 @@ PRM_tabs <- add_drug_col(PRM_tabs, drugs)
 PRM_summary <- do.call("rbind", PRM_tabs)
 PRM_summary <- select(PRM_summary, Drug, PRM, n)
 
+
+
+
 # PRM stats
 PRM_stats <- lapply(PRM_stats, sort_pos, 'mutation')
 # Clean RIF of the lineage-specific PRMs
@@ -851,6 +890,11 @@ PRM_stats <- do.call("rbind", PRM_stats)
 PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
 PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
 names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
+
+
+
+
+
 
 ```
 
