@@ -425,15 +425,17 @@ rif_KCM <- KCM[KCM[,"Drug"] == "rifampicin", ]
 
 
 # Put PCM_merged together and join in the drug names
-PCM_merged <- do.call("rbind", PCM_merged)
-PCM_merged$gene_change <- paste0(PCM_merged$gene, "-", PCM_merged$change)
-
-PCM_merged <- merge(PCM_merged, CM_RM_gene_assoc, 
+PCM_KCM_merged <- do.call("rbind", PCM_KCM_merged)
+PCM_KCM_merged$gene_change <- paste0(PCM_KCM_merged$gene, "-", PCM_KCM_merged$change)
+PCM_KCM_merged <- merge(PCM_KCM_merged, CM_RM_gene_assoc, 
                     by.x = "gene", by.y = "CM_gene", 
                     sort = F)
+# Merge in status
+PCM_KCM_merged$status <- ifelse(PCM_KCM_merged$gene_change %in% KCM$gene_change, "known", "unknown")
+
 
 # Remove the PCMs in the KCM
-PCM_merged <- PCM_merged[!(PCM_merged$gene_change %in% KCM$gene_change), ]
+# PCM_KCM_merged <- PCM_KCM_merged[!(PCM_KCM_merged$gene_change %in% KCM$gene_change), ]
 
 # Transpose summary
 # summaries <- do.call('cbind', lapply(summaries, function(x){data.frame(n = t(x))}))
@@ -465,18 +467,15 @@ rare_rpobs <- sort_pos(data.frame(Change = uniq_col(rare_rpob_table$other_rpoB))
 
 ```
 
-```{r make-rare-mutations-table, echo = F, warning=F}
 
-rare_mutations_table <- cbind(Drug = c(rep("isoniazid", nrow(rare_katgs)), 
-                                       rep("rifampicin", nrow(rare_rpobs))), 
-                              rbind(rare_katgs, rare_rpobs))
-
-```
 
 ```{r rare-mutations-cnts, echo = F, warning=F}
 
 rare_cnts <- plyr::rbind.fill(rare_katg_cnts, rare_rpob_cnts)
-row.names(rare_cnts) <- drugs
+
+for(i in seq(nrow(rare_cnts))){
+  row.names(rare_cnts)[row.names(rare_cnts) == i] <- drugs[i]
+}
 
 ```
 
@@ -851,7 +850,6 @@ inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(in
 inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
 total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
 
-
 ```
 
 *Isoniazid*
@@ -862,45 +860,64 @@ For INH there were `r inh_3_a_c` samples with a compensatory mutation, of which 
 
 # PRM subset and summary
 PRM_tabs <- lapply(binary_tables, function(x){subset(x, PRM_bin == "present")})
-
-
-rm_null(lapply(PRM_tabs, function(x){
-  sort_pos(pivot_num(x, formula(PRM ~ 'n')), 'PRM')
-}))
-
-
-
 PRM_tabs <- rm_null(lapply(PRM_tabs, function(x){
   tryCatch({
-    sort_pos(pivot(x, formula(PRM ~ 'n')), 'PRM')
+    sort_pos(pivot_num(x, formula(PRM ~ 'n')), 'PRM')
   }, error = function(e){})
             }))
 PRM_tabs <- add_drug_col(PRM_tabs, drugs)
 PRM_summary <- do.call("rbind", PRM_tabs)
 PRM_summary <- select(PRM_summary, Drug, PRM, n)
 
-
-
-
 # PRM stats
+# PRM_stats <- rm_null(lapply_nms(PRM_stats_files, try_read_csv, drugs))
 PRM_stats <- lapply(PRM_stats, sort_pos, 'mutation')
 # Clean RIF of the lineage-specific PRMs
 PRM_stats$rifampicin <- PRM_stats$rifampicin[!(PRM_stats$rifampicin$gene_mutation %in% rif_lin_PRM), ]
 PRM_stats <- do.call("rbind", PRM_stats)
-PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
+# PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
 PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
-names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
+# names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
 
+# Add the PRMs which only appear in one lineage to PRM summary
+PRMs_one_lin <- select(subset(PRM_stats, n_lins == 1), gene_mutation)[[1]]
+PRM_summary$PRM_one_lin <- str_extract(PRM_summary$PRM, paste0(PRMs_one_lin, collapse = "|"))
 
-
-
-
+# Clean up and format
+PRM_summary$PRM <- gsub("; ", "/", gsub("katG-p.|katG-c.", "", PRM_summary$PRM))
+PRM_summary$PRM_one_lin <- gsub("katG-p.|katG-c.", "", PRM_summary$PRM_one_lin)
+PRM_summary$PRM <- paste0(PRM_summary$PRM, " [", PRM_summary$n, "]")
+PRM_summary <- select(PRM_summary, Drug, PRM, PRM_one_lin)
+names(PRM_summary) <- c("Drug", "Mutation [frequency]", "PRM_one_lin")
 
 ```
 
-Using this approach reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` samples which we term putative resistance mutations (Table 2). 
+Using this approach reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` samples which we term putative resistance mutations (**Table \@ref(tab:PRM-summary-table)**). 
+
+```{r make-rare-mutations-table, echo = F, warning=F}
+
+rare_mutations_table <- tryCatch({
+   cbind(Drug = c(rep("isoniazid", nrow(rare_katgs)), 
+                  rep("rifampicin", nrow(rare_rpobs))), 
+         rbind(rare_katgs, rare_rpobs))
+}, error = function(e){
+  cbind(Drug = c(rep("isoniazid", nrow(rare_katgs))), 
+        rbind(rare_katgs, rare_rpobs))
+})
+
+rare_mutations_table$Change <- gsub("katG-c.|katG-p.", "", rare_mutations_table$Change)
+
+rare_mutations_table <- data.frame(cbind(Drug = unique(rare_mutations_table$Drug), 
+             Change = paste(rare_mutations_table$Change, collapse = ", ")))
+
+```
+
+Of the `r inh_3_c` samples which had a CM, `r inh_4_f` did not have a PRM, however upon further inspection, `r inh_5_a` of these samples were found to have a rare *katG* mutation that did not pass the minimum sample cut-off (>=3) in the definition of a putative resistance mutation (**Table \@ref(tab: rare-mutations-table)** ). These rare mutations could also potentially explain the acquisition of a compensatory mutation; however, they were not analysed further due to the low number of samples in which they occur. Although PRMs were found using samples with a CM (n=`r inh_4_e`), additional occurrences were found in `r inh_4_c_g` samples without a CM, leading to a total of  `r inh_4_a_c_e_g` samples which had a putative resistance mutation (**Figure \@ref(fig:samples-trees)**). 
 
 
+*Rifampicin*
+
+The same approach was used to look for similar mutations that could confer RIF resistance. Using *rpoA* and *rpoC* as compensatory loci and *rpoB* as the resistance associated locus. In total, `r ifelse(rif_3_c == 0, "no", rif_3_c)` samples were found to have a CM but no known resistance mutation in *rpoB* (**Figure \@ref(fig:samples-trees)**).  
 
 
 
@@ -1283,33 +1300,33 @@ knitr::kable(table_1, caption = cap, format = "pipe", row.names = F)
 
 ```{r PRM-summary-table, echo = F, warning=F}
 
-cap <- sprintf("Potential resistance mutation (PRM) haplotypes for isoniazid (n=%s)", nrow(inh_PRM))
+cap <- sprintf("List of potential resistance mutations for isoniazid in *katG* (n=%s)", inh_4_a_c_e_g)
 knitr::kable(PRM_summary, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-```{r PRM-stats-table, echo = F, warning=F}
+<!-- ```{r PRM-stats-table, echo = F, warning=F} -->
 
-cap <- "Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each PRM"
-knitr::kable(PRM_stats, row.names = F, caption = cap, format = "pipe")
+<!-- cap <- "Number of samples, DST sensitive proportion, (predicted) DR type proportion and number of lineages for each PRM" -->
+<!-- knitr::kable(PRM_stats, row.names = F, caption = cap, format = "pipe") -->
 
-```
+<!-- ``` -->
 
 **Rare variants**
 
-```{r rare-counts-table, echo = F, warning=F}
+<!-- ```{r rare-counts-table, echo = F, warning=F} -->
 
-cap <- "Counts of occurrence for *katG* (isoniazid) and *rpoB* (rifampicin) among samples with no KRM, at least one CM, but no PRM. These variants are not counted as ‘PRM’ because of their low frequency (only one or two samples)."
+<!-- cap <- "Counts of occurrence for *katG* (isoniazid) and *rpoB* (rifampicin) among samples with no KRM, at least one CM, but no PRM. These variants are not counted as ‘PRM’ because of their low frequency (only one or two samples)." -->
 
-# Variants occurring more than twice were rejected because most samples were DR-type sensitive or DST sensitive, or in the case of INH, the samples already have a known resistance mutation in a gene other than *katG*
+<!-- # Variants occurring more than twice were rejected because most samples were DR-type sensitive or DST sensitive, or in the case of INH, the samples already have a known resistance mutation in a gene other than *katG* -->
 
-knitr::kable(rare_cnts, row.names = F, caption = cap, format = "pipe")
+<!-- knitr::kable(rare_cnts, row.names = F, caption = cap, format = "pipe") -->
 
-```
+<!-- ``` -->
 
 ```{r rare-mutations-table, echo = F, warning=F}
 
-cap <- "Mutations in *katG* (INH) and *rpoB* (RIF) from samples with no KRM, with CM but no potential resistance mutation by the criteria outlined in *Methods*. These mutations only occur in one or two samples, hence were excluded as PRM"
+cap <- sprintf("Mutations in *katG* (INH) and from samples with no known resistance mutations, with compensatory mutations but no potential resistance mutation by the criteria outlined in Methods. These mutations only occur in one or two samples among the %s samples from Supplementary figure 1", inh_5_a)
 knitr::kable(rare_mutations_table, row.names = F, caption = cap, format = "pipe")
 
 ```
