@@ -34,6 +34,7 @@ library(reshape2)
 library(janitor)
 library(ggsankey)
 library(ggplot2)
+library(stringr)
 
 ```
 
@@ -879,7 +880,7 @@ PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
 
 # Add the PRMs which only appear in one lineage to PRM summary
 PRMs_one_lin <- select(subset(PRM_stats, n_lins == 1), gene_mutation)[[1]]
-PRM_summary$PRM_one_lin <- str_extract(PRM_summary$PRM, paste0(PRMs_one_lin, collapse = "|"))
+PRM_summary$PRM_one_lin <- stringr::str_extract(PRM_summary$PRM, paste0(PRMs_one_lin, collapse = "|"))
 
 # Clean up and format
 PRM_summary$PRM <- gsub("; ", "/", gsub("katG-p.|katG-c.", "", PRM_summary$PRM))
@@ -912,7 +913,6 @@ rare_mutations_table <- data.frame(cbind(Drug = unique(rare_mutations_table$Drug
 
 Of the `r inh_3_c` samples which had a CM, `r inh_4_f` did not have a PRM, however upon further inspection, `r inh_5_a` of these samples were found to have a rare *katG* mutation that did not pass the minimum sample cut-off (>=3) in the definition of a putative resistance mutation (**Table \@ref(tab: rare-mutations-table)** ). These rare mutations could also potentially explain the acquisition of a compensatory mutation; however, they were not analysed further due to the low number of samples in which they occur. Although PRMs were found using samples with a CM (n=`r inh_4_e`), additional occurrences were found in `r inh_4_c_g` samples without a CM, leading to a total of  `r inh_4_a_c_e_g` samples which had a putative resistance mutation (**Figure \@ref(fig:samples-trees)**). 
 
-
 *Rifampicin*
 
 The same approach was used to look for similar mutations that could confer RIF resistance. Using *rpoA* and *rpoC* as compensatory loci and *rpoB* as the resistance associated locus. There were `r ifelse(rif_3_c == 0, "no", rif_3_c)` samples found to have a CM but no known resistance mutation in *rpoB* (**Figure \@ref(fig:samples-trees)**). Within these samples `r ifelse(rif_5_a == 0, "none", rif_5_a)` had an *rpoB* mutation. As such, the rest of the results section details further investigation into INH putative resistance mutations only.
@@ -932,12 +932,12 @@ The mutations occurred in multiple lineages (L1-L5) with many showing evidence o
 
 PRM_DR_pivot <- pivot_num(PRM_tabs$isoniazid, formula(drtype ~ 'n'))
 PRM_DR_max <- PRM_DR_pivot[which.max(PRM_DR_pivot$n), "drtype"]
-PRM_DR_max_pc <- fmt_pc(PRM_DR_pivot[which.max(PRM_DR_pivot$n), "n"]/inh_n_samps_PRM)
-PRM_DR_pre_MDR_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Pre-MDR-TB", "n"]/inh_n_samps_PRM)
-PRM_DR_pre_XDR_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Pre-XDR-TB", "n"]/inh_n_samps_PRM)
-PRM_DR_XDR_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "XDR-TB", "n"]/inh_n_samps_PRM, digits = 2)
-PRM_DR_sens_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Sensitive", "n"]/inh_n_samps_PRM, digits = 2)
-PRM_DR_other_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Other", "n"]/inh_n_samps_PRM, digits = 2)
+PRM_DR_max_pc <- fmt_pc(PRM_DR_pivot[which.max(PRM_DR_pivot$n), "n"]/inh_4_a_c_e_g)
+PRM_DR_pre_MDR_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Pre-MDR-TB", "n"]/inh_4_a_c_e_g)
+PRM_DR_pre_XDR_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Pre-XDR-TB", "n"]/inh_4_a_c_e_g)
+PRM_DR_XDR_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "XDR-TB", "n"]/inh_4_a_c_e_g, digits = 2)
+PRM_DR_sens_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Sensitive", "n"]/inh_4_a_c_e_g, digits = 2)
+PRM_DR_other_pc <- fmt_pc(PRM_DR_pivot[PRM_DR_pivot$drtype == "Other", "n"]/inh_4_a_c_e_g, digits = 2)
 
 ```
 
@@ -973,8 +973,8 @@ PRM_KRM_other <- do.call("rbind", add_drug_col(PRM_KRM_other, drugs))
 PRM_KRM_other <- dplyr::rename(PRM_KRM_other, unknown = other_vars)
 
 
-PRM_pc_samps_inh_co_occur <- fmt_pc(sum(subset(PRM_KRM_other, !(is.na(KRM)))$n)/inh_n_samps_PRM)
-PRM_pc_fabg_15 <- fmt_pc(sum(subset(PRM_KRM_other, KRM == "fabG1-c.-15C>T")$n)/inh_n_samps_PRM)
+PRM_pc_samps_inh_co_occur <- fmt_pc(sum(subset(PRM_KRM_other, !(is.na(KRM)))$n)/inh_4_a_c_e_g)
+PRM_pc_fabg_15 <- fmt_pc(sum(subset(PRM_KRM_other, KRM == "fabG1-c.-15C>T")$n)/inh_4_a_c_e_g)
 
 
 ```
@@ -997,7 +997,6 @@ ser315thr_pivot <- dplyr::rename(ser315thr_pivot, mutation = KRM_2)
 
 ```
 
-
 ```{r make-resistance-table, echo = F, warning=F}
 
 # Resistance level
@@ -1014,9 +1013,10 @@ inh_kat315_multi_KRM_no_PRM$Ser315Thr_bin <- ifelse(grepl("; ", inh_kat315_multi
 inh_kat315_multi_KRM_no_PRM_pivot <- pivot(inh_kat315_multi_KRM_no_PRM, formula(Ser315Thr_bin ~ KRM_bin))
 
 # Pivot - KRMs occurring with PRM (but not katG)
-inh_PRM_no_katG_KRM_pivot <- pivot(inh_PRM_no_katG_KRM, formula(KRM_bin ~ PRM_bin))
+inh_4_e_g_table <- subset(inh_bin, PRM_bin == "present" & KRM_katG_bin == "absent")
+inh_4_e_g_pivot <- pivot(inh_4_e_g_table, formula(KRM_bin ~ PRM_bin))
 
-resistance_table <- merge(inh_kat315_multi_KRM_no_PRM_pivot, inh_PRM_no_katG_KRM_pivot, 
+resistance_table <- merge(inh_kat315_multi_KRM_no_PRM_pivot, inh_4_e_g_pivot, 
                           by.x = "Ser315Thr_bin", by.y = "KRM_bin", sort = F)
 
 names(resistance_table) <- c("KRM", "Ser315Thr", "PRM")
@@ -1025,8 +1025,8 @@ names(resistance_table) <- c("KRM", "Ser315Thr", "PRM")
 pc_315_KRM_co_occur <- str_extract(select(subset(resistance_table, KRM == "present"), Ser315Thr), "\\(.*\\)")
 
 # Do Chi sq
-tab <- cbind(table(inh_kat315_multi_KRM_no_PRM$Ser315Thr_bin, inh_kat315_multi_KRM_no_PRM$KRM_bin), table(inh_PRM_no_katG_KRM$KRM_bin, inh_PRM_no_katG_KRM$PRM_bin))
-resistance_x_sq <- print_chisq(chisq.test(tab), rnd = rnd)
+tab <- cbind(table(inh_kat315_multi_KRM_no_PRM$Ser315Thr_bin, inh_kat315_multi_KRM_no_PRM$KRM_bin), table(inh_4_e_g_table$KRM_bin, inh_4_e_g_table$PRM_bin))
+resistance_x_sq <- print_chisq(chisq.test(tab), rnd = 2)
 
 ```
 
@@ -1059,8 +1059,7 @@ Of the `r inh_4_a_c_e_g` samples with a PRM, `r inh_n_samps_PRM_DST` had an avai
 inh_kat315_no_PRM <- subset(inh_bin, KRM == "katG-p.Ser315Thr" & PRM_bin == "absent")
 inh_kat315_no_PRM_pivot <- pivot(inh_kat315_no_PRM, formula(CM_bin ~ KRM))
 
-inh_PRM_no_katG_KRM <- subset(inh_bin, PRM_bin == "present" & !(grepl("katG", KRM)))
-inh_PRM_no_katG_KRM_pivot <- pivot(inh_PRM_no_katG_KRM, formula(CM_bin ~ PRM_bin))
+inh_PRM_no_katG_KRM_pivot <- pivot(inh_4_e_g_table, formula(CM_bin ~ PRM_bin))
 
 fitness_table <- merge(inh_kat315_no_PRM_pivot, inh_PRM_no_katG_KRM_pivot, 
                              by = "CM_bin", sort = F)
@@ -1069,9 +1068,12 @@ names(fitness_table) <- c("CM", "katG-p.Ser315Thr", "PRM")
 
 # Do chi-sq test
 x <- table(inh_kat315_no_PRM$CM_bin, inh_kat315_no_PRM$KRM)
-y <- table(inh_PRM_no_katG_KRM$CM_bin, inh_PRM_no_katG_KRM$PRM_bin)
+y <- table(inh_4_e_g_table$CM_bin, inh_4_e_g_table$PRM_bin)
 tab <- cbind(x, y)
 fitness_x_sq <- print_chisq(chisq.test(tab), rnd = 2)
+
+inh_n_samps_ser315_no_CM <- nrow(subset(inh_kat315_no_PRM, CM_bin == "absent"))
+inh_n_samps_ser315_and_CM <- nrow(subset(inh_kat315_no_PRM, CM_bin == "present"))
 
 ```
 
@@ -1142,9 +1144,12 @@ fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_t
 
 Compensatory mutations are known to occur when mutations with high fitness-costs occur (e.g. *katG* loss of function). To estimate the fitness impact of the PRMs we used the co-occurrence with a CM as a proxy, comparing to Ser315Thr which has reported to confer a low fitness cost. 
 
+<!-- CHECK! --> 
+A Chi-square test showed a significant difference (`r fitness_x_sq`), with compensatory mutations occurring in a higher proportion in samples with PRMs (`r inh_4_e`/`r nrow(inh_4_e_g_table)`) 
+<!-- CHECK! --> 
 
 <!-- CHECK! --> 
-A Chi-square test showed a significant difference (`r fitness_x_sq`), with compensatory mutations occurring in a higher proportion in samples with PRMs (`r inh_4_e`/`r nrow(inh_PRM_no_katG_KRM)`) 
+than those with Ser315Thr (`r inh_n_samps_ser315_and_CM`/`r nrow(inh_kat315_no_PRM)`), suggesting that on average they incur a greater fitness cost. 
 <!-- CHECK! --> 
 
 
