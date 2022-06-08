@@ -111,6 +111,7 @@ for(drug in seq(drugs)){
   # metadata_file <- paste0("results/", project_code, "_PRM_samps.csv")
   metadata_file <- paste0("results/", drugs[drug], "_binary_table.csv")
   outfile <- paste0("results/", drugs[drug], "_tree.png")
+  outfile_tiff <- paste0("results/", drugs[drug], "_tree.tiff")
   
   # TESTING TESTING TESTING TESTING TESTING TESTING 
   
@@ -120,6 +121,7 @@ for(drug in seq(drugs)){
   
   tree_all_samps <- read.newick(tree_file)
   metadata <- read.csv(metadata_file, header = T)
+  # metadata <- read.csv("results/isoniazid_binary_table.csv", header = T)
   
   # Wrangle data ----
   
@@ -261,6 +263,9 @@ for(drug in seq(drugs)){
     
   }
   
+  dr_data_hm
+  
+  
   # Add the mutations labels, make adjustments to spacing and add scale
   # For adding tip labels which are not sample IDs, see - https://yulab-smu.top/treedata-book/faq.html
   final_tree <- dr_data_hm %<+% metadata + 
@@ -286,20 +291,152 @@ for(drug in seq(drugs)){
              hjust = 0)+
     theme(legend.position = 'bottom')
   
-  
   final_tree
   # Save
   ggsave(outfile, final_tree, width = 1100/3, height = 700/3, units = "mm")
-
+  ggsave(outfile_tiff, final_tree, width = 1100/3, height = 700/3, units = "mm")
+  
+  # tiff(outfile_tiff, width = 1100/3, height = 700/3, units = "mm", res=300)
+  # # tiff("test.tiff", units="in", width=5, height=5, res=300)
+  # final_tree
+  # dev.off()
+  
 }
 
 
 
+tree_all_samps
+
+getMRCA(tree_all_samps, c("SRR671799", "SRR8651577"))
+
+
+id_PRM <- select(metadata, wgs_id, PRM)
+
+
+id_PRM_split <- split(id_PRM, id_PRM$PRM)
+
+lapply(id_PRM_split, function(x){
+  getMRCA(tree_all_samps, x$wgs_id)
+})
+
+
+
+# $`katG-p.Met257Val; katG-p.Gln88Pro`
+# NULL
+# $`katG-p.Phe183Leu`
+# NULL
+# $`katG-p.Pro232Ser`
+# [1] 178
+# $`katG-p.Pro232Ser; katG-p.Glu233Gly; katG-p.Asp675Tyr`
+# NULL
+# $`katG-p.Thr271Ile`
+# [1] 182
+# $`katG-p.Thr326Pro`
+# NULL
 
 
 
 
 
+
+
+p <- ggtree(tree_all_samps, size = line_sz) + xlim(NA, 0.1)
+# p <- p + geom_tiplab(align = T, size = 2)
+p <- p + geom_text(aes(label=node), hjust=-.3)
+p + geom_cladelab(node=190, label="test label", align = T)
+
+
+
+# 
+# # for(i in 1:2){
+# #   # tiff(sprintf("test_%s.tiff", i), units="in", width=5, height=5, res=300)
+# #   # ggplot(data.frame(x = 1:10, y = 1:10), aes(x = x, y = y))+geom_point()
+# #   # plot(1:10)
+# #   x <- ggplot(data.frame(x = 1:10, y = 1:10), aes(x = x, y = y))+geom_point()
+# #   # dev.off()
+# #   ggsave(sprintf("test_%s.png", i), x)
+# # }
+# # 
+# # 
+# # 
+# final_tree <- dr_data_hm %<+% metadata +
+#   # geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+#   geom_tiplab(aes(label = PRM, colour = PRM),
+#               linetype = NULL,
+#               align = T,
+#               # angle = 45,
+#               offset = os*3.5,
+#               size = sz)+
+#   scale_colour_discrete(guide = "none")+
+#   # hexpand(.1, direction = 1) +
+#   hexpand(.3, direction = 1) +
+#   vexpand(.1)+
+#   geom_treescale(y = -5)+
+#   annotate('text',
+#            x = 0, y = c(n_samps, n_samps-(n_samps*0.1)),
+#            # label = c(project_code,
+#            #           sprintf("n = %s", n_samps)),
+#            label = c(drugs[drug],
+#                      sprintf("n = %s", n_samps)),
+#            size = 7,
+#            hjust = 0)+
+#   theme(legend.position = 'bottom')
+# 
+# 
+# 
+# 
+# data(iris)
+# rn <- paste0(iris[,5], "_", 1:150)
+# rownames(iris) <- rn
+# d_iris <- dist(iris[,-5], method="man")
+# 
+# tree_iris <- ape::bionj(d_iris)
+# grp <- list(setosa     = rn[1:50],
+#             versicolor = rn[51:100],
+#             virginica  = rn[101:150])
+# 
+# p_iris <- ggtree(tree_iris)
+# groupOTU(p_iris, grp, 'Species') + aes(color=Species)
+# 
+# 
+# 
+# final_tree <- dr_data_hm %<+% metadata +
+#   # geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+#   geom_tiplab(aes(label = PRM, colour = PRM),
+#               linetype = NULL,
+#               align = T,
+#               # angle = 45,
+#               offset = os*3.5,
+#               size = sz)+
+#   scale_colour_discrete(guide = "none")+
+#   # hexpand(.1, direction = 1) +
+#   hexpand(.3, direction = 1) +
+#   vexpand(.1)+
+#   geom_treescale(y = -5)+
+#   annotate('text',
+#            x = 0, y = c(n_samps, n_samps-(n_samps*0.1)),
+#            # label = c(project_code,
+#            #           sprintf("n = %s", n_samps)),
+#            label = c(drugs[drug],
+#                      sprintf("n = %s", n_samps)),
+#            size = 7,
+#            hjust = 0)+
+#   theme(legend.position = 'bottom')
+# 
+# 
+# 
+# 
+# x <- dplyr::select(metadata, wgs_id, PRM)
+# 
+# x <- split(x, x$PRM)
+# 
+# x <- lapply(x, function(x){
+#   x$wgs_id
+# })
+# 
+
+
+# test <- groupOTU(final_tree, x, 'PRM') + aes(colour = PRM)
 
 
 
