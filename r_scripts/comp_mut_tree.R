@@ -336,8 +336,17 @@ lapply(id_PRM_split, function(x){
 
 
 
+<<<<<<< HEAD
+=======
 
 
+>>>>>>> 3d7af19efcfc895d0e6145f393779f689de43c86
+
+
+p <- ggtree(tree_all_samps, size = line_sz) + xlim(NA, 0.1)
+# p <- p + geom_tiplab(align = T, size = 2)
+p <- p + geom_text(aes(label=node), hjust=-.3)
+p + geom_cladelab(node=190, label="test label", align = T)
 
 
 p <- ggtree(tree_all_samps, size = line_sz) + xlim(NA, 0.1)
@@ -435,6 +444,96 @@ p + geom_cladelab(node=190, label="test label", align = T)
 # })
 # 
 
+# 
+# # for(i in 1:2){
+# #   # tiff(sprintf("test_%s.tiff", i), units="in", width=5, height=5, res=300)
+# #   # ggplot(data.frame(x = 1:10, y = 1:10), aes(x = x, y = y))+geom_point()
+# #   # plot(1:10)
+# #   x <- ggplot(data.frame(x = 1:10, y = 1:10), aes(x = x, y = y))+geom_point()
+# #   # dev.off()
+# #   ggsave(sprintf("test_%s.png", i), x)
+# # }
+# # 
+# # 
+# # 
+# final_tree <- dr_data_hm %<+% metadata +
+#   # geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+#   geom_tiplab(aes(label = PRM, colour = PRM),
+#               linetype = NULL,
+#               align = T,
+#               # angle = 45,
+#               offset = os*3.5,
+#               size = sz)+
+#   scale_colour_discrete(guide = "none")+
+#   # hexpand(.1, direction = 1) +
+#   hexpand(.3, direction = 1) +
+#   vexpand(.1)+
+#   geom_treescale(y = -5)+
+#   annotate('text',
+#            x = 0, y = c(n_samps, n_samps-(n_samps*0.1)),
+#            # label = c(project_code,
+#            #           sprintf("n = %s", n_samps)),
+#            label = c(drugs[drug],
+#                      sprintf("n = %s", n_samps)),
+#            size = 7,
+#            hjust = 0)+
+#   theme(legend.position = 'bottom')
+# 
+# 
+# 
+# 
+# data(iris)
+# rn <- paste0(iris[,5], "_", 1:150)
+# rownames(iris) <- rn
+# d_iris <- dist(iris[,-5], method="man")
+# 
+# tree_iris <- ape::bionj(d_iris)
+# grp <- list(setosa     = rn[1:50],
+#             versicolor = rn[51:100],
+#             virginica  = rn[101:150])
+# 
+# p_iris <- ggtree(tree_iris)
+# groupOTU(p_iris, grp, 'Species') + aes(color=Species)
+# 
+# 
+# 
+# final_tree <- dr_data_hm %<+% metadata +
+#   # geom_tiplab(aes(label = gene_mutation, colour = gene_mutation),
+#   geom_tiplab(aes(label = PRM, colour = PRM),
+#               linetype = NULL,
+#               align = T,
+#               # angle = 45,
+#               offset = os*3.5,
+#               size = sz)+
+#   scale_colour_discrete(guide = "none")+
+#   # hexpand(.1, direction = 1) +
+#   hexpand(.3, direction = 1) +
+#   vexpand(.1)+
+#   geom_treescale(y = -5)+
+#   annotate('text',
+#            x = 0, y = c(n_samps, n_samps-(n_samps*0.1)),
+#            # label = c(project_code,
+#            #           sprintf("n = %s", n_samps)),
+#            label = c(drugs[drug],
+#                      sprintf("n = %s", n_samps)),
+#            size = 7,
+#            hjust = 0)+
+#   theme(legend.position = 'bottom')
+# 
+# 
+# 
+# 
+# x <- dplyr::select(metadata, wgs_id, PRM)
+# 
+# x <- split(x, x$PRM)
+# 
+# x <- lapply(x, function(x){
+#   x$wgs_id
+# })
+# 
+
+
+# test <- groupOTU(final_tree, x, 'PRM') + aes(colour = PRM)
 
 # test <- groupOTU(final_tree, x, 'PRM') + aes(colour = PRM)
 
