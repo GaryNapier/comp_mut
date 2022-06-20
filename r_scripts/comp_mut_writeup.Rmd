@@ -364,7 +364,7 @@ CM_RM_gene_assoc <- read.csv(CM_RM_gene_assoc_file)
 binary_tables <- lapply_nms(binary_table_files, read.csv, drugs)
 PCM_KCM_merged <- lapply_nms(PCM_KCM_merged_files, read.csv, drugs)
 # summaries <- lapply_nms(summary_files, read.csv, drugs)
-PRM_stats <- rm_null(lapply_nms(PRM_stats_files, try_read_csv, drugs))
+# PRM_stats <- rm_null(lapply_nms(PRM_stats_files, try_read_csv, drugs))
 
 ```
 
@@ -824,9 +824,9 @@ n_samps_MDR <- nrow(subset(meta_table, Drug == "isoniazid" & drtype == "MDR-TB")
 
 ```
 
-**Input data**
+*Input data*
 
-A total of `r fmt(total_samps)` *M. tuberculosis* isolates with whole genome sequencing data were suitable for analysis and encompassed all major lineages (**Table \@ref(tab:table-1-display)**). Almost all had undergone drug susceptibility testing, with `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 2)` and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 2)` resistant to isoniazid and rifampicin, respectively. Genotypic resistance prediction using TB-profiler inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to isoniazid and rifampicin, respectively. Further, `r fmt(n_samps_MDR)` (`r fmt_pc(n_samps_MDR/total_samps, digits = 3)`) samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**). 
+A total of `r fmt(total_samps)` *M. tuberculosis* isolates with whole genome sequencing data were suitable for analysis and encompassed all major lineages (**Table \@ref(tab:table-1-display)**). Almost all had undergone drug susceptibility testing, with `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 2)`) and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 2)`) resistant to isoniazid and rifampicin, respectively. Genotypic resistance prediction using TB-profiler inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to isoniazid and rifampicin, respectively. Further, `r fmt(n_samps_MDR)` (`r fmt_pc(n_samps_MDR/total_samps, digits = 3)`) samples were classified as MDR-TB (see **Table \@ref(tab:table-1-display)**). 
 
 ```{r results-compensatory-mutations, echo = F, warning=F}
 
@@ -876,7 +876,15 @@ names(CM_tab) <- c("Drug", "Compensatory locus", "Mutation [frequency]", "Status
 
 ```
 
-To characterise potential novel resistance mutations, we looked for samples which had a compensatory mutation, but no known resistance mutation. We used a used a manually curated list of compensatory mutations identified from the literature. For *ahpC*, this list was supplemented with extra mutations which were not previously reported in the literature but showed strong evidence indicating a compensatory mechanism including acquisition through convergent evolution, co-occurrence with frameshift and gene deletion loss of function as well as association with INH resistant isolates. This led to a final list with `r length(inh_CM_uniq)` mutations in *ahpC*, `r length(rif_rpoC)` mutations in *rpoC* and `r length(rif_rpoA)` mutations in *rpoA* (**Table \@ref(tab:CM-table-display)**) 
+To characterise putative novel resistance mutations, we looked for samples which had a compensatory mutation, but no known resistance mutation. We used a used a manually curated list of compensatory mutations identified from the literature. For *ahpC*, this list was supplemented with additional mutations which were not previously reported in the literature but showed strong evidence indicating a compensatory mechanism including acquisition through convergent evolution, co-occurrence with loss of function mutations in *katG* as well as association with INH resistant isolates. This led to a final list with `r length(inh_CM_uniq)` mutations in *ahpC*, `r length(rif_rpoC)` mutations in *rpoC* and `r length(rif_rpoA)` mutations in *rpoA* (**Table S1**) 
+
+<!-- (**Table \@ref(tab:CM-table-display)**)  -->
+
+*Rifampicin*
+
+The same approach was used to look for similar mutations that could confer RIF resistance. Using *rpoA* and *rpoC* as compensatory loci and *rpoB* as the resistance associated locus. There were `r ifelse(rif_3_c == 0, "no", rif_3_c)` samples found to have a CM without a known resistance mutation in *rpoB* (**Figure S1**) <!-- (**Figure \@ref(fig:samples-trees)**)-->. As such, the rest of the results section details further investigation into INH putative resistance mutations only.
+
+<!-- and `r ifelse(rif_4_e == 0, "none", rif_5_a)` of these mutations met the minimum sample size criteria (>=3) to be characterised as a putative resistance mutation. -->
 
 ```{r inh-stats, echo = F, warning = F}
 
@@ -892,7 +900,7 @@ total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PR
 
 *Isoniazid*
 
-For INH there were `r inh_3_a_c` samples with a compensatory mutation, of which `r inh_3_c` had no known resistance mutation (**Figure \@ref(fig:samples-trees)**). Within the `r inh_3_c` samples we looked for mutations in *katG* that could potentially explain the emergence of the compensatory mutation. In total, `r total_unique_katg` unique non-synonymous mutations were found in *katG*. To reduce the possibility of identifying non-resistance associated mutations, they were filtered to retain those which occurred in at least three samples, where >50% of the samples had a resistant DST and where >50% of samples had genotypic resistance to at least one other drug. 
+For INH there were `r inh_3_a_c` samples with a compensatory mutation, of which `r inh_3_c` had no known *katG* resistance mutation (**Figure S1**). <!--(**Figure \@ref(fig:samples-trees)**)-->. Within the `r inh_3_c` samples we looked for mutations in *katG* that could potentially explain the emergence of the compensatory mutation. In total, `r total_unique_katg` unique non-synonymous mutations were found in *katG*. To reduce the possibility of identifying non-resistance associated mutations, they were filtered to retain those which occurred in at least three samples, where >50% of the samples had a resistant DST and where >50% of samples had genotypic resistance to at least one other drug. 
 
 ```{r PRM-summary-stats, echo = F, warning=F}
 
@@ -908,17 +916,17 @@ PRM_summary <- do.call("rbind", PRM_pivot)
 PRM_summary <- select(PRM_summary, Drug, PRM, n)
 
 # PRM stats
-# PRM_stats <- rm_null(lapply_nms(PRM_stats_files, try_read_csv, drugs))
+PRM_stats <- rm_null(lapply_nms(PRM_stats_files, try_read_csv, drugs))
 PRM_stats <- lapply(PRM_stats, sort_pos, 'mutation')
 # Clean RIF of the lineage-specific PRMs
 PRM_stats$rifampicin <- PRM_stats$rifampicin[!(PRM_stats$rifampicin$gene_mutation %in% rif_lin_PRM), ]
 PRM_stats <- do.call("rbind", PRM_stats)
-# PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
+PRM_stats <- select(PRM_stats, drug, gene, mutation, n_samps, dst_prop, dr_prop, n_lins)
 PRM_stats$dst_prop <- 1 - PRM_stats$dst_prop
-# names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
-
+PRM_stats$gene_mutation <- paste0(PRM_stats$gene, "-", PRM_stats$mutation)
 # Add the PRMs which only appear in one lineage to PRM summary
 PRMs_one_lin <- select(subset(PRM_stats, n_lins == 1), gene_mutation)[[1]]
+# names(PRM_stats) <- c("Drug", "Gene", "Change", "n samples", "DST sensitive", "DR-type sensitive", "n lineages")
 PRM_summary$PRM_one_lin <- stringr::str_extract(PRM_summary$PRM, paste0(PRMs_one_lin, collapse = "|"))
 
 # Clean up and format
@@ -930,7 +938,7 @@ names(PRM_summary) <- c("Drug", "Mutation [frequency]", "PRM_one_lin")
 
 ```
 
-Using this approach reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` samples which we term putative resistance mutations (**Table \@ref(tab:PRM-summary-table)**). 
+Using this approach reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` samples which we term putative resistance mutations (PRM) (**Table \@ref(tab:PRM-summary-table)**). 
 
 ```{r make-rare-mutations-table, echo = F, warning=F}
 
@@ -950,21 +958,13 @@ rare_mutations_table <- data.frame(cbind(Drug = unique(rare_mutations_table$Drug
 
 ```
 
-Of the `r inh_3_c` samples which had a CM, `r inh_4_f` did not have a PRM, however upon further inspection, `r inh_5_a` of these samples were found to have a rare *katG* mutation that did not pass the minimum sample cut-off (>=3) in the definition of a putative resistance mutation (**Table \@ref(tab:rare-mutations-table)**). These rare mutations could also potentially explain the acquisition of a compensatory mutation; however, they were not analysed further due to the low number of samples in which they occur. Although PRMs were found using samples with a CM (n=`r inh_4_e`), additional occurrences were found in `r inh_4_c_g` samples without a CM, leading to a total of  `r inh_4_a_c_e_g` samples which had a putative resistance mutation (**Figure \@ref(fig:samples-trees)**). 
+Of the `r inh_3_c` samples which had a CM, `r inh_4_f` did not have a PRM, however upon further inspection, `r inh_5_a` of these samples were found to have a rare *katG* mutation that did not pass the minimum sample cut-off (>=3) used to define putative resistance mutations (**Table S2**) <!--(**Table \@ref(tab:rare-mutations-table)**)-->. These rare mutations could also potentially explain the acquisition of a compensatory mutation; however, they were not analysed further due to the low number of samples in which they occur. Although PRMs were found using samples with a CM (n=`r inh_4_e`), additional occurrences were found in `r inh_4_c_g` samples without a CM, leading to a total of  `r inh_4_a_c_e_g` samples which had a putative resistance mutation (**Figure S1**) <!--(**Figure \@ref(fig:samples-trees)**)-->. 
 
-*Rifampicin*
-
-The same approach was used to look for similar mutations that could confer RIF resistance. Using *rpoA* and *rpoC* as compensatory loci and *rpoB* as the resistance associated locus. There were `r ifelse(rif_3_c == 0, "no", rif_3_c)` samples found to have a CM but no known resistance mutation in *rpoB* (**Figure \@ref(fig:samples-trees)**). Within these samples `r ifelse(rif_5_a == 0, "none", rif_5_a)` had an *rpoB* mutation. As such, the rest of the results section details further investigation into INH putative resistance mutations only.
-
-<!-- and `r ifelse(rif_4_e == 0, "none", rif_5_a)` of these mutations met the minimum sample size criteria (>=3) to be characterised as a putative resistance mutation. -->
-
-*Sensitivity analysis*
-
-A small number of rare known resistance mutations (n=5), occurring in just 3-7 samples, were selected for sensitivity analysis to verify that these could be recovered by our methods. Upon re-analysis with the selected mutations taken out of the known resistance list, all mutations were subsequently classified as putative resistance mutations, highlighting the power of this approach. 
+A small number of rare known resistance mutations (n=5), occurring in just 3-7 samples, were selected for sensitivity analysis to verify that the search strategy could find rare resistance mutations. Upon re-analysis with the selected mutations taken out of the known resistance list, all mutations were subsequently classified as putative resistance mutations, highlighting the power of this approach. 
 
 *Resistance and co-occurrence with other resistance mutations*
 
-The mutations occurred in multiple lineages (L1-L5) with many showing evidence of convergent evolution (**Figure \@ref(fig:isoniazid-tree)**). Due to the multi-drug regimens used for TB treatment, resistance often develops to multiple drugs in a stepwise manner. Co-occurrence with other resistance mutations was analysed to characterise the sample profile in which PRMs occur. 
+The mutations occurred in multiple lineages (L1-L5) with many showing evidence of convergent evolution (**Figure \@ref(fig:isoniazid-tree)**). <!-- **Figure \@ref(fig:homoplasy-plot)**--> **Figure S3** also shows that the putative resistance mutations occur in similar numbers of sublineages and at similar *katG* gene positions compared to known resistance mutations, indicating that they show comparable patterns of resistance level, independent of lineage effects. Due to the multi-drug regimens used for TB treatment, resistance often develops to multiple drugs in a stepwise manner. Co-occurrence with other resistance mutations was analysed to characterise the sample profile in which PRMs occur. 
 
 ```{r PRM-dr-types, echo = F, warning=F}
 
@@ -1023,7 +1023,7 @@ names(PRM_KRM_other) <- c("Drug", "Possible resistance mutations (*katG*)", "Kno
 
 ```
 
-Interestingly, around half (`r PRM_pc_samps_inh_co_occur`) of samples co-occurred with other isoniazid mutations, with the *fabG1* -15C>T promoter mutation being the most frequent (`r PRM_pc_fabg_15`) (**Table \@ref(tab:PRM-KRM-other-table)**). 
+Interestingly, around half (`r PRM_pc_samps_inh_co_occur`) of samples co-occurred with other isoniazid mutations, with the *fabG1* -15C>T promoter mutation being the most frequent (`r PRM_pc_fabg_15`) (**Table S3**) <!--(**Table \@ref(tab:PRM-KRM-other-table)**)-->. 
 
 ```{r isoniazid-Ser315Thr, echo = F, warning=F}
 
@@ -1067,6 +1067,7 @@ names(resistance_table) <- c("KRM", "Ser315Thr", "PRM")
 
 # Pull out % of Ser315Thr co-occurrences with KRMs
 pc_315_KRM_co_occur <- str_extract(select(subset(resistance_table, KRM == "present"), Ser315Thr), "\\(.*\\)")
+pc_315_KRM_co_occur <- gsub("\\(|\\)", "", pc_315_KRM_co_occur)
 
 # Do Chi sq
 tab <- cbind(table(inh_kat315_multi_KRM_no_PRM$Ser315Thr_bin, inh_kat315_multi_KRM_no_PRM$KRM_bin), table(inh_4_e_g_table$KRM_bin, inh_4_e_g_table$PRM_bin))
@@ -1074,7 +1075,7 @@ resistance_x_sq <- print_chisq(chisq.test(tab), rnd = 2)
 
 ```
 
-This is in stark contrast to the Ser315Thr mutation, the most prevalent resistance mutation in INH resistant isolates and which is known to confer a high level of resistance, which only co-occurs with other INH resistance mutations in (`r pc_315_KRM_co_occur`) of samples. 
+This is in stark contrast to the Ser315Thr mutation, the most prevalent resistance mutation in INH resistant isolates and which is known to confer a high level of resistance, which only co-occurs with other INH resistance mutations in `r pc_315_KRM_co_occur` of samples. 
 
 ```{r PRM-DST, echo = F, warning=F}
 
@@ -1181,20 +1182,72 @@ fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="log(su
 fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
 fitness_pc_total_plot <- fitness_pc_total_plot + theme(aspect.ratio=50/100)
 fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_tab, change == "katG-p.Ser315Thr"),
-                                                           aes(x = log(absent + present), y = pc, label = change), 
+                                                           aes(x = log(absent + present), y = pc, label = "Ser315Thr"), 
                                                            hjust = 1.1)
+
+```
+
+```{r make-KRM-PRM-CM-pc-tab, echo = F, warning=F}
+
+# % co-occurence with another resistance mutation and % co-occurence with a CM
+
+# Get the % co-occurence with another resistance mutation
+# Wrangle
+KRM_katg <- subset(inh_bin, KRM_katG_bin == "present" & PRM_bin == "absent")
+KRM_katg <- data.frame(KRM_katg %>% mutate(KRM_katG = strsplit(as.character(KRM_katG), "; ")) %>% unnest(KRM_katG))
+
+KRM_katg$KRM_non_katG_bin <- ifelse(!(is.na(KRM_katg$KRM_fabG1)) | !(is.na(KRM_katg$KRM_inhA)) | !(is.na(KRM_katg$KRM_kasA)), "KRM_present", "KRM_absent")
+KRM_katg$CM_bin <- ifelse(KRM_katg$CM_bin == "absent", "CM_absent", "CM_present")
+
+katg_KRM_pivot <- pivot_num(KRM_katg, formula(KRM_katG ~ KRM_non_katG_bin))
+katg_CM_pivot <- pivot_num(KRM_katg, formula(KRM_katG ~ CM_bin))
+
+katg_KRM_CM_pivot <- merge(katg_KRM_pivot, katg_CM_pivot)
+
+katg_KRM_CM_pivot$KRM_pc <- (katg_KRM_CM_pivot$KRM_present / (katg_KRM_CM_pivot$KRM_absent + katg_KRM_CM_pivot$KRM_present))*100
+katg_KRM_CM_pivot$CM_pc <- (katg_KRM_CM_pivot$CM_present / (katg_KRM_CM_pivot$CM_absent + katg_KRM_CM_pivot$CM_present))*100
+
+katg_KRM_CM_pivot$status <- rep("known", nrow(katg_KRM_CM_pivot))
+
+katg_KRM_CM_pivot <- sort_pos(katg_KRM_CM_pivot, "KRM_katG") 
+
+
+# Same for PRM
+
+PRM <- subset(inh_bin, PRM_bin == "present" & KRM_katG_bin == "absent")
+PRM <- data.frame(PRM %>% mutate(PRM = strsplit(as.character(PRM), "; ")) %>% unnest(PRM))
+PRM$KRM_non_katG_bin <- ifelse(!(is.na(PRM$KRM_fabG1)) | !(is.na(PRM$KRM_inhA)) | !(is.na(PRM$KRM_kasA)), "KRM_present", "KRM_absent")
+PRM$CM_bin <- ifelse(PRM$CM_bin == "absent", "CM_absent", "CM_present")
+
+PRM_KRM_pivot <- pivot_num(PRM, formula(PRM ~ KRM_non_katG_bin))
+PRM_CM_pivot <- pivot_num(PRM, formula(PRM ~ CM_bin))
+
+PRM_KRM_CM_pivot <- merge(PRM_KRM_pivot, PRM_CM_pivot)
+
+PRM_KRM_CM_pivot$KRM_pc <- (PRM_KRM_CM_pivot$KRM_present / (PRM_KRM_CM_pivot$KRM_absent + PRM_KRM_CM_pivot$KRM_present))*100
+PRM_KRM_CM_pivot$CM_pc <- (PRM_KRM_CM_pivot$CM_present / (PRM_KRM_CM_pivot$CM_absent + PRM_KRM_CM_pivot$CM_present))*100
+
+PRM_KRM_CM_pivot$status <- rep("unknown", nrow(PRM_KRM_CM_pivot))
+
+PRM_KRM_CM_pivot <- sort_pos(PRM_KRM_CM_pivot, "PRM")
+
+# Put together
+KRM_PRM_CM_pc_tab <- rbind_mod(katg_KRM_CM_pivot, PRM_KRM_CM_pivot, c("change", drop_col_name(katg_KRM_CM_pivot, "KRM_katG")))
+
+# Clean up
+KRM_PRM_CM_pc_tab$change <- clean_del_ins_dup(gsub("katG-p.|katG-c.", "", KRM_PRM_CM_pc_tab$change))
+KRM_PRM_CM_pc_tab <- dplyr::select(KRM_PRM_CM_pc_tab, change, KRM_pc, CM_pc, status)
+names(KRM_PRM_CM_pc_tab) <- c("Change", "% known resistance mutations", "% compensatory mutations", "Status")
 
 ```
 
 Compensatory mutations are known to occur when mutations with high fitness-costs occur (e.g. *katG* loss of function). To estimate the fitness impact of the PRMs we used the co-occurrence with a CM as a proxy, comparing to Ser315Thr which has reported to confer a low fitness cost. 
 
 <!-- CHECK! --> 
-A Chi-square test showed a significant difference (`r fitness_x_sq`), with compensatory mutations occurring in a higher proportion in samples with PRMs (`r inh_4_e`/`r nrow(inh_4_e_g_table)`) 
+A Chi-square test showed a significant difference (`r fitness_x_sq`), with compensatory mutations occurring in a higher proportion in samples with PRMs (`r inh_4_e`/`r nrow(inh_4_e_g_table)`) than those with Ser315Thr (`r inh_n_samps_ser315_and_CM`/`r fmt(nrow(inh_kat315_no_PRM))`), suggesting that on average they incur a greater fitness cost. 
 <!-- CHECK! --> 
 
-<!-- CHECK! --> 
-than those with Ser315Thr (`r inh_n_samps_ser315_and_CM`/`r fmt(nrow(inh_kat315_no_PRM))`), suggesting that on average they incur a greater fitness cost. 
-<!-- CHECK! --> 
+**Table S4** shows the percentages of known resistance mutations (among genes *fabG1*, *inhA*, *kasA*) and compensatory mutations co-occuring with known resistance mutations and our list of PRMs. 
 
 
 ## DISCUSSION
@@ -1333,6 +1386,16 @@ knitr::kable(PRM_KRM_other, row.names = F, caption = cap, format = "pipe")
 
 ```
 
+Supplementary table 4
+```{r KRM-PRM-CM-pc-tab, echo = F, warning=F}
+
+# % co-occurence with another resistance mutation and % co-occurence with a CM
+
+cap <- "Percentages of co-occurring known resistance mutations and compensatory mutations among known and putative ('unknown') resistance mutations. Co-occurring known resistance mutations are in genes *fabG1*, *inhA*, *kasA*"
+knitr::kable(KRM_PRM_CM_pc_tab, row.names = F, caption = cap, format = "pipe")
+
+```
+
 ## SUPPLEMENTARY FIGURES
 
 Supplementary figure 1
@@ -1397,7 +1460,13 @@ knitr::include_graphics(sank_file)
 
 ```
 
+Supplementary figure 3
 
+```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Homoplasy among known and putative ('unknown') resistance mutations in *katG*, as indicated by number of sublineages in which mutations occur (y-axis). Ser315Thr is highlighted."}
+
+knitr::include_graphics("../results/homoplasy_plot.png")
+
+```
 
 
 
