@@ -109,16 +109,16 @@ data <- setNames(rbind_force(known_pivot, PRM_pivot), c("mutation", "n", "n_subl
 
 data <- subset(data, pos > 0)
 
-ggplot()+
+homoplasy_plot <- ggplot()+
   geom_point(data = data, aes(x = pos, y = log(n_sublin), size = log(n), colour = status))+
   geom_text(data=subset(data, mutation == "katG-p.Ser315Thr"),
-            aes(x = pos, y = log(n_sublin), label = mutation), 
-            hjust = 1.1)+
+            aes(x = pos, y = log(n_sublin), label = "Ser315Thr"), 
+            hjust = 1.2, size = 3)+
   xlab("position")+
   ylab("log(n sublineages)")+
   theme_bw()
 
-
+ggsave("results/homoplasy_plot.png", homoplasy_plot, width = 1100/5, height = 700/5, units = "mm")
 
 
 
