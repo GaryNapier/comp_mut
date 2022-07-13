@@ -944,24 +944,12 @@ names(CM_tab) <- c("Drug", "Compensatory locus", "Mutation [frequency]", "Status
 ```
 
 
-To characterise putative novel resistance mutations, we considered samples which had a compensatory mutation, but no known resistance mutation. A manually curated list of compensatory mutations was generated from the literature (**Table S1**). This list includes mutations in *ahpC* (`r length(inh_CM_uniq)`), *rpoC* (`r length(rif_rpoC)`), and rpoA (`r length(rif_rpoA)`), where the *ahpC* mutations also include novel markers which had strong evidence for compensatory effects through convergent evolution, co-occurrence with loss of function mutations in *katG* as well as association with INH resistant isolates.
-
-
-The number of occurrences of the compensatory mutations within the 32k isolates varied RIF (rpoC/A range: 5 – 427) and INH (ahpC range: 3 – 97).  No isolate had more than one compensatory mutation for RIF or INH, and across MDR-TB.
+To characterise putative novel resistance mutations, we considered samples which had a compensatory mutation, but no known resistance mutation. A manually curated list of compensatory mutations was generated from the literature (**Table S1**). This list includes mutations in *ahpC* (`r length(inh_CM_uniq)`), *rpoC* (`r length(rif_rpoC)`), and rpoA (`r length(rif_rpoA)`), where the *ahpC* mutations also include novel markers which had strong evidence for compensatory effects through convergent evolution, co-occurrence with loss of function mutations in *katG* as well as association with INH resistant isolates. The number of occurrences of the compensatory mutations within the 32k isolates varied RIF (*rpoC*/*A* range: 5 – 427) and INH (*ahpC* range: 3 – 97). No isolate had more than one compensatory mutation for RIF or INH, and across MDR-TB.
 
 
 
+*Putative novel resistance mutations*
 
-
-
-
-<!-- (**Table \@ref(tab:CM-table-display)**)  -->
-
-*Rifampicin*
-
-The same approach was used to look for similar mutations that could confer RIF resistance. Using *rpoA* and *rpoC* as compensatory loci and *rpoB* as the resistance associated locus. There were `r ifelse(rif_3_c == 0, "no", rif_3_c)` samples found to have a CM without a known resistance mutation in *rpoB* (**Figure S1**) <!-- (**Figure \@ref(fig:samples-trees)**)-->. As such, the rest of the results section details further investigation into INH putative resistance mutations only.
-
-<!-- and `r ifelse(rif_4_e == 0, "none", rif_5_a)` of these mutations met the minimum sample size criteria (>=3) to be characterised as a putative resistance mutation. -->
 
 ```{r inh-stats, echo = F, warning = F}
 
@@ -975,9 +963,8 @@ total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PR
 
 ```
 
-*Isoniazid*
+Using the rpoA and rpoC compensatory mutations, there were no RIF resistant isolates without *rpoB* mutations (**Figure S1**). For INH, there were `r inh_3_a_c` samples with a compensatory mutation, of which `r inh_3_c` had no known *katG* resistance mutation (**Figure S1**). Within the `r inh_3_c` samples we looked for mutations in *katG* that could potentially explain the emergence of the compensatory mutation. In total, `r total_unique_katg` unique non-synonymous mutations were found in the *katG* gene. To reduce the possibility of identifying non-resistance associated mutations, they were filtered to retain those which occurred in at least three samples, where >50% of the samples had a resistant DST and where >50% of samples had genotypic resistance to at least one other drug.
 
-For INH there were `r inh_3_a_c` samples with a compensatory mutation, of which `r inh_3_c` had no known *katG* resistance mutation (**Figure S1**). <!--(**Figure \@ref(fig:samples-trees)**)-->. Within the `r inh_3_c` samples we looked for mutations in *katG* that could potentially explain the emergence of the compensatory mutation. In total, `r total_unique_katg` unique non-synonymous mutations were found in *katG*. To reduce the possibility of identifying non-resistance associated mutations, they were filtered to retain those which occurred in at least three samples, where >50% of the samples had a resistant DST and where >50% of samples had genotypic resistance to at least one other drug. 
 
 ```{r PRM-summary-stats, echo = F, warning=F}
 
@@ -1015,7 +1002,7 @@ names(PRM_summary) <- c("Drug", "Mutation [frequency]", "PRM_one_lin")
 
 ```
 
-Using this approach reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` samples which we term putative resistance mutations (PRM) (**Table \@ref(tab:PRM-summary-table)**). 
+
 
 ```{r make-rare-mutations-table, echo = F, warning=F}
 
@@ -1035,7 +1022,15 @@ rare_mutations_table <- data.frame(cbind(Drug = unique(rare_mutations_table$Drug
 
 ```
 
-Of the `r inh_3_c` samples which had a CM, `r inh_4_f` did not have a PRM, however upon further inspection, `r inh_5_a` of these samples were found to have a rare *katG* mutation that did not pass the minimum sample cut-off (>=3) used to define putative resistance mutations (**Table S2**) <!--(**Table \@ref(tab:rare-mutations-table)**)-->. These rare mutations could also potentially explain the acquisition of a compensatory mutation; however, they were not analysed further due to the low number of samples in which they occur. Although PRMs were found using samples with a CM (n=`r inh_4_e`), additional occurrences were found in `r inh_4_c_g` samples without a CM, leading to a total of  `r inh_4_a_c_e_g` samples which had a putative resistance mutation (**Figure S1**) <!--(**Figure \@ref(fig:samples-trees)**)-->. 
+Of the `r inh_3_c` isolates that had a compensatory mutation, `r inh_4_f` (`r fmt_pc(inh_4_f/inh_3_c)`) did not have an established resistance mutation, but `r inh_5_a` (/`r inh_4_f`; `r fmt_pc(inh_5_a/inh_4_f)`) were found to have a rare *katG* mutation that did not pass the minimum sample cut-off (>=3) used to define putative resistance mutations (**Table S2**). These rare mutations could also potentially explain the acquisition of a compensatory mutation but were not analysed further. Using this approach, our analysis reduced the number to `r inh_n_uniq_PRM_katg` unique mutations present in `r inh_4_e` isolates, with strong evidence of being putative novel resistance mutations (**Table \@ref(tab:PRM-summary-table)**). These `r inh_n_uniq_PRM_katg` mutations were also found in `r inh_4_c_g` isolates without a compensatory mutation, leading to a total of `r inh_4_a_c_e_g` isolates which had a putative resistance mutation (**Figure S1**).
+
+
+
+
+
+
+
+
 
 A small number of rare known resistance mutations (n=5), occurring in just 3-7 samples, were selected for sensitivity analysis to verify that the search strategy could find rare resistance mutations. Upon re-analysis with the selected mutations taken out of the known resistance list, all mutations were subsequently classified as putative resistance mutations, highlighting the power of this approach. 
 
