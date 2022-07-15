@@ -1,6 +1,3 @@
-
-rm(list = ls())
-
 setwd("~/Documents/comp_mut/")
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
@@ -107,10 +104,13 @@ PRM_pivot$status <- rep("unknown", nrow(PRM_pivot))
 # Put together
 data <- setNames(rbind_force(known_pivot, PRM_pivot), c("mutation", "n", "n_sublin", "pos", "status"))
 
+# Filter
 data <- subset(data, pos > 0)
+data <- subset(data, n > 2)
 
 homoplasy_plot <- ggplot()+
-  geom_point(data = data, aes(x = pos, y = log(n_sublin), size = log(n), colour = status))+
+  geom_point(data = data, aes(x = pos, y = log(n_sublin), size = log(n), fill = status), colour="black", pch=21)+
+  # geom_jitter(data = data, aes(x = pos, y = log(n_sublin), size = log(n), fill = status), colour="black", pch=21, size=5)+
   geom_text(data=subset(data, mutation == "katG-p.Ser315Thr"),
             aes(x = pos, y = log(n_sublin), label = "Ser315Thr"), 
             hjust = 1.2, size = 3)+
