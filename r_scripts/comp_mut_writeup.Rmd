@@ -1354,7 +1354,7 @@ KRM_PRM_CM_pc_plot <- ggplot()+
   ylab("% samples with compensatory mutation present")+
   theme_bw()
 
-ggsave("results/KRM_PRM_CM_pc_plot.png", KRM_PRM_CM_pc_plot, width = 1100/5, height = 700/5, units = "mm")
+ggsave("../results/KRM_PRM_CM_pc_plot.png", KRM_PRM_CM_pc_plot, width = 1100/5, height = 700/5, units = "mm")
 
 ```
 
@@ -1599,6 +1599,8 @@ Supplementary figure 3
 knitr::include_graphics("../results/homoplasy_plot.png")
 
 ```
+
+Supplementary figure 4
 
 ```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Percentage of samples with co-occurring known resistance mutations (x-axis) and percentage of samples with a compensatory mutation (y-axis) in each of the known and putative *katG* resistance mutations. Ser315Thr is highlighted. As a known mutation which incurrs little fitness cost, a low percentage of its samples also have compensatory mutations. This mutation also conferrs a high level of resistance to INH, hence its samples also co-occur with relatively few other (non-*katG*) resistance mutations. Mutations in fewer than three samples are omitted."}
 
