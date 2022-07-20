@@ -1232,14 +1232,15 @@ fitness_plot <- fitness_plot + geom_hline(yintercept=PRM_med, linetype="dashed",
 
 # Plot number of samples vs % of samples with a CM
 fitness_pc_total_plot <- ggplot() + geom_point(data = KRM_PRM_tab, 
-                                      aes(x = log(absent + present), y = pc, 
+                                      aes(x = absent + present, y = pc, 
                                           colour = status), size = 3)
-fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="log(sum) of samples") + scale_y_continuous(name="% samples with CM")
-fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
+fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="n samples") + scale_y_continuous(name="% samples with compensatory mutations")
 fitness_pc_total_plot <- fitness_pc_total_plot + theme(aspect.ratio=50/100)
 fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_tab, change == "katG-p.Ser315Thr"),
-                                                           aes(x = log(absent + present), y = pc, label = "Ser315Thr"), 
+                                                           aes(x = absent + present, y = pc, label = "Ser315Thr"), 
                                                            hjust = 1.1)
+fitness_pc_total_plot <- fitness_pc_total_plot + coord_trans(x = 'log')
+fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
 
 ```
 
@@ -1316,10 +1317,14 @@ KRM_PRM_CM_pc_tab$resistance_level <- ifelse(KRM_PRM_CM_pc_tab$KRM_pc < 15, "hig
                                                ifelse(KRM_PRM_CM_pc_tab$KRM_pc >= 15 & KRM_PRM_CM_pc_tab$KRM_pc <= 90, 
                                                       "medium", "low"))
 
+KRM_PRM_CM_pc_tab$resistance_level <- factor(KRM_PRM_CM_pc_tab$resistance_level, levels = c("high", "medium", "low"))
+
 # Classify fitness level based on Ser315Thr % of CM (2.71%)
 KRM_PRM_CM_pc_tab$fitness_cost_class <- ifelse(KRM_PRM_CM_pc_tab$CM_pc < 3, "low", 
                                                ifelse(KRM_PRM_CM_pc_tab$CM_pc >= 3 & KRM_PRM_CM_pc_tab$CM_pc <= 90, 
                                                       "medium", "high"))
+
+KRM_PRM_CM_pc_tab$fitness_cost_class <- factor(KRM_PRM_CM_pc_tab$fitness_cost_class, levels = c("high", "medium", "low"))
 
 # Arrange cols
 KRM_PRM_CM_pc_tab <- select(KRM_PRM_CM_pc_tab, 
@@ -1333,7 +1338,6 @@ KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_ta
 names(KRM_PRM_CM_pc_tab) <- c("Status", "Change", 
                               "n samples known resistance mutations absent", "n samples known resistance mutations present", "known resistance mutations %", "Resistance level", 
                               "n samples known compensatory mutations absent", "n samples known compensatory mutations present", "compensatory mutations %", "Fitness cost")
-
 
 # lapply(x, function(x){
 #   x %>% count(KRM_katG)
@@ -1349,12 +1353,58 @@ KRM_PRM_CM_pc_plot <- ggplot()+
   # geom_jitter(data = KRM_PRM_CM_pc_tab_plot, aes(x = KRM_pc, y = CM_pc, fill = status, size = log(n)), colour="black", pch=21, size=5)+
   geom_text(data=subset(KRM_PRM_CM_pc_tab_plot, change == "Ser315Thr"),
             aes(x = KRM_pc, y = CM_pc, label = "Ser315Thr"), 
-            hjust = 1.2, size = 3)+
+            hjust = -0.2, size = 3)+
   xlab("% samples with known resistance mutation present (in fabG1, inhA or kasA)")+
   ylab("% samples with compensatory mutation present")+
   theme_bw()
 
 ggsave("../results/KRM_PRM_CM_pc_plot.png", KRM_PRM_CM_pc_plot, width = 1100/5, height = 700/5, units = "mm")
+
+
+require(gridExtra)
+
+KRM_pc_box <- ggplot()+
+  geom_boxplot(data = KRM_PRM_CM_pc_tab_plot, aes(x = resistance_level, y = KRM_pc, fill = status), 
+               position=position_dodge(0.8))+
+  # geom_dotplot(data = KRM_PRM_CM_pc_tab_plot,
+  #              aes(x = resistance_level, y = KRM_pc, fill = status),
+  #              binaxis='y', stackdir='center',
+  #              position=position_dodge(0.8),
+  #              binwidth = 2)+
+  geom_point(data = KRM_PRM_CM_pc_tab_plot,
+             aes(x = resistance_level, y = KRM_pc, fill = status, size = log(n)),
+             colour="black", pch=21,
+             position=position_dodge(0.8))+
+  geom_text(data=subset(KRM_PRM_CM_pc_tab_plot, change == "Ser315Thr"),
+          aes(x = resistance_level, y = KRM_pc, label = "Ser315Thr"), 
+          hjust = 1.6,
+          vjust = -1.1,
+          size = 3)+
+  xlab("Resistance level")+
+  ylab("% samples with co-occurring resistance mutations (fabG1, inhA, kasA")+
+  theme_bw()
+
+CM_pc_box <- ggplot()+
+  geom_boxplot(data = KRM_PRM_CM_pc_tab_plot, aes(x = fitness_cost_class, y = CM_pc, fill = status), 
+               position=position_dodge(0.8))+
+  geom_point(data = KRM_PRM_CM_pc_tab_plot,
+           aes(x = fitness_cost_class, y = CM_pc, fill = status, size = log(n)),
+           colour="black", pch=21,
+           position=position_dodge(0.8))+
+  geom_text(data=subset(KRM_PRM_CM_pc_tab_plot, change == "Ser315Thr"),
+          aes(x = fitness_cost_class, y = CM_pc, label = "Ser315Thr"), 
+          hjust = -0.25, size = 3)+
+  xlab("Fitness cost")+
+  ylab("% samples with co-occurring compensatory mutations")+
+  theme_bw()
+
+grid.arrange(KRM_pc_box, CM_pc_box, ncol=2)
+
+
+
+
+
+
 
 ```
 
