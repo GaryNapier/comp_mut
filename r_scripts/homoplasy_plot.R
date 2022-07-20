@@ -109,13 +109,14 @@ data <- subset(data, pos > 0)
 data <- subset(data, n > 2)
 
 homoplasy_plot <- ggplot()+
-  geom_point(data = data, aes(x = pos, y = log(n_sublin), size = log(n), fill = status), colour="black", pch=21)+
+  geom_point(data = data, aes(x = pos, y = n_sublin, size = log(n), fill = status), colour="black", pch=21)+
   # geom_jitter(data = data, aes(x = pos, y = log(n_sublin), size = log(n), fill = status), colour="black", pch=21, size=5)+
   geom_text(data=subset(data, mutation == "katG-p.Ser315Thr"),
-            aes(x = pos, y = log(n_sublin), label = "Ser315Thr"), 
+            aes(x = pos, y = n_sublin, label = "Ser315Thr"), 
             hjust = 1.2, size = 3)+
   xlab("position")+
-  ylab("log(n sublineages)")+
+  ylab("n sublineages")+
+  coord_trans(y = 'log10')+
   theme_bw()
 
 ggsave("results/homoplasy_plot.png", homoplasy_plot, width = 1100/5, height = 700/5, units = "mm")
