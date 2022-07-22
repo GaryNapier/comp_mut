@@ -1342,6 +1342,11 @@ KRM_PRM_CM_pc_tab <- select(KRM_PRM_CM_pc_tab,
                             status, change, 
                             KRM_absent, KRM_present, KRM_pc, resistance_level,
                             CM_absent, CM_present, CM_pc, fitness_cost_class)
+
+```
+
+```{r make-KRM-PRM-CM-pc-plot, echo = F, warning=F}
+
 # Make duplicate before renaming 
 KRM_PRM_CM_pc_tab_plot <- KRM_PRM_CM_pc_tab
 KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_tab_plot$KRM_present
@@ -1391,18 +1396,51 @@ KRM_pc_box <- ggplot()+
   theme_bw()
 
 CM_pc_box <- ggplot()+
-  geom_boxplot(data = KRM_PRM_CM_pc_tab_plot, aes(x = fitness_cost_class, y = CM_pc, fill = status), 
+  geom_boxplot(data = KRM_PRM_CM_pc_tab_plot, aes(x = fitness_cost_class, y = KRM_pc, fill = status), 
                position=position_dodge(0.8))+
   geom_point(data = KRM_PRM_CM_pc_tab_plot,
-           aes(x = fitness_cost_class, y = CM_pc, fill = status, size = log(n)),
+           aes(x = fitness_cost_class, y = KRM_pc, fill = status, size = log(n)),
            colour="black", pch=21,
            position=position_dodge(0.8))+
   geom_text(data=subset(KRM_PRM_CM_pc_tab_plot, change == "Ser315Thr"),
-          aes(x = fitness_cost_class, y = CM_pc, label = "Ser315Thr"), 
+          aes(x = fitness_cost_class, y = KRM_pc, label = "Ser315Thr"), 
           hjust = 1.6, size = 3)+
   xlab("Fitness cost")+
+  ylab("% samples with resistance")+
+  theme_bw()
+
+
+ggplot()+
+  geom_boxplot(data = KRM_PRM_CM_pc_tab_plot, aes(x = CM_pc, y = resistance_level, fill = status), 
+               position=position_dodge(0.8))+
+  # geom_point(data = KRM_PRM_CM_pc_tab_plot,
+  #          aes(x = resistance_level, y = CM_pc, fill = status, size = log(n)),
+  #          colour="black", pch=21,
+  #          position=position_dodge(0.8))+
+  geom_text(data=subset(KRM_PRM_CM_pc_tab_plot, change == "Ser315Thr"),
+          aes(x = CM_pc, y = resistance_level, label = "Ser315Thr"), 
+          hjust = 1.6, size = 3)+
+  xlab("Resistance level")+
   ylab("% samples with co-occurring compensatory mutations")+
   theme_bw()
+
+
+ggplot()+
+  geom_boxplot(data = subset(KRM_PRM_CM_pc_tab_plot, !(change == "Ser315")), aes(x = fitness_cost_class, y = n, fill = status), 
+               position=position_dodge(0.8))+
+  ylim(c(1, 30))+
+  # geom_point(data = KRM_PRM_CM_pc_tab_plot,
+  #          aes(x = resistance_level, y = n, fill = status, size = log(n)),
+  #          colour="black", pch=21,
+  #          position=position_dodge(0.8))+
+  # geom_text(data=subset(KRM_PRM_CM_pc_tab_plot, change == "Ser315Thr"),
+  #         aes(x = fitness_cost_class, y = log10(n), label = "Ser315Thr"), 
+  #         hjust = 1.6, size = 3)+
+  xlab("fitness level")+
+  ylab("n")+
+  theme_bw()
+
+
 
 # Pull out legend
 leg <- g_legend(KRM_pc_box)
