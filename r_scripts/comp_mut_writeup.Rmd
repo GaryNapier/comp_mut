@@ -980,6 +980,7 @@ inh_n_uniq_other_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(in
 
 # ***** MOST IMPORTANT NUMBER ******
 inh_n_uniq_PRM_katg <- length(unique(unlist(strsplit(unique(inh_bin[!(is.na(inh_bin[, "PRM"])), "PRM"]), "; "))))
+MOST_IMPORTANT_NUMBER <- inh_n_uniq_PRM_katg
 # ***** MOST IMPORTANT NUMBER ******
 
 
@@ -1386,7 +1387,7 @@ KRM_PRM_CM_pc_tab_plot <- KRM_PRM_CM_pc_tab
 KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_tab_plot$KRM_present
 
 # Build new table for display
-KRM_PRM_CM_pc_tab <- cbind(status = KRM_PRM_CM_pc_tab$status, 
+KRM_PRM_CM_pc_tab <- data.frame(cbind(status = KRM_PRM_CM_pc_tab$status, 
       change = KRM_PRM_CM_pc_tab$change,
       KRM = paste0("[", KRM_PRM_CM_pc_tab$KRM_absent, "/",
                    KRM_PRM_CM_pc_tab$KRM_present, "/",
@@ -1395,7 +1396,7 @@ KRM_PRM_CM_pc_tab <- cbind(status = KRM_PRM_CM_pc_tab$status,
       CM = paste0("[", KRM_PRM_CM_pc_tab$CM_absent, "/",
                   KRM_PRM_CM_pc_tab$CM_present, "/",
                   KRM_PRM_CM_pc_tab$CM_pc, "]"), 
-      fitness_cost_class = as.character(KRM_PRM_CM_pc_tab$fitness_cost_class))
+      fitness_cost_class = as.character(KRM_PRM_CM_pc_tab$fitness_cost_class)))
 
 names(KRM_PRM_CM_pc_tab) <- c("Status", "Change", 
                               "n samples resistance mutations [absent/present/%]",
@@ -1558,7 +1559,7 @@ To explore the functional effects of the `r inh_n_uniq_PRM_katg` putative resist
 
 The distances from the *katG* heme site, thought to be close to the active INH binding site, did not differ significantly between the known and putative resistance mutations (mean known = `r dist_t$estimate[1]` A^o^; mean putative = `r dist_t$estimate[2]` A^o^; p = `r round(dist_t$p.value, 2)`).
 
-To infer fitness cost in the putative resistance mutations, the stability of the protein was estimated as the change in Gibbs free energy ($\Delta\Delta$G). There was however, no significant difference between the known resistance mutations and the putative resistance mutations (mean known = `r fitness_t$estimate[1]`; mean putative = `r fitness_t$estimate[2]` p = `r round(fitness_t$p.value, 2)`). This result is perhaps surprising given the significant difference between known and putative mutations in terms of the percentages of samples with with compensatory mutations. 
+To infer fitness cost in the putative resistance mutations, the stability of the protein was estimated as the change in Gibbs free energy ($\Delta\Delta$G). There was however, no significant difference between the known resistance mutations and the putative resistance mutations (mean known = `r fitness_t$estimate[1]`; mean putative = `r fitness_t$estimate[2]` p = `r round(fitness_t$p.value, 2)`). This result is perhaps surprising given the significant difference between known and putative mutations in terms of the percentages of samples with compensatory mutations. 
 
 ## DISCUSSION
 
@@ -1689,7 +1690,8 @@ knitr::include_graphics(fitness_pc_total_plot_file)
 
 ## SUPPLEMENTARY TABLES
 
-Table S1
+**Table S1**
+
 ```{r CM-table-display, echo = F, warning=F}
 
 cap <- "Mutations in compensatory genes and frequencies in 32k samples. Underlined if known compensatory mutations. Bolded if occurring across >1 lineage"
@@ -1698,7 +1700,8 @@ knitr::kable(CM_tab, caption = cap)
 ```
 Ins = insertion, del = deletion
 
-Table S2
+**Table S2**
+
 ```{r rare-mutations-table, echo = F, warning=F}
 
 cap <- sprintf("Mutations (n=%s) in *katG* (INH) and from samples with no known resistance mutations, with compensatory mutations but no potential resistance mutation by the criteria outlined in Methods. These mutations only occur in one or two samples among the %s samples from Supplementary figure 1", inh_n_unique_rare_katg, inh_5_a)
@@ -1706,7 +1709,8 @@ knitr::kable(rare_mutations_table, row.names = F, caption = cap, format = "pipe"
 
 ```
 
-Table S3
+**Table S3**
+
 ```{r PRM-KRM-other-table, echo = F, warning=F}
 
 cap <- "Known resistance mutations and non-drug resistance-associated (‘unknown’) mutations co-occurring in samples with putative drug resistance"
@@ -1714,21 +1718,23 @@ knitr::kable(PRM_KRM_other, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-Table S4
+**Table S4**
+
 ```{r KRM-PRM-CM-pc-tab, echo = F, warning=F}
 
 # % co-occurence with another resistance mutation and % co-occurence with a CM
 
-cap <- "Percentages of co-occurring known resistance mutations and compensatory mutations among known and putative ('unknown') resistance mutations. Mutations in fewer than three samples are ommitted. Co-occurring known resistance mutations are in genes *fabG1*, *inhA*, *kasA*. The three categories of high medium and low resistance/fitness are based on tertiles of the respective percentages, except for the 'high' category of resistance level, which is based on the ~15% Ser315Thr resistance mutation co-occurrence. See **Figure S4**"
+cap <- "Percentages of co-occurring known resistance mutations and compensatory mutations among known and putative ('unknown') resistance mutations. Mutations in fewer than three samples are omitted. Co-occurring known resistance mutations are in genes *fabG1*, *inhA*, *kasA*. The three categories of high medium and low resistance/fitness are based on tertiles of the respective percentages, except for the 'high' category of resistance level, which is based on the ~15% Ser315Thr resistance mutation co-occurrence. See **Figure S4**"
 
 knitr::kable(KRM_PRM_CM_pc_tab, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-Table S5
+**Table S5**
+
 ```{r common-KRM-tab, echo = F, warning=F}
 
-cap <- "Most common known resistance mutations for INH and RIF in TBprofiler. Mutations occurring less than five times are omitted."
+cap <- "Most common known resistance mutations for INH and RIF in TBprofiler. Mutations occurring fewer than five times are omitted."
 
 knitr::kable(common_KRM_tab, row.names = F, caption = cap, format = "pipe")
 
@@ -1736,7 +1742,7 @@ knitr::kable(common_KRM_tab, row.names = F, caption = cap, format = "pipe")
 
 ## SUPPLEMENTARY FIGURES
 
-Supplementary figure 1
+**Figure S1**
 
 ```{r samples-trees, echo=FALSE, out.width = "2000px", fig.show='hold', fig.cap="Analysis strategy and numbers of mutations" }
 
@@ -1745,9 +1751,9 @@ knitr::include_graphics("../results/samples_trees.png")
 
 ```
 
-Supplementary figure 2
+**Figure S2**
 
-```{r inh-ahpc-katg-links, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Co-occurrences between *ahpC* compensatory mutation positions and *katG* PRM positions." }
+```{r inh-ahpc-katg-links, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Co-occurrences between *ahpC* compensatory mutation positions and *katG* putative resistance mutation positions for isoniazid"}
 
 binary_expand_PRM <- lapply(binary_tables, function(x){
   data.frame(x %>%
@@ -1798,17 +1804,38 @@ knitr::include_graphics(sank_file)
 
 ```
 
-Supplementary figure 3
+**Figure S3**
 
-```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Homoplasy among known and putative ('unknown') resistance mutations in *katG*, as indicated by number of sublineages in which mutations occur (y-axis). Ser315Thr is highlighted. Mutations in fewer than three samples are omitted."}
+```{r n-known-katg-homoplasy-plot, echo=FALSE, warning = F}
 
+# Get stupid number of KRMs in > 2 samps - see homoplasy_plot.R
+known_data <- select(inh_bin, wgs_id, sublin, KRM_katG)
+# Split out
+known_data <- data.frame(known_data %>% mutate(KRM_katG = strsplit(as.character(KRM_katG), "; ")) %>% unnest(KRM_katG))
+# Remove NA
+known_data <- subset(known_data, !(is.na(KRM_katG)))
+known_n <- reshape2::dcast(known_data, KRM_katG ~ 'n', value.var = "KRM_katG", fun.aggregate = length)
+known_sublin_n <- reshape2::dcast(reshape2::dcast(known_data, KRM_katG + sublin ~ 'n', value.var = "KRM_katG", fun.aggregate = length), KRM_katG ~ 'n_sublin', value.var = "KRM_katG", fun.aggregate = length)
+known_pivot <- merge(known_n, known_sublin_n, by = "KRM_katG", all.x = T, sort = F)
+known_pivot$pos <- find_pos(known_pivot$KRM_katG)
+known_pivot$pos <- as.numeric(known_pivot$pos)
+known_pivot <- subset(known_pivot, n>2)
+known_pivot <- subset(known_pivot, pos > 0)
+known_pivot <- subset(known_pivot, !(grepl("c.", KRM_katG)))
+inh_n_know_katg_filt <- length(unique(known_pivot$KRM_katG))
+
+```
+
+```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap=sprintf("Homoplasy among known (n=%s) and putative (n=%s) resistance mutations in the *katG* gene, as indicated by number of sub-lineages in which mutations occur. The common *katG* Ser315Thr mutation is highlighted. Mutations in fewer than three samples and non-protein coding regions are omitted.", inh_n_know_katg_filt, MOST_IMPORTANT_NUMBER)}
+
+# source("r_scripts/homoplasy_plot.R")
 knitr::include_graphics("../results/homoplasy_plot.png")
 
 ```
 
-Supplementary figure 4
+**Figure S4**
 
-```{r KRM-CM-pc-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Fitness cost versus percentage of samples with co-occurring known (non-*katG*) resistance mutations in known and putative *katG* resistance mutations.The three categories of high medium and low fitness cost are based on tertiles of the percentage of samples with compensatory mutations (low:<=17%, medium:>17%<=40%, high:>40%<=100%). Known *katG* resistance mutations at the 315 position are highlighted. Ser315Thr in particular is know to confer a high level of resistance to INH, hence its samples co-occur with relatively few other (non-*katG*) resistance mutations (~15%). Ser315Thr also incurrs little fitness cost, therefore a low percentage of its samples also have compensatory mutations (~3%). Mutations occurring in fewer than three samples are omitted. See **Table S4**"}
+```{r KRM-CM-pc-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Fitness cost versus percentage of samples with co-occurring known (non-*katG*) resistance mutations in known and putative *katG* resistance mutations.The three categories of high medium and low fitness cost are based on tertiles of the percentage of samples with compensatory mutations (low:<=17%, medium:>17%<=40%, high:>40%<=100%). Known *katG* resistance mutations at the 315 position are highlighted. Ser315Thr in particular is known to confer a high level of resistance to INH, hence its samples co-occur with relatively few other (non-*katG*) resistance mutations (~15%). Ser315Thr also incurrs little fitness cost, therefore a low percentage of its samples also have compensatory mutations (~3%). Mutations occurring in fewer than three samples are omitted. See **Table S4**"}
 
 # knitr::include_graphics("../results/KRM_PRM_CM_pc_plot.png")
 
