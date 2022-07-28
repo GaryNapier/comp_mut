@@ -58,7 +58,7 @@ lineage_data$sublin <- gsub("lineage", "", lineage_data$sublin)
 
 # Merge in sublin
 binary_table <- merge(binary_table, select(lineage_data, id, sublin), by.x = "wgs_id", by.y = "id", all.x = T, sort = F)
-binary_table <- rename(binary_table, sublin = sublin.y)
+binary_table <- dplyr::rename(binary_table, sublin = sublin.y)
 
 # KRM ----
 known_data <- select(binary_table, wgs_id, sublin, KRM_katG)
@@ -107,6 +107,9 @@ data <- setNames(rbind_force(known_pivot, PRM_pivot), c("mutation", "n", "n_subl
 # Filter
 data <- subset(data, pos > 0)
 data <- subset(data, n > 2)
+
+# Take out .c
+data <- subset(data, !(grepl("c.", mutation)))
 
 homoplasy_plot <- ggplot()+
   geom_point(data = data, aes(x = pos, y = n_sublin, size = log(n), fill = status), colour="black", pch=21)+
