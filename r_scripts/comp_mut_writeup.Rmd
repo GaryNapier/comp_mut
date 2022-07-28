@@ -497,16 +497,11 @@ n_inh_unique_PRMs <- length(inh_unique_PRMs)
 
 
 rare_katg_table <- subset(isoniazid_binary_table, is.na(KRM_katG) & !(is.na(CM)) & is.na(PRM) & !(is.na(other_katG)) )
-
-
-
-
-
-
 n_samps_rare_katg <- nrow(rare_katg_table)
 n_rare_katg <- length(uniq_col(rare_katg_table$other_katG))
 rare_katg_cnts <- tab2df(table(table(unlist(strsplit(rare_katg_table$other_katG, "; ")))))
 rare_katgs <- sort_pos(data.frame(Change = uniq_col(rare_katg_table$other_katG)))
+inh_n_unique_rare_katg <- length(unique(rare_katgs$Change))
 
 ```
 
@@ -1043,8 +1038,11 @@ rare_mutations_table <- tryCatch({
 
 rare_mutations_table$Change <- gsub("katG-c.|katG-p.", "", rare_mutations_table$Change)
 
-rare_mutations_table <- data.frame(cbind(Drug = unique(rare_mutations_table$Drug), 
-             Change = paste(rare_mutations_table$Change, collapse = ", ")))
+# rare_mutations_table <- data.frame(cbind(Drug = unique(rare_mutations_table$Drug), 
+#              Change = paste(rare_mutations_table$Change, collapse = ", ")))
+
+rare_mutations_table <- data.frame(Change = paste(rare_mutations_table$Change, collapse = ", "))
+names(rare_mutations_table) <- "Mutations in katG gene"
 
 ```
 
@@ -1171,7 +1169,7 @@ PRM_DST_1_no_KRM <- nrow(subset(PRM_DST, dst == 1 & is.na(KRM)))
 
 The `r inh_n_uniq_PRM_katg` mutations occurred in multiple lineages (L1-L5) with many showing evidence of convergent evolution (**Figure \@ref(fig:isoniazid-tree)**). The putative resistance mutations occur in similar numbers of sub-lineages and at similar *katG* gene positions compared to known resistance mutations, indicating that they show comparable patterns of resistance level, independent of lineage effects (**Figure S3**). Due to the multi-drug regimens used for TB treatment, resistance often develops to multiple drugs in a stepwise manner. The co-occurrence of the `r inh_n_uniq_PRM_katg` mutations with other resistance mutations was analysed to characterise the isolate profiles in which putative resistance mutations occur. The `r inh_n_uniq_PRM_katg` mutations were most frequently found in isolates characterised as `r PRM_DR_max` (`r PRM_DR_max_pc`), but also common representation in pre-MDR-TB (`r PRM_DR_pre_MDR_pc`) and pre-XDR-TB (`r PRM_DR_pre_XDR_pc`). Interestingly, around half (`r PRM_pc_samps_inh_co_occur`) of samples co-occurred with other INH mutations, with the *fabG1* -15C>T promoter mutation being the most frequent (`r PRM_pc_fabg_15`) (**Table S3**) <!--(**Table \@ref(tab:PRM-KRM-other-table)**)-->. This is in stark contrast to the *katG* Ser315Thr mutation, the most prevalent resistance mutation in INH resistant isolates and known to confer a high level of resistance, which only co-occurs with other INH resistance mutations in `r pc_315_KRM_co_occur` of isolates. Of the `r inh_4_a_c_e_g` samples with a putative resistance mutation (**Figure S1**), `r inh_n_samps_PRM_DST` (`r fmt_pc(inh_n_samps_PRM_DST/inh_4_a_c_e_g)`) had an available DST result for INH with `r inh_n_samps_PRM_DST_1` reporting a resistant phenotype leading to a highly significant association of putative drug resistance mutation and DST (p<`r changeSciNot(PRM_DST_p)`). Of those with a resistant DST (n=`r inh_n_samps_PRM_DST_1`), `r PRM_DST_1_no_KRM` (`r fmt_pc(PRM_DST_1_no_KRM/inh_n_samps_PRM_DST_1)`) had no other known mutations that could explain resistance.
 
-###
+vvvvv NEW NEW NEW NEW NEW NEW NEW NEW vvvv
 
 Mutations with a high level of resistance have lower proportions of samples with co-occurring resistance mutations.
 Therefore as a proxy for measuring resistance level, we measured the percentages of known and putative resistance mutation samples with co-occurring (non-*katG* - *fabG1*, *inhA*, *kasA*) mutations. 
@@ -1180,7 +1178,8 @@ For example, mutations at the *katG* 315 position confer high resistance, and ha
 
 Our analyses showed that there was no significant difference between the known and putative resistance mutations in terms of co-occurrence of other resistance mutations (mean resistance co-occurrence among known mutations = 30.2%, putative = 38.7%; p = 0.4, excluding samples with just one or two known *katG* resistance mutations). In showing a similar pattern of resistance mutation co-occurrence we infer that our putative resistance mutations confer a similar level of resistance as known mutations on average and that our putative resistance mutations are likely to be genuine. 
 
-###
+^^^^^ NEW NEW NEW NEW NEW NEW NEW NEW ^^^^^^
+
 
 *Mutation fitness*
 
@@ -1252,7 +1251,7 @@ PRM_tab <- sort_pos(PRM_tab, "PRM")
 PRM_tab$status <- rep('unknown', nrow(PRM_tab))
 # Put together
 KRM_PRM_tab <- rbind_mod(KRM_tab, PRM_tab, c("change", drop_col_name(KRM_tab, "KRM")))
-KRM_PRM_tab$pc <- (KRM_PRM_tab$present / (KRM_PRM_tab$absent + KRM_PRM_tab$present) )*100
+KRM_PRM_tab$pc <- round((KRM_PRM_tab$present / (KRM_PRM_tab$absent + KRM_PRM_tab$present) )*100, 2)
 
 PRM_med <- median(subset(KRM_PRM_tab, status == 'unknown')$pc)
 
@@ -1270,13 +1269,15 @@ fitness_plot <- fitness_plot + geom_hline(yintercept=PRM_med, linetype="dashed",
 # Plot number of samples vs % of samples with a CM
 fitness_pc_total_plot <- ggplot() + geom_point(data = KRM_PRM_tab, 
                                       aes(x = absent + present, y = pc, 
-                                          colour = status), size = 3)
+                                          fill = status), 
+                                      colour="black", pch=21,
+                                      size = 3)
 fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="n samples") + scale_y_continuous(name="% samples with compensatory mutations")
 fitness_pc_total_plot <- fitness_pc_total_plot + theme(aspect.ratio=50/100)
 fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_tab, change == "katG-p.Ser315Thr"),
                                                            aes(x = absent + present, y = pc, label = "Ser315Thr"), 
                                                            hjust = 1.1)
-fitness_pc_total_plot <- fitness_pc_total_plot + coord_trans(x = 'log')
+fitness_pc_total_plot <- fitness_pc_total_plot + coord_trans(x = 'log10')
 fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
 
 ```
@@ -1310,8 +1311,8 @@ katg_CM_pivot <- pivot_num(KRM_katg, formula(KRM_katG ~ CM_bin))
 katg_KRM_CM_pivot <- merge(katg_KRM_pivot, katg_CM_pivot)
 
 # Get percentages
-katg_KRM_CM_pivot$KRM_pc <- (katg_KRM_CM_pivot$KRM_present / (katg_KRM_CM_pivot$KRM_absent + katg_KRM_CM_pivot$KRM_present))*100
-katg_KRM_CM_pivot$CM_pc <- (katg_KRM_CM_pivot$CM_present / (katg_KRM_CM_pivot$CM_absent + katg_KRM_CM_pivot$CM_present))*100
+katg_KRM_CM_pivot$KRM_pc <- round((katg_KRM_CM_pivot$KRM_present / (katg_KRM_CM_pivot$KRM_absent + katg_KRM_CM_pivot$KRM_present))*100, 2)
+katg_KRM_CM_pivot$CM_pc <- round((katg_KRM_CM_pivot$CM_present / (katg_KRM_CM_pivot$CM_absent + katg_KRM_CM_pivot$CM_present))*100, 2)
 
 # Annotate with 'known'
 katg_KRM_CM_pivot$status <- rep("known", nrow(katg_KRM_CM_pivot))
@@ -1337,8 +1338,8 @@ PRM_KRM_pivot <- pivot_num(PRM, formula(PRM ~ KRM_non_katG_bin))
 PRM_CM_pivot <- pivot_num(PRM, formula(PRM ~ CM_bin))
 
 PRM_KRM_CM_pivot <- merge(PRM_KRM_pivot, PRM_CM_pivot)
-PRM_KRM_CM_pivot$KRM_pc <- (PRM_KRM_CM_pivot$KRM_present / (PRM_KRM_CM_pivot$KRM_absent + PRM_KRM_CM_pivot$KRM_present))*100
-PRM_KRM_CM_pivot$CM_pc <- (PRM_KRM_CM_pivot$CM_present / (PRM_KRM_CM_pivot$CM_absent + PRM_KRM_CM_pivot$CM_present))*100
+PRM_KRM_CM_pivot$KRM_pc <- round((PRM_KRM_CM_pivot$KRM_present / (PRM_KRM_CM_pivot$KRM_absent + PRM_KRM_CM_pivot$KRM_present))*100, 2)
+PRM_KRM_CM_pivot$CM_pc <- round((PRM_KRM_CM_pivot$CM_present / (PRM_KRM_CM_pivot$CM_absent + PRM_KRM_CM_pivot$CM_present))*100, 2)
 PRM_KRM_CM_pivot$status <- rep("unknown", nrow(PRM_KRM_CM_pivot))
 PRM_KRM_CM_pivot <- sort_pos(PRM_KRM_CM_pivot, "PRM")
 
@@ -1380,18 +1381,33 @@ KRM_PRM_CM_pc_tab <- select(KRM_PRM_CM_pc_tab,
                             KRM_absent, KRM_present, KRM_pc, resistance_level,
                             CM_absent, CM_present, CM_pc, fitness_cost_class)
 
+# Make duplicate before renaming and cleaning for display
+KRM_PRM_CM_pc_tab_plot <- KRM_PRM_CM_pc_tab
+KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_tab_plot$KRM_present
+
+# Build new table for display
+KRM_PRM_CM_pc_tab <- cbind(status = KRM_PRM_CM_pc_tab$status, 
+      change = KRM_PRM_CM_pc_tab$change,
+      KRM = paste0("[", KRM_PRM_CM_pc_tab$KRM_absent, "/",
+                   KRM_PRM_CM_pc_tab$KRM_present, "/",
+                   KRM_PRM_CM_pc_tab$KRM_pc, "]"), 
+      resistance_level = as.character(KRM_PRM_CM_pc_tab$resistance_level),
+      CM = paste0("[", KRM_PRM_CM_pc_tab$CM_absent, "/",
+                  KRM_PRM_CM_pc_tab$CM_present, "/",
+                  KRM_PRM_CM_pc_tab$CM_pc, "]"), 
+      fitness_cost_class = as.character(KRM_PRM_CM_pc_tab$fitness_cost_class))
+
+names(KRM_PRM_CM_pc_tab) <- c("Status", "Change", 
+                              "n samples resistance mutations [absent/present/%]",
+                              "Resistance level", 
+                              "n samples compensatory mutations [absent/present/%]",
+                              "Fitness cost")
+
 ```
 
 ```{r make-KRM-PRM-CM-pc-plot, echo = F, warning=F}
 
-# Make duplicate before renaming 
-KRM_PRM_CM_pc_tab_plot <- KRM_PRM_CM_pc_tab
-KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_tab_plot$KRM_present
-
-names(KRM_PRM_CM_pc_tab) <- c("Status", "Change", 
-                              "n samples known resistance mutations absent", "n samples known resistance mutations present", "known resistance mutations %", "Resistance level", 
-                              "n samples known compensatory mutations absent", "n samples known compensatory mutations present", "compensatory mutations %", "Fitness cost")
-
+# Plot data above using numeric table
 KRM_PRM_CM_pc_tab_plot$KRM_present <- ifelse(KRM_PRM_CM_pc_tab_plot$KRM_present == 0, 0, log(KRM_PRM_CM_pc_tab_plot$KRM_present))
 KRM_PRM_CM_pc_tab_plot$CM_present <- ifelse(KRM_PRM_CM_pc_tab_plot$CM_present == 0, 0, log(KRM_PRM_CM_pc_tab_plot$CM_present))
 
@@ -1506,19 +1522,20 @@ KRM_CM_lm <- lm(data = KRM_PRM_CM_pc_tab_plot, KRM_pc ~ CM_pc + status)
 
 Compensatory mutations are known to occur when mutations with high fitness-costs occur (e.g. *katG* loss of function). To estimate the fitness impact of the `r inh_n_uniq_PRM_katg` putative resistance mutations we used the co-occurrence with a compensatory mutation as a proxy, comparing to *katG* Ser315Thr which has reported to confer a low fitness cost. Approximately ~3% of samples co-occur with compensatory mutations. Indeed, mutations at the 315 position in general appear to have low fitness cost - **Figure S4** shows four out of the five known 315 resistance mutations appearing in our 'low' fitness cost category.
 
-###
+vvvvv NEW NEW NEW NEW NEW NEW NEW NEW vvvv
+
 Compensatory mutations appear to occur in a higher proportion in samples with putative resistance mutations (`r inh_4_e`/`r nrow(inh_4_e_g_table)`) compared to Ser315Thr (`r inh_n_samps_ser315_and_CM`/`r fmt(nrow(inh_kat315_no_PRM))`) (Chisq p < 10-^16^), suggesting that on average they incur a greater fitness cost compared to this mutation. Comparing the putative resistance mutations to all the known resistance mutations (excluding samples with just one or two known resistance mutations), there was a significant difference in the percentage of samples with co-occurring compensatory mutations (mean known resistance mutations = 19.6%, putative = 51.5%, p = 3×10^-5^), indicating that our putative resistance mutations on average incurr a higher fitness cost. This difference remained significant even when excluding the 315 positions (p = 2×10^-4^).
 
-###
+^^^^^ NEW NEW NEW NEW NEW NEW NEW NEW ^^^^^^
 
 
-###
+vvvvv NEW NEW NEW NEW NEW NEW NEW NEW vvvv
 
 There appears to be little overall relationship between known resistance mutation co-occurrence (resistance level) and fitness cost in both known and unknown resistance mutations (p = `r lmp(KRM_CM_lm)`. Nor were there significant differences between known and putative resistance mutations in each of our three fitness cost categories of low, medium and high (minimum p = 0.4; **Figure S4**). 
 
 That there were no differences in the co-variation between resistance level and fitness cost between known and putative variants lends evidence as to the veracity of our putative resistance mutations. 
 
-###
+^^^^^ NEW NEW NEW NEW NEW NEW NEW NEW ^^^^^^
 
 ```{r protein-structure, echo = F, warning=F}
 
@@ -1547,7 +1564,7 @@ To infer fitness cost in the putative resistance mutations, the stability of the
 
 Our goal was to identify putative novel mutations underlying resistance to RIF and INH, by identifying isolates with established compensatory mutations. No novel *rpoB* gene mutations potentially linked to resistance to RIF were found, but not surprisingly since there are few ways in which the precise machinery of RNA polymerase can change without loss of function. In contrast, *katG* can change in many ways while the bacteria is largely unaffected. The 'rare' mutations identified in one or two isolates were not analysed further, but could be monitored. 
 
-###
+NEW NEW NEW NEW NEW NEW NEW NEW 
 
 In lieu of DST testing, we have provided evidence that our *katG* putative resistance mutations are causally resistance-conferring. 
 
@@ -1561,7 +1578,7 @@ There was no relationship between resistance level and fitness cost in either th
 
 Further evidence for our mutations comes from *in silico* protein modelling. The putative resistance mutations showed no significant difference to known mutations in terms of their distances from the *katG* heme active binding site, indicating that overall they likely confer a similar pattern of resistance. However, in contrast to the differences between known and putative mutations in their percentages of samples with compensatory mutations, the was no difference in the *in silico* prediction of known and putative protein stability. This is perhaps surprising, though the $\Delta\Delta$G measure is only a prediction of stability, and therefore an indirect indication of fitness cost.
 
-###
+NEW NEW NEW NEW NEW NEW NEW NEW 
 
 ## CONCLUSIONS
 
@@ -1635,15 +1652,18 @@ JEP and TGC conceived and directed the project. GN performed bioinformatic and s
 <!-- TABLE 1 --> 
 ```{r table-1-display, echo = F, warning=F}
 
-cap <- sprintf("*Mycobacterium tuberculosis* samples (n=%s)", fmt(total_samps))
+cap <- sprintf("*Mycobacterium tuberculosis* isolates (n=%s)", fmt(total_samps))
 knitr::kable(table_1, caption = cap, format = "pipe", row.names = F)
 
 ```
+MDR-TB = multi-drug resistant; XDR-TB = extensively drug resistant
+
 
 <!-- TABLE 2 -->
 ```{r PRM-summary-table, echo = F, warning=F}
 
-cap <- sprintf("List of potential resistance mutations for isoniazid in *katG* (n=%s)", inh_4_a_c_e_g)
+cap <- sprintf("List of potential resistance mutations for isoniazid in the *katG* gene (n=%s). Underlined present in only a single lineage.", inh_4_a_c_e_g)
+
 knitr::kable(PRM_summary, row.names = F, caption = cap, format = "pipe")
 
 ```
@@ -1651,7 +1671,7 @@ knitr::kable(PRM_summary, row.names = F, caption = cap, format = "pipe")
 ## FIGURES
 
 <!-- Figure 1 -->
-```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Phylogenetic tree of isolates with resistance; Isoniazid resistance (n=%s), with potentially new katG mutations", inh_4_a_c_e_g)}
+```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Phylogenetic tree of (n=%s) isolates with %s putative novel *katG* gene mutations for Isoniazid resistance", inh_4_a_c_e_g, inh_n_uniq_PRM_katg)}
 
 knitr::include_graphics(tree_files[grep("isoniazid", tree_files)])
 
@@ -1669,31 +1689,32 @@ knitr::include_graphics(fitness_pc_total_plot_file)
 
 ## SUPPLEMENTARY TABLES
 
-Supplementary table 1
+Table S1
 ```{r CM-table-display, echo = F, warning=F}
 
-cap <- "Mutations in compensatory genes and frequencies in 32k samples. Underlined if known compensatory mutations"
+cap <- "Mutations in compensatory genes and frequencies in 32k samples. Underlined if known compensatory mutations. Bolded if occurring across >1 lineage"
 knitr::kable(CM_tab, caption = cap)
 
 ```
+Ins = insertion, del = deletion
 
-Supplementary table 2
+Table S2
 ```{r rare-mutations-table, echo = F, warning=F}
 
-cap <- sprintf("Mutations in *katG* (INH) and from samples with no known resistance mutations, with compensatory mutations but no potential resistance mutation by the criteria outlined in Methods. These mutations only occur in one or two samples among the %s samples from Supplementary figure 1", inh_5_a)
+cap <- sprintf("Mutations (n=%s) in *katG* (INH) and from samples with no known resistance mutations, with compensatory mutations but no potential resistance mutation by the criteria outlined in Methods. These mutations only occur in one or two samples among the %s samples from Supplementary figure 1", inh_n_unique_rare_katg, inh_5_a)
 knitr::kable(rare_mutations_table, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-Supplementary table 3
+Table S3
 ```{r PRM-KRM-other-table, echo = F, warning=F}
 
-cap <- "Known resistance mutations and non-DR-associated ('unknown') mutations co-occurring in samples with putative drug resistance"
+cap <- "Known resistance mutations and non-drug resistance-associated (‘unknown’) mutations co-occurring in samples with putative drug resistance"
 knitr::kable(PRM_KRM_other, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-Supplementary table 4
+Table S4
 ```{r KRM-PRM-CM-pc-tab, echo = F, warning=F}
 
 # % co-occurence with another resistance mutation and % co-occurence with a CM
@@ -1704,7 +1725,7 @@ knitr::kable(KRM_PRM_CM_pc_tab, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-Supplementary table 5
+Table S5
 ```{r common-KRM-tab, echo = F, warning=F}
 
 cap <- "Most common known resistance mutations for INH and RIF in TBprofiler. Mutations occurring less than five times are omitted."
