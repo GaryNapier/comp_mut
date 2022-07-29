@@ -1,4 +1,4 @@
-setwd("~/Documents/comp_mut/")
+setwd("~/Documents/comp_mut/r_scripts/")
 
 source("https://raw.githubusercontent.com/GaryNapier/Packages_functions/master/Functions.R")
 
@@ -22,8 +22,8 @@ find_pos <- function(x){
   stringr::str_extract(x, "-[0-9]+|[0-9]+")
 }
 
-results_path <- "results/"
-lineage_path <- "../spolpred/results/"
+results_path <- "../results/"
+lineage_path <- "../../spolpred/results/"
 
 binary_table_file <- paste0(results_path, "isoniazid_binary_table.csv")
 lineage_data_file <- paste0(lineage_path, "lineage_file.csv")
@@ -122,7 +122,7 @@ homoplasy_plot <- ggplot()+
   coord_trans(y = 'log10')+
   theme_bw()
 
-ggsave("results/homoplasy_plot.png", homoplasy_plot, width = 1100/5, height = 700/5, units = "mm")
+ggsave("../results/homoplasy_plot.png", homoplasy_plot, width = 1100/5, height = 700/5, units = "mm")
 
 
 

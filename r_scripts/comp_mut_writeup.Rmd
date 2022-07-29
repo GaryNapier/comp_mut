@@ -1540,6 +1540,8 @@ That there were no differences in the co-variation between resistance level and 
 
 ```{r protein-structure, echo = F, warning=F}
 
+system("../shell_scripts/dist_and_ddg_parse.sh")
+
 distances_file <- paste0(results_path, "distances.txt")
 distances <- read.delim(distances_file)
 
@@ -1664,7 +1666,6 @@ MDR-TB = multi-drug resistant; XDR-TB = extensively drug resistant
 ```{r PRM-summary-table, echo = F, warning=F}
 
 cap <- sprintf("List of potential resistance mutations for isoniazid in the *katG* gene (n=%s). Underlined present in only a single lineage.", inh_4_a_c_e_g)
-
 knitr::kable(PRM_summary, row.names = F, caption = cap, format = "pipe")
 
 ```
@@ -1674,6 +1675,7 @@ knitr::kable(PRM_summary, row.names = F, caption = cap, format = "pipe")
 <!-- Figure 1 -->
 ```{r isoniazid-tree, echo=FALSE, out.width = "2000px", fig.cap=sprintf("Phylogenetic tree of (n=%s) isolates with %s putative novel *katG* gene mutations for Isoniazid resistance", inh_4_a_c_e_g, inh_n_uniq_PRM_katg)}
 
+# source("comp_mut_tree.R")
 knitr::include_graphics(tree_files[grep("isoniazid", tree_files)])
 
 ```
@@ -1783,6 +1785,8 @@ df <- subset(df, !(is.na(node)))
 df$katG <- ifelse(df$x == 'katG', df$node, NA)
 df$ahpC <- ifelse(df$x == 'ahpC', df$node, NA)
 
+detach("package:plyr", unload = TRUE)
+
 sank <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node))
 sank <- sank + coord_flip()
 sank <- sank + geom_sankey(flow.alpha = .6, fill = 'lightblue', na.rm = T)
@@ -1828,7 +1832,7 @@ inh_n_know_katg_filt <- length(unique(known_pivot$KRM_katG))
 
 ```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap=sprintf("Homoplasy among known (n=%s) and putative (n=%s) resistance mutations in the *katG* gene, as indicated by number of sub-lineages in which mutations occur. The common *katG* Ser315Thr mutation is highlighted. Mutations in fewer than three samples and non-protein coding regions are omitted.", inh_n_know_katg_filt, MOST_IMPORTANT_NUMBER)}
 
-# source("r_scripts/homoplasy_plot.R")
+# source("homoplasy_plot.R")
 knitr::include_graphics("../results/homoplasy_plot.png")
 
 ```
