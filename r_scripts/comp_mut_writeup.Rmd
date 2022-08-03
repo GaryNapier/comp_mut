@@ -347,6 +347,7 @@ lineage_conversion_file <- paste0(pipeline_db_path, "lineage_conversions.txt")
 dr_genes_file <- paste0(db_path, "tbdb.csv")
 KCM_file <- paste0(pipeline_db_path, "compensatory_mutations.csv")
 CM_RM_gene_assoc_file <- paste0(local_metadata_path, "CM_RM_gene_assoc.csv")
+protein_model_file <- paste0(results_path, "protein_model.png")
 
 
 ```
@@ -865,11 +866,13 @@ rif_n_samps_TBP_res <- nrow(subset(KRM_table, Drug == "rifampicin" & KRM_binary 
 
 n_samps_MDR <- nrow(subset(meta_table, Drug == "isoniazid" & drtype == "MDR-TB"))
 
+n_samps_DST_total <- sum(!is.na(inh_bin$dst))
+
 ```
 
 *Isolate data*
 
-A total of `r fmt(total_samps)` *M. tuberculosis* isolates with whole genome sequencing and DST data were analysed, and encompassed all major lineages (L4 51.1%, L2 25.3%, L3 11.5%, L1 9.7%) (**Table \@ref(tab:table-1-display)**). For DST data, `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 3)`) and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 3)`) were resistant to INH and RIF, respectively. Genotypic resistance prediction using TB-profiler software inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to INH and RIF, respectively, with `r fmt(n_samps_MDR)` (`r fmt_pc(n_samps_MDR/total_samps, digits = 3)`) isolates classified as MDR-TB (**Table \@ref(tab:table-1-display)**). 
+A total of `r fmt(total_samps)` *M. tuberculosis* isolates with whole genome sequencing and DST data were analysed, and encompassed all major lineages (L4 51.1%, L2 25.3%, L3 11.5%, L1 9.7%) (**Table \@ref(tab:table-1-display)**). Across the `r fmt(n_samps_DST_total)` samples with DST data, `r fmt(inh_n_samps_DST_res)` (`r fmt_pc(inh_n_samps_DST_res/inh_n_samps_dst, digits = 3)`) and `r fmt(rif_n_samps_DST_res)` (`r fmt_pc(rif_n_samps_DST_res/rif_n_samps_dst, digits = 3)`) were resistant to INH and RIF, respectively. Genotypic resistance prediction using TB-profiler software inferred that `r fmt(inh_n_samps_TBP_res)` (`r fmt_pc(inh_n_samps_TBP_res/total_samps, digits = 3)`) and `r fmt(rif_n_samps_TBP_res)` (`r fmt_pc(rif_n_samps_TBP_res/total_samps, digits = 3)`) isolates were resistant to INH and RIF, respectively, with `r fmt(n_samps_MDR)` (`r fmt_pc(n_samps_MDR/total_samps, digits = 3)`) isolates classified as MDR-TB (**Table \@ref(tab:table-1-display)**). 
 
 ```{r results-common-KRM-mutations, echo = F, warning=F}
 
@@ -1172,12 +1175,9 @@ The `r inh_n_uniq_PRM_katg` mutations occurred in multiple lineages (L1-L5) with
 
 vvvvv NEW NEW NEW NEW NEW NEW NEW NEW vvvv
 
-Mutations with a high level of resistance have lower proportions of samples with co-occurring resistance mutations.
-Therefore as a proxy for measuring resistance level, we measured the percentages of known and putative resistance mutation samples with co-occurring (non-*katG* - *fabG1*, *inhA*, *kasA*) mutations. 
-	
-For example, mutations at the *katG* 315 position confer high resistance, and have relatively low proportions of samples with co-occurring resistance mutations. In **Figure S4**, four out of the five known 315 mutations have ~20% or fewer proportion of samples with co-occurring resistance mutations.
+Mutations with a high level of resistance have lower proportions of samples with co-occurring resistance mutations. Therefore as a proxy for measuring resistance level, we measured the percentages of known and putative resistance mutation samples with co-occurring (non-*katG* - *fabG1*, *inhA*, *kasA*) mutations. For example, mutations at the *katG* codon 315 position mutation is known to confer high resistance [@Coll2018a], and has a relatively low proportion of samples with co-occurring resistance mutations, with four out of the five known 315 mutations have ~20% or fewer proportion of samples with co-occurring resistance mutations (**Figure S4**).
 
-Our analyses showed that there was no significant difference between the known and putative resistance mutations in terms of co-occurrence of other resistance mutations (mean resistance co-occurrence among known mutations = 30.2%, putative = 38.7%; p = 0.4, excluding samples with just one or two known *katG* resistance mutations). In showing a similar pattern of resistance mutation co-occurrence we infer that our putative resistance mutations confer a similar level of resistance as known mutations on average and that our putative resistance mutations are likely to be genuine. 
+There was no significant difference between the known and putative resistance mutations in terms of co-occurrence of other resistance mutations (mean resistance co-occurrence among known mutations = 30.2%, putative = 38.7%; p = 0.4, excluding samples with just one or two known *katG* resistance mutations). 
 
 ^^^^^ NEW NEW NEW NEW NEW NEW NEW NEW ^^^^^^
 
@@ -1521,11 +1521,13 @@ KRM_CM_lm <- lm(data = KRM_PRM_CM_pc_tab_plot, KRM_pc ~ CM_pc + status)
 
 ```
 
-Compensatory mutations are known to occur when mutations with high fitness-costs occur (e.g. *katG* loss of function). To estimate the fitness impact of the `r inh_n_uniq_PRM_katg` putative resistance mutations we used the co-occurrence with a compensatory mutation as a proxy, comparing to *katG* Ser315Thr which has reported to confer a low fitness cost. Approximately ~3% of samples co-occur with compensatory mutations. Indeed, mutations at the 315 position in general appear to have low fitness cost - **Figure S4** shows four out of the five known 315 resistance mutations appearing in our 'low' fitness cost category.
+Compensatory mutations are known to occur when mutations with high fitness-costs occur (e.g. *katG* loss of function). To estimate the fitness impact of the `r inh_n_uniq_PRM_katg` putative resistance mutations we used the co-occurrence with a compensatory mutation as a proxy, comparing to *katG* Ser315Thr which has reported to confer a low fitness cost [@Pym2002]. Approximately ~3% of samples co-occur with compensatory mutations. Indeed, mutations at the 315 position in general appear to have low fitness cost - **Figure S4** shows four out of the five known 315 resistance mutations appearing in our 'low' fitness cost category.
 
 vvvvv NEW NEW NEW NEW NEW NEW NEW NEW vvvv
 
-Compensatory mutations appear to occur in a higher proportion in samples with putative resistance mutations (`r inh_4_e`/`r nrow(inh_4_e_g_table)`) compared to Ser315Thr (`r inh_n_samps_ser315_and_CM`/`r fmt(nrow(inh_kat315_no_PRM))`) (Chisq p < 10-^16^), suggesting that on average they incur a greater fitness cost compared to this mutation. Comparing the putative resistance mutations to all the known resistance mutations (excluding samples with just one or two known resistance mutations), there was a significant difference in the percentage of samples with co-occurring compensatory mutations (mean known resistance mutations = 19.6%, putative = 51.5%, p = 3×10^-5^), indicating that our putative resistance mutations on average incur a higher fitness cost. This difference remained significant even when excluding the 315 positions (p = 2×10^-4^).
+Compensatory mutations appear to occur in a higher proportion in samples with putative resistance mutations (`r inh_4_e`/`r nrow(inh_4_e_g_table)`) compared to Ser315Thr (`r inh_n_samps_ser315_and_CM`/`r fmt(nrow(inh_kat315_no_PRM))`) (Chisq p < 10-^16^), suggesting that on average they incur a greater fitness cost compared to this mutation.
+
+Comparing the putative resistance mutations to all the known resistance mutations (excluding samples with just one or two known resistance mutations), there was a significant difference in the percentage of samples with co-occurring compensatory mutations (mean known resistance mutations = 19.6%, putative = 51.5%, p = 3×10^-5^), indicating that our putative resistance mutations on average incur a higher fitness cost. This difference remained significant even when excluding the 315 positions (p = 2×10^-4^).
 
 ^^^^^ NEW NEW NEW NEW NEW NEW NEW NEW ^^^^^^
 
@@ -1559,9 +1561,9 @@ fitness_t <- t.test(ddg ~ status, data = fitness_est)
 
 To explore the functional effects of the `r inh_n_uniq_PRM_katg` putative resistance mutations, *in silico* predictions of effects on the *katG* target protein were assessed. 
 
-The distances from the *katG* heme site, thought to be close to the active INH binding site, did not differ significantly between the known and putative resistance mutations (mean known = `r dist_t$estimate[1]` A^o^; mean putative = `r dist_t$estimate[2]` A^o^; p = `r round(dist_t$p.value, 2)`).
+The distances from the *katG* heme site, thought to be close to the active INH binding site and crucial to enzymatic activity [@Munir2021], did not differ significantly between the known and putative resistance mutations (mean known = `r dist_t$estimate[1]` A^o^; mean putative = `r dist_t$estimate[2]` A^o^; p = `r round(dist_t$p.value, 2)`).
 
-To infer fitness cost in the putative resistance mutations, the stability of the protein was estimated as the change in Gibbs free energy ($\Delta\Delta$G). There was however, no significant difference between the known resistance mutations and the putative resistance mutations (mean known = `r fitness_t$estimate[1]`; mean putative = `r fitness_t$estimate[2]` p = `r round(fitness_t$p.value, 2)`). This result is perhaps surprising given the significant difference between known and putative mutations in terms of the percentages of samples with compensatory mutations. 
+To infer fitness cost in the putative resistance mutations, the stability of the protein was estimated as the change in Gibbs free energy ($\Delta\Delta$G). There was however, no significant difference between the known resistance mutations and the putative resistance mutations (mean known = `r fitness_t$estimate[1]`; mean putative = `r fitness_t$estimate[2]` p = `r round(fitness_t$p.value, 2)`). 
 
 ## DISCUSSION
 
@@ -1574,12 +1576,14 @@ In lieu of DST testing, we have provided evidence that our *katG* putative resis
 Our mutations occur in multiple sublineages, indicating convergence independent of phylogeny, a pattern which is well established in the known *katG* resistance mutations.
 	
 No significant differences were found in the percentage of samples with (non-*katG*) known resistance mutation co-occurrence (our proxy for resistance level) between the known resistance mutations and our putative resistance mutations.
+
+In showing a similar pattern of resistance mutation co-occurrence we infer that our putative resistance mutations confer a similar level of resistance as known mutations on average and that our putative resistance mutations are likely to be genuine. 
 			
 There was however a difference in the fitness cost between the known and putative resistance mutations, with the putative mutations appearing to have on average a higher cost. That the known and putative mutations diverge in respect of fitness cost is not necessarily indicative that our mutations are less likely to be genuine. Known resistance mutations are likely to converge on the most stable protein configurations and hence proliferate. Novel resistance mutations will therefore be more likely to occur in positions which are less stable. 
 		
 There was no relationship between resistance level and fitness cost in either the known resistance mutations or putative resistance mutations. Again, this similar pattern of variation indicates the veracity of the putative resistance mutations. 
 
-Further evidence for our mutations comes from *in silico* protein modelling. The putative resistance mutations showed no significant difference to known mutations in terms of their distances from the *katG* heme active binding site, indicating that overall they likely confer a similar pattern of resistance. However, in contrast to the differences between known and putative mutations in their percentages of samples with compensatory mutations, the was no difference in the *in silico* prediction of known and putative protein stability. This is perhaps surprising, though the $\Delta\Delta$G measure is only a prediction of stability, and therefore an indirect indication of fitness cost.
+Further evidence for our mutations comes from *in silico* protein modelling. The putative resistance mutations showed no significant difference to known mutations in terms of their distances from the *katG* heme active binding site, indicating that overall they likely confer a similar pattern of resistance. However, in contrast to the differences between known and putative mutations in their percentages of samples with compensatory mutations, the was no difference in the *in silico* prediction of known and putative protein stability. This result is perhaps surprising given the significant difference between known and putative mutations in terms of the percentages of samples with compensatory mutations. However, the $\Delta\Delta$G measure is only a prediction of stability, and therefore an indirect indication of fitness cost.
 
 NEW NEW NEW NEW NEW NEW NEW NEW 
 
@@ -1619,7 +1623,7 @@ Using this list of potential resistance mutations, all TB-profiler samples were 
 
 *Protein structural modelling*
 
-The open source software ChimeraX [@Pettersen2021] was used to model distances from the INH heme binding site and infer change in Gibbs free energy ($\Delta\Delta$G) *in silico*. 
+The open source software ChimeraX [@Pettersen2021] was used to model distances from the INH heme binding site and infer change in Gibbs free energy ($\Delta\Delta$G) *in silico* change in Gibbs free energy (G) of mutations was inferred using mCSM [@Pires2014].
 
 ## List of abbreviations
 
@@ -1847,6 +1851,13 @@ knitr::include_graphics(KRM_CM_PC_boxplot_file)
 
 ```
 
+**Figure S5**
+
+```{r protein-model, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Protein structural model of KatG (7ag8) with known (cyan) and putative (red) mutations highlighted on chain A (blue). The vast majority of putative mutations cluster around the bound heme (green)."}
+
+knitr::include_graphics(protein_model_file)
+
+```
 
 ### References
 

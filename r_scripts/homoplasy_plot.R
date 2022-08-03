@@ -111,15 +111,25 @@ data <- subset(data, n > 2)
 # Take out .c
 data <- subset(data, !(grepl("c.", mutation)))
 
-homoplasy_plot <- ggplot()+
-  geom_point(data = data, aes(x = pos, y = n_sublin, size = log(n), fill = status), colour="black", pch=21)+
-  # geom_jitter(data = data, aes(x = pos, y = log(n_sublin), size = log(n), fill = status), colour="black", pch=21, size=5)+
+max_sublin <- max(data$n_sublin)
+y_ax_A <- seq(0, max_sublin/2, 5)
+y_ax_B <- seq(max(y_ax_A)+10, max_sublin, 10)
+y_ax <- c(y_ax_A, y_ax_B)
+max_log_n <- max(log(data$n))
+sz_leg <- round_any(exp(c(2, 4, 6, max_log_n)), 10)
+
+ggplot()+
+  geom_point(data = data, aes(x = pos, y = n_sublin, size = log(n), fill = status), 
+             colour="black", pch=21)+
+  scale_size(name   = "log(n)",
+             breaks = log(sz_leg),
+             labels = sz_leg)+
   geom_text(data=subset(data, mutation == "katG-p.Ser315Thr"),
             aes(x = pos, y = n_sublin, label = "Ser315Thr"), 
             hjust = 1.2, size = 3)+
   xlab("position")+
   ylab("n sublineages")+
-  coord_trans(y = 'log10')+
+  scale_y_log10(breaks = y_ax)+
   theme_bw()
 
 ggsave("../results/homoplasy_plot.png", homoplasy_plot, width = 1100/5, height = 700/5, units = "mm")
