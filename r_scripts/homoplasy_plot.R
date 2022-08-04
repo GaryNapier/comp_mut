@@ -118,10 +118,10 @@ y_ax <- c(y_ax_A, y_ax_B)
 max_log_n <- max(log(data$n))
 sz_leg <- round_any(exp(c(2, 4, 6, max_log_n)), 10)
 
-ggplot()+
+homoplasy_plot <- ggplot()+
   geom_point(data = data, aes(x = pos, y = n_sublin, size = log(n), fill = status), 
              colour="black", pch=21)+
-  scale_size(name   = "log(n)",
+  scale_size(name   = "n",
              breaks = log(sz_leg),
              labels = sz_leg)+
   geom_text(data=subset(data, mutation == "katG-p.Ser315Thr"),
