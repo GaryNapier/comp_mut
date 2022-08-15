@@ -961,6 +961,20 @@ common_KRM_tab <- subset(common_KRM_tab, !(is.na(KRM)))
 common_KRM_tab$KRM <- clean_del_ins_dup(common_KRM_tab$KRM)
 common_KRM_tab <- subset(common_KRM_tab, n > 4)
 
+gene_mutation <- do.call("rbind", lapply(str_split(common_KRM_tab$KRM, "-c.|-p."), function(x){
+  data.frame(Gene = x[1], mutation = x[2])
+}))
+
+common_KRM_tab <- cbind(common_KRM_tab, gene_mutation)
+common_KRM_tab <- dplyr::select(common_KRM_tab, -(KRM))
+gene_order <- c("katG", "fabG1", "inhA", "ahpC", "rpoB", "rpoC")
+common_KRM_tab <- common_KRM_tab %>% arrange(factor(Gene, levels = gene_order))
+common_KRM_tab$mutation <- paste0(common_KRM_tab$mutation, " [", common_KRM_tab$n, "]")
+common_KRM_tab <- dplyr::select(common_KRM_tab, -(n))
+common_KRM_tab <- rm_dup_group(common_KRM_tab, "Drug")
+common_KRM_tab <- rm_dup_group(common_KRM_tab, "Gene")
+names(common_KRM_tab) <- c("Drug", "Gene", "Mutation [freq]")
+
 ```
 
 The most common mutations underlying INH resistance were `r inh_KRM_top_1` (n=`r inh_KRM_top_1_n`; `r inh_KRM_top_1_pc`), `r inh_KRM_top_2` (n=`r inh_KRM_top_2_n`; `r inh_KRM_top_2_pc`), and `r inh_KRM_top_3` (n=`r inh_KRM_top_3_n`; `r inh_KRM_top_3_pc`). Similarly, for the RIF resistance, the most frequent mutations were `r rif_KRM_top_1` (`r rif_KRM_top_1_pc`), `r rif_KRM_top_2` (`r rif_KRM_top_2_pc`) and `r rif_KRM_top_3` (`r rif_KRM_top_3_pc`) (**Table S1**). 
@@ -1158,7 +1172,9 @@ PRM_KRM_other <- data.frame(apply(PRM_KRM_other, 2, function(x){
   ifelse(is.na(x), "-", x)
 }))
 PRM_KRM_other$PRM <- gsub("katG-p.|katG-c.", "", PRM_KRM_other$PRM)
-names(PRM_KRM_other) <- c("Drug", "Possible resistance mutations (*katG*)", "Known resistance mutations", "Unknown", "n")
+PRM_KRM_other <- dplyr::select(PRM_KRM_other, -(Drug))
+
+names(PRM_KRM_other) <- c("Putative resistance mutations* (*katG*)", "Known resistance mutations", "Other mutations", "n")
 
 ```
 
@@ -1442,22 +1458,31 @@ KRM_PRM_CM_pc_tab <- select(KRM_PRM_CM_pc_tab,
 # Make duplicate before renaming and cleaning for display
 KRM_PRM_CM_pc_tab_plot <- KRM_PRM_CM_pc_tab
 KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_tab_plot$KRM_present
+KRM_PRM_CM_pc_tab_plot <- dplyr::select(KRM_PRM_CM_pc_tab_plot, status, change, n, KRM_pc, CM_pc, fitness_cost_class)
+KRM_PRM_CM_pc_tab_plot$status <- ifelse(KRM_PRM_CM_pc_tab_plot$status == "unknown", "putative", KRM_PRM_CM_pc_tab_plot$status)
+
+KRM_PRM_CM_pc_tab <- KRM_PRM_CM_pc_tab_plot
+
+KRM_PRM_CM_pc_tab$KRM_pc <- round(KRM_PRM_CM_pc_tab$KRM_pc/100, 2)
+KRM_PRM_CM_pc_tab$CM_pc <- round(KRM_PRM_CM_pc_tab$CM_pc/100, 2)
 
 # Build new table for display
-KRM_PRM_CM_pc_tab <- data.frame(cbind(status = KRM_PRM_CM_pc_tab$status, 
-      change = KRM_PRM_CM_pc_tab$change,
-      KRM = paste0("[", KRM_PRM_CM_pc_tab$KRM_absent, "/",
-                   KRM_PRM_CM_pc_tab$KRM_present, "/",
-                   KRM_PRM_CM_pc_tab$KRM_pc, "]"), 
-      CM = paste0("[", KRM_PRM_CM_pc_tab$CM_absent, "/",
-                  KRM_PRM_CM_pc_tab$CM_present, "/",
-                  KRM_PRM_CM_pc_tab$CM_pc, "]"), 
-      fitness_cost_class = as.character(KRM_PRM_CM_pc_tab$fitness_cost_class)))
+# KRM_PRM_CM_pc_tab <- data.frame(cbind(status = KRM_PRM_CM_pc_tab$status, 
+#       change = KRM_PRM_CM_pc_tab$change,
+#       KRM = paste0("[", KRM_PRM_CM_pc_tab$KRM_absent, "/",
+#                    KRM_PRM_CM_pc_tab$KRM_present, "/",
+#                    KRM_PRM_CM_pc_tab$KRM_pc, "]"), 
+#       CM = paste0("[", KRM_PRM_CM_pc_tab$CM_absent, "/",
+#                   KRM_PRM_CM_pc_tab$CM_present, "/",
+#                   KRM_PRM_CM_pc_tab$CM_pc, "]"), 
+#       fitness_cost_class = as.character(KRM_PRM_CM_pc_tab$fitness_cost_class)))
 
-names(KRM_PRM_CM_pc_tab) <- c("Status", "Change", 
-                              "n samples resistance mutations [absent/present/%]",
-                              "n samples compensatory mutations [absent/present/%]",
-                              "Fitness cost classification")
+names(KRM_PRM_CM_pc_tab) <- c("Mutation Status", 
+                              "Change", 
+                              "N isolates", 
+                              "Proportion with resistance mutations present", 
+                              "Proportion with compensatory mutations present", 
+                              "Proxy fitness cost classification*")
 
 ```
 
@@ -1716,24 +1741,10 @@ inh_n_know_katg_filt <- length(unique(known_pivot$KRM_katG))
 
 ```
 
-```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap=sprintf("**(TOP)** Homoplasy among %s known and %s putative resistance mutations *katG* mutations, as indicated by number of sub-lineages in which mutations occur. The common *katG* Ser315Thr mutation is highlighted. Mutations in fewer than three samples and non-protein coding regions are omitted.", inh_n_know_katg_filt, MOST_IMPORTANT_NUMBER)}
+```{r homoplasy-plot, echo=FALSE, warning = F, out.width = "2000px", fig.cap=sprintf("**(TOP)** Homoplasy among %s known and %s putative resistance mutations *katG* mutations. The common katG Ser315Thr mutation is highlighted. Mutations occurring in <3 isolates and non-protein coding regions are omitted; **(BOTTOM)** Fitness cost versus percentage of samples with co-occurring known (non-*katG* gene) resistance mutations in %s known and %s putative *katG* resistance mutations.", inh_n_know_katg_filt, MOST_IMPORTANT_NUMBER, inh_n_know_katg_filt, MOST_IMPORTANT_NUMBER)}
 
 # source("homoplasy_plot.R")
 knitr::include_graphics("../results/homoplasy_plot.png")
-
-```
-
-
-
-
-
-
-
-```{r fitness-pc-plot, echo = F, warning=F, fig.cap="Number of samples vs percentage of samples with a compensatory mutation for known *katG* mutations and potential *katG* resistance mutations. *katG*-Ser315Thr is labeled for comparison. This mutation incurs low fitness cost, hence does not generally co-occur in samples with a compensatory mutation. Samples with *katG*-Ser315Thr and a potential resistance mutation have been excluded. Samples with a potential resistance mutation and a known *katG* resistance mutation have been excluded."}
-
-fitness_pc_total_plot_file <- "../results/fitness_pc_total_plot.png"
-ggsave(fitness_pc_total_plot, file = fitness_pc_total_plot_file, width = 1100/4, height = 700/4, units = "mm")
-knitr::include_graphics(fitness_pc_total_plot_file)
 
 ```
 
@@ -1748,61 +1759,68 @@ knitr::include_graphics(KRM_CM_PC_boxplot_file)
 
 ## SUPPLEMENTARY TABLES
 
-
+**Table S1**
 
 ```{r common-KRM-tab, echo = F, warning=F}
 
-cap <- "Most common known resistance mutations for INH and RIF in TBprofiler. Mutations occurring fewer than five times are omitted."
+cap <- "Common established resistance mutations for INH and RIF*. Mutations occurring in <5 isolates in the 32k dataset are omitted."
 
 knitr::kable(common_KRM_tab, row.names = F, caption = cap, format = "pipe")
 
 ```
 
+* from TB-Profiler
 
+**Table S2**
 
 ```{r CM-table-display, echo = F, warning=F}
 
-cap <- "Mutations in compensatory genes and frequencies in 32k samples. Underlined if known compensatory mutations. Bolded if occurring across >1 lineage"
+cap <- "Mutations in compensatory genes and their frequencies in 32k samples. All mutations occur in >1 lineage"
 knitr::kable(CM_tab, caption = cap)
 
 ```
 Ins = insertion, del = deletion * novel markers with strong evidence for compensatory effects through convergent evolution, co-occurrence with loss of function mutations in katG as well as association with INH resistant isolates.
 
+**Table S3**
 
 ```{r rare-mutations-table, echo = F, warning=F}
 
-cap <- sprintf("Mutations (n=%s) in *katG* (INH) and from samples with no known resistance mutations, with compensatory mutations but no potential resistance mutation by the criteria outlined in Methods. These mutations only occur in one or two samples among the %s samples from Supplementary figure 1", inh_n_unique_rare_katg, inh_5_a)
+cap <- sprintf("Less frequent mutations (n=%s) in katG (<3 isolates) in %s isolates with no known INH resistance mutations, with compensatory mutations but no potential resistance mutation**", inh_n_unique_rare_katg, inh_5_a)
+
 knitr::kable(rare_mutations_table, row.names = F, caption = cap, format = "pipe")
 
 ```
+* stop codon; ** see Methods for definition
 
-
+**Table S4**
 
 ```{r PRM-KRM-other-table, echo = F, warning=F}
 
-cap <- "Known resistance mutations and non-drug resistance-associated (‘unknown’) mutations co-occurring in samples with putative drug resistance"
+cap <- sprintf("The 40 known resistance and other mutations co-occurring in isolates with the %s putative drug resistance mutations", MOST_IMPORTANT_NUMBER)
+
 knitr::kable(PRM_KRM_other, row.names = F, caption = cap, format = "pipe")
 
 ```
 
+* `r MOST_IMPORTANT_NUMBER` high quality *katG* mutations
 
+**Table S5**
 
 ```{r KRM-PRM-CM-pc-tab, echo = F, warning=F}
 
 # % co-occurence with another resistance mutation and % co-occurence with a CM
 
-cap <- "Percentages of co-occurring known resistance mutations and compensatory mutations among known and putative ('unknown') resistance mutations. Mutations in fewer than three samples are omitted. Co-occurring known resistance mutations are in genes *fabG1*, *inhA*, *kasA*. The three categories of high medium and low resistance/fitness are based on tertiles of the respective percentages, except for the 'high' category of resistance level, which is based on the ~15% Ser315Thr resistance mutation co-occurrence. See **Figure S4**"
+cap <- "Proportions of co-occurring known and compensatory resistance mutations for the 40 known and 31 putative *katG* resistance mutations. Mutations in fewer than three samples are omitted. Co-occurring known resistance mutations are in *fabG1*, *inhA*, and *kasA* genes."
 
 knitr::kable(KRM_PRM_CM_pc_tab, row.names = F, caption = cap, format = "pipe")
 
 ```
 
-
-
-
+* Based on tertiles of the proportion of compensatory mutations present
 
 ## SUPPLEMENTARY FIGURES
 
+**Figure S1**
 
 ```{r samples-trees, echo=FALSE, out.width = "2000px", fig.show='hold', fig.cap="Analysis strategy and numbers of mutations" }
 
@@ -1811,68 +1829,17 @@ knitr::include_graphics("../results/samples_trees.png")
 
 ```
 
+**Figure S2**
 
+```{r fitness-pc-plot, echo = F, warning=F, fig.cap="Number of samples versus percentage of samples with a compensatory mutation for the 40 known and 31 putative katG mutations. Ser315Thr is labeled, and has low fitness cost, and infrequently co-occurs a compensatory mutation."}
 
-```{r inh-ahpc-katg-links, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Co-occurrences between *ahpC* compensatory mutation positions and *katG* putative resistance mutation positions for isoniazid"}
-
-binary_expand_PRM <- lapply(binary_tables, function(x){
-  data.frame(x %>%
-  mutate(PRM = strsplit(as.character(PRM), "; ")) %>%
-  unnest(PRM))
-})
-
-inh <- binary_expand_PRM$isoniazid
-inh_PRM <- subset(inh, !(is.na(PRM)))
-inh_PRM <- select(inh_PRM, CM, PRM)
-# Split and process del/dup/ins separately 
-del_dup_ins <- inh_PRM[grepl("del|dup|ins", inh_PRM$PRM), ]
-inh_PRM <- inh_PRM[!(grepl("del|dup|ins", inh_PRM$PRM)), ]
-inh_PRM_pos <- data.frame(apply(inh_PRM, 2, find_pos))
-del_dup_ins$CM <- find_pos(del_dup_ins$CM)
-del_dup_ins$PRM <- gsub("[^0-9_del|dup|ins]", "", del_dup_ins$PRM)
-inh_PRM_pos <- rbind(inh_PRM_pos, del_dup_ins)
-
-colnames(inh_PRM_pos) <- c("ahpC", "katG")
-
-df <- inh_PRM_pos %>% make_long(ahpC, katG)
-# Remove NAs from first node col - removes ahpCs that do not linek to a katG
-df <- subset(df, !(is.na(node)))
-
-# Move the node col to two separate cols according to the gene (i.e. group) so that the text can be plotted separately 
-# - each row of text can be adjusted separately 
-df$katG <- ifelse(df$x == 'katG', df$node, NA)
-df$ahpC <- ifelse(df$x == 'ahpC', df$node, NA)
-
-detach("package:plyr", unload = TRUE)
-
-sank <- ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node))
-sank <- sank + coord_flip()
-sank <- sank + geom_sankey(flow.alpha = .6, fill = 'lightblue', na.rm = T)
-sank <- sank + geom_sankey_text(aes(label = katG), size = 3, angle = 45, width = 2, na.rm = T, vjust = -2, hjust = 0)
-sank <- sank + geom_sankey_text(aes(label = ahpC), size = 3, angle = 48, width = 2, na.rm = T, vjust = 2, hjust = 1.5)
-sank <- sank + theme_minimal()
-sank <- sank + labs(x = NULL)
-sank <- sank + theme(legend.position = "none",
-        plot.title = element_text(hjust = .5),
-        axis.text.x=element_blank(), 
-        panel.grid = element_blank())
-sank <- sank + ggtitle("INH")
-
-sank_file <- "../results/ahpc_katg_links.png"
-
-ggsave(sank, file = sank_file, width = 1100/4, height = 700/4, units = "mm")
-
-knitr::include_graphics(sank_file)
+fitness_pc_total_plot_file <- "../results/fitness_pc_total_plot.png"
+ggsave(fitness_pc_total_plot, file = fitness_pc_total_plot_file, width = 1100/4, height = 700/4, units = "mm")
+knitr::include_graphics(fitness_pc_total_plot_file)
 
 ```
 
-
-
-
-
-
-
-
+**Figure S3**
 
 ```{r protein-model, echo=FALSE, warning = F, out.width = "2000px", fig.cap="Protein structural model of KatG (7ag8) with known (cyan) and putative (red) mutations highlighted on chain A (blue). The vast majority of putative mutations cluster around the bound heme (green)."}
 
