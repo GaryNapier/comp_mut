@@ -110,6 +110,9 @@ data <- subset(data, n > 2)
 
 # Take out .c
 data <- subset(data, !(grepl("c.", mutation)))
+# Rename
+data$status <- ifelse(data$status == "unknown", "putative", data$status)
+
 
 max_sublin <- max(data$n_sublin)
 y_ax_A <- seq(0, max_sublin/2, 5)
