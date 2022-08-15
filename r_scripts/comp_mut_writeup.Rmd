@@ -1458,11 +1458,11 @@ KRM_PRM_CM_pc_tab <- select(KRM_PRM_CM_pc_tab,
 # Make duplicate before renaming and cleaning for display
 KRM_PRM_CM_pc_tab_plot <- KRM_PRM_CM_pc_tab
 KRM_PRM_CM_pc_tab_plot$n <- KRM_PRM_CM_pc_tab_plot$KRM_absent + KRM_PRM_CM_pc_tab_plot$KRM_present
-KRM_PRM_CM_pc_tab_plot <- dplyr::select(KRM_PRM_CM_pc_tab_plot, status, change, n, KRM_pc, CM_pc, fitness_cost_class)
 KRM_PRM_CM_pc_tab_plot$status <- ifelse(KRM_PRM_CM_pc_tab_plot$status == "unknown", "putative", KRM_PRM_CM_pc_tab_plot$status)
 
+# Make dup
 KRM_PRM_CM_pc_tab <- KRM_PRM_CM_pc_tab_plot
-
+KRM_PRM_CM_pc_tab <- dplyr::select(KRM_PRM_CM_pc_tab, status, change, n, KRM_pc, CM_pc, fitness_cost_class)
 KRM_PRM_CM_pc_tab$KRM_pc <- round(KRM_PRM_CM_pc_tab$KRM_pc/100, 2)
 KRM_PRM_CM_pc_tab$CM_pc <- round(KRM_PRM_CM_pc_tab$CM_pc/100, 2)
 
