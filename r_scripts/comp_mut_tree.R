@@ -63,7 +63,7 @@ newick_path <- paste0(results_path, "newick/")
 # in
 tree_file <- paste0(newick_path, drug, ".treefile")
 # metadata_file <- paste0("results/", project_code, "_PRM_samps.csv")
-metadata_file <- paste0(results_path, drug, "_binary_table.csv")
+metadata_file <- paste0(results_path, drug, "_binary_table_clean.csv")
 # out
 outfile <- paste0(results_path, drug, "_tree.png")
 
