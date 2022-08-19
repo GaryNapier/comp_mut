@@ -375,7 +375,8 @@ CM_RM_gene_assoc_file <- paste0(local_metadata_path, "CM_RM_gene_assoc.csv")
 protein_model_file <- paste0(results_path, "protein_model.png")
 # Protein modelling
 system("../shell_scripts/dist_and_ddg_parse.sh")
-distances_file <- paste0(results_path, "distances.txt")
+# distances_file <- paste0(results_path, "distances.txt")
+distances_file <- paste0(results_path, "distances_with_mutations.txt")
 fitness_est_file <- paste0(results_path, "ddg.txt")
 
 ```
@@ -503,6 +504,10 @@ PCM_KCM_merged$status <- ifelse(PCM_KCM_merged$gene_change %in% KCM$gene_change,
 # summaries <- do.call('cbind', lapply(summaries, function(x){data.frame(n = t(x))}))
 # names(summaries) <- drugs
 
+# ---
+
+# Distances file
+distances$status <- ifelse(distances$status == "novel", "putative", distances$status)
 
 
 ```
@@ -1647,17 +1652,76 @@ Further, there were no strong differences in terms of resistance mutation co-occ
 
 ```{r protein-structure, echo = F, warning=F}
 
-n_known_dist <- nrow(subset(distances, status = "known"))
+n_known_dist <- nrow(subset(distances, status == "known"))
 n_known_fitness <- nrow(subset(fitness_est, status == "known" & !(is.na(ddg))))
 
 dist_t <- t.test(dist ~ status, data = distances)
 fitness_t <- t.test(ddg ~ status, data = fitness_est)
 
+
+dist_ddg <- merge(KRM_PRM_CM_pc_tab_plot, select(distances, mutation, dist), 
+                  by.x = "change", by.y = "mutation", all.x = T, sort = F)
+dist_ddg <- merge(dist_ddg, select(fitness_est, change, ddg), 
+                  by = "change", all.x = T, sort = F)
+
+max_log_n <- max(log(dist_ddg$n))
+sz_leg <- round_any(exp(c(2, 4, 6, max_log_n)), 10)
+
+fitness_dist_boxplot <- ggplot()+
+  geom_boxplot(data = dist_ddg, aes(x = fitness_cost_class, y = dist, fill = status),
+               position=position_dodge(0.8),
+               alpha = 0.7)+
+  geom_point(data = dist_ddg,
+           aes(x = fitness_cost_class, y = dist, fill = status, size = log(n)),
+           colour="black", pch=21,
+           position = position_dodge(0.8))+
+  scale_size(name   = "n",
+             breaks = log(sz_leg),
+             labels = sz_leg)+
+  geom_label_repel(data = subset(dist_ddg, grepl("315", change)),
+                   aes(x = fitness_cost_class, y = dist, label = change),
+                   position = position_nudge(x = -0.2),
+                   size = 4,
+                   box.padding = unit(1, "lines"),
+                   point.padding = unit(0.1, "lines"))+
+  xlab("Fitness cost")+
+  ylab(expression(paste("Distance from heme-binding site (", ring(A), ")")))+
+  theme_bw()
+
+fitness_dist_boxplot_file <- "../results/fitness_dist_boxplot.png"
+ggsave(plot = fitness_dist_boxplot, file = fitness_dist_boxplot_file, width = 1100/4, height = 700/4, units = "mm")
+
+
+fitness_ddg_boxplot <- ggplot()+
+  geom_boxplot(data = dist_ddg, aes(x = fitness_cost_class, y = ddg, fill = status),
+               position=position_dodge(0.8),
+               alpha = 0.7)+
+  geom_point(data = dist_ddg,
+           aes(x = fitness_cost_class, y = ddg, fill = status, size = log(n)),
+           colour="black", pch=21,
+           position = position_dodge(0.8))+
+  scale_size(name   = "n",
+             breaks = log(sz_leg),
+             labels = sz_leg)+
+  geom_label_repel(data = subset(dist_ddg, grepl("315", change)),
+                   aes(x = fitness_cost_class, y = ddg, label = change),
+                   position = position_nudge(x = -0.2),
+                   size = 4,
+                   box.padding = unit(1, "lines"),
+                   point.padding = unit(0.1, "lines"))+
+  xlab("Fitness cost")+
+  ylab(expression(paste("Predicted Stability Change (", symbol(Delta), symbol(Delta), "G)")))+
+  theme_bw()
+fitness_ddg_boxplot_file <- "../results/fitness_ddg_boxplot.png"
+ggsave(plot = fitness_ddg_boxplot, file = fitness_ddg_boxplot_file, width = 1100/5, height = 700/5, units = "mm")
+
+
+
 ```
 
 *Protein structure modelling*
 
-To explore the functional effects of the `r inh_n_uniq_PRM_katg` putative resistance mutations, *in silico* predictions of effects on the *katG* target protein were assessed (**Figure S3**, **Table \@ref(tab:PRM-summary-table)**).  
+To explore the functional effects of the `r inh_n_uniq_PRM_katg` putative resistance mutations, *in silico* predictions of effects on the *katG* target protein were assessed (**Figure S3**, **Table \@ref(tab:PRM-summary-table)**). 
 
 The distances from the *katG* heme-binding site, thought to be close to the active INH binding site and crucial to enzymatic activity [@Munir2021], did not differ significantly between `r n_known_dist` known (mutations excluding promoters) and `r MOST_IMPORTANT_NUMBER` putative *katG* resistance mutations (mean distance: known `r dist_t$estimate[1]` A^o^ vs. putative `r dist_t$estimate[2]` A^o^; Wilcoxon P = `r round(dist_t$p.value, 2)`). Mutations further from the INH binding site would be more likely to cause less resistance, therefore these results indicate that our `r inh_n_uniq_PRM_katg` putative resistance mutations are comparable to the known *katG* resistance mutations in terms of resistance level, on average. Contrary to the results comparing the number of samples with compensatory mutations as a proxy of fitness cost, there was no significant difference in protein stability change between the `r n_known_fitness` known resistance mutations and the `r MOST_IMPORTANT_NUMBER` putative resistance mutations (mean $\Delta\Delta$G: known `r fitness_t$estimate[1]` vs. putative `r fitness_t$estimate[2]`; Wilcoxon P = `r round(fitness_t$p.value, 2)`).
 
@@ -1786,11 +1850,22 @@ knitr::include_graphics("../results/homoplasy_plot.png")
 
 ```{r KRM-CM-pc-boxplot, echo=FALSE, warning = F, out.width = "2000px"}
 
-# knitr::include_graphics("../results/KRM_PRM_CM_pc_plot.png")
-
 knitr::include_graphics(KRM_CM_PC_boxplot_file)
 
 ```
+
+```{r fitness-dist-boxplot, echo=FALSE, warning = F, out.width = "2000px"}
+
+knitr::include_graphics(fitness_dist_boxplot_file)
+
+```
+
+```{r fitness-ddg-boxplot, echo=FALSE, warning = F, out.width = "2000px"}
+
+knitr::include_graphics(fitness_ddg_boxplot_file)
+
+```
+
 
 ## SUPPLEMENTARY TABLES
 
