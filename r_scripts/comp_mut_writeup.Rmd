@@ -1359,6 +1359,11 @@ fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_log10(breaks = x_ax, na
 fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
 fitness_pc_total_plot <- fitness_pc_total_plot + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+
+
+
+
+
 ```
 
 ```{r make-KRM-PRM-CM-pc-tab, echo = F, warning=F}
@@ -1731,7 +1736,7 @@ Our goal was to identify putative novel mutations underlying resistance to RIF a
 
 No significant differences were found in the proportion of isolates with (non-*katG*) known resistance mutation co-occurrence (our proxy for resistance level) between the `r KRM_PRM_CM_pc_tab_plot_n_KRM` filtered known resistance mutations and our `r KRM_PRM_CM_pc_tab_plot_n_PRM` filtered putative resistance mutations. In showing a similar pattern of resistance mutation co-occurrence we infer that our putative resistance mutations confer a similar level of resistance as known mutations on average and that our putative resistance mutations are likely to be genuine. 
 
-There was however a difference in the fitness cost between the `r KRM_PRM_CM_pc_tab_plot_n_PRM` known and `r KRM_PRM_CM_pc_tab_plot_n_PRM` putative resistance mutations, with the latter appearing to have on average a higher cost. Whilst known resistance mutations are likely to converge on the most stable protein configurations and hence proliferate, the putative mutations are rarer and have not been associated with drug resistance before. There was no relationship between resistance level (using co-occurrence with other resistance mutations as a proxy) and fitness cost in either the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known or `r KRM_PRM_CM_pc_tab_plot_n_PRM` putative filtered resistance mutations. Again, this similar pattern of variation indicates the veracity of the putative resistance mutations.
+There was however a difference in the fitness cost between the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known and `r KRM_PRM_CM_pc_tab_plot_n_PRM` putative resistance mutations, with the latter appearing to have on average a higher cost. Whilst known resistance mutations are likely to converge on the most stable protein configurations and hence proliferate, the putative mutations are rarer and have not been associated with drug resistance before. There was no relationship between resistance level (using co-occurrence with other resistance mutations as a proxy) and fitness cost in either the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known or `r KRM_PRM_CM_pc_tab_plot_n_PRM` putative filtered resistance mutations. Again, this similar pattern of variation indicates the veracity of the putative resistance mutations.
 
 The functional impact of the `r MOST_IMPORTANT_NUMBER` putative *katG* mutations is supported by *in silico* protein modelling. Distances from the *katG* heme active binding site to the mutations were similar between known and putative variants, indicating that they are likely confer a similar pattern of resistance. In contrast to the differences between known and putative mutations in their percentages of samples with compensatory mutations, there was no difference in the *in silico* prediction of known and putative protein stability. This result is perhaps surprising given the significant difference between known and putative mutations in terms of the percentages of samples with compensatory mutations. However, the $\Delta\Delta$G measure is only a prediction of stability, and therefore an indirect indication of fitness cost.
 
@@ -1924,7 +1929,7 @@ n_PRM_KRM_PRM_CM_tab <- nrow(subset(KRM_PRM_CM_pc_tab_plot, status == "putative"
 
 **Table S5**
 
-Proportions of co-occurring known and compensatory resistance mutations for the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known and `r KRM_PRM_CM_pc_tab_plot_n_KRM` putative *katG* resistance mutations. Mutations in fewer than three samples are omitted. Co-occurring known resistance mutations are in *fabG1*, *inhA*, and *kasA* genes.
+Proportions of co-occurring known and compensatory resistance mutations for the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known and `r KRM_PRM_CM_pc_tab_plot_n_PRM` putative *katG* resistance mutations. Mutations in fewer than three samples are omitted. Co-occurring known resistance mutations are in *fabG1*, *inhA*, and *kasA* genes.
 
 ```{r KRM-PRM-CM-pc-tab, echo = F, warning=F}
 

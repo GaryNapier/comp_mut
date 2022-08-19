@@ -52,7 +52,6 @@ binary_table <- data.frame(cbind(binary_table,
 binary_table$KRM_katG <- clean_del_ins_dup(binary_table$KRM_katG)
 binary_table$PRM <- clean_del_ins_dup(binary_table$PRM)
 
-
 # Clean lineage data
 lineage_data$sublin <- gsub("lineage", "", lineage_data$sublin)
 
@@ -61,11 +60,24 @@ binary_table <- merge(binary_table, select(lineage_data, id, sublin), by.x = "wg
 binary_table <- dplyr::rename(binary_table, sublin = sublin.y)
 
 # KRM ----
+
+
+
+
+
+
+
 known_data <- select(binary_table, wgs_id, sublin, KRM_katG)
 # Split out
 known_data <- data.frame(known_data %>% mutate(KRM_katG = strsplit(as.character(KRM_katG), "; ")) %>% unnest(KRM_katG))
 # Remove NA
 known_data <- subset(known_data, !(is.na(KRM_katG)))
+
+
+
+
+
+
 
 # Get counts
 known_n <- reshape2::dcast(known_data, KRM_katG ~ 'n', value.var = "KRM_katG", fun.aggregate = length)
@@ -113,6 +125,37 @@ data <- subset(data, !(grepl("c.", mutation)))
 # Rename
 data$status <- ifelse(data$status == "unknown", "putative", data$status)
 
+
+
+
+# % CM col
+
+# Known
+
+KRM <- subset(binary_table, KRM_bin == "present" & PRM_bin == "absent")
+KRM <- data.frame(KRM %>% mutate(KRM = strsplit(as.character(KRM), "; ")) %>% unnest(KRM))
+KRM_tab <- pivot_num(KRM, formula(KRM ~ CM_bin))
+KRM_tab$KRM <- clean_del_ins_dup(KRM_tab$KRM)
+KRM_tab <- subset(KRM_tab, grepl("katG", KRM_tab$KRM))
+KRM_tab$status <- rep('known', nrow(KRM_tab))
+
+
+# Unknown
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 max_sublin <- max(data$n_sublin)
 y_ax_A <- seq(0, max_sublin/2, 5)
 y_ax_B <- seq(max(y_ax_A)+10, max_sublin, 10)
@@ -135,6 +178,102 @@ homoplasy_plot <- ggplot()+
   theme_bw()
 
 ggsave("../results/homoplasy_plot.png", homoplasy_plot, width = 1100/5, height = 700/5, units = "mm")
+
+
+
+
+
+
+
+
+
+# change	x_ax - % samps with CM	y_ax – n sublins	status
+# Abc123Xyz	100	2	known
+# Abc123Xyz	25	15	known
+# Abc123Xyz	33	5	unknown
+# Abc123Xyz	10	12	unknown
+# Abc123Xyz	100	10	unknown
+
+
+
+
+# 
+# sublin_cm_data <- select(binary_table, wgs_id, KRM_katG, PRM, sublin, CM_bin)
+# 
+# sublin_cm_data <- data.frame(sublin_cm_data %>% mutate(KRM_katG = strsplit(as.character(KRM_katG), "; ")) %>% unnest(KRM_katG))
+# 
+# sublin_cm_data <- data.frame(sublin_cm_data %>% mutate(PRM = strsplit(as.character(PRM), "; ")) %>% unnest(PRM))
+# 
+# sublin_cm_data <- subset(sublin_cm_data, !(grepl("c.", KRM_katG)) | !(grepl("c.", KRM_katG)))
+# 
+# sublin_cm_data <- sublin_cm_data %>% group_by(KRM_katG) %>% filter(n() > 2) %>% data.frame()
+# 
+# sublin_cm_data <- sublin_cm_data %>% group_by(PRM) %>% filter(n() > 2) %>% data.frame()
+# 
+# 
+# 
+# 
+# pivot_num(sublin_cm_data, formula(KRM_katG ~ CM_bin))
+# 
+# dcast(sublin_cm_data, KRM_katG ~ CM_bin, value.var = "wgs_id", fun.aggregate = len_uniq)
+# 
+# dcast(sublin_cm_data, KRM_katG + PRM ~ CM_bin, value.var = "wgs_id", fun.aggregate = len_uniq)
+
+
+
+
+
+
+
+
+subset(sublin_cm_data, !(KRM_katG == "katG-p.Ser315Thr"))
+
+
+dcast()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
