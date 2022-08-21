@@ -358,6 +358,7 @@ pipeline_db_path <- "../../pipeline/db/"
 db_path <- "../../tbdb/"
 results_path <- "../results/"
 newick_path <- paste0(results_path, "newick/")
+lineage_path <- "../../spolpred/results/"
 
 ```
 
@@ -378,6 +379,7 @@ system("../shell_scripts/dist_and_ddg_parse.sh")
 # distances_file <- paste0(results_path, "distances.txt")
 distances_file <- paste0(results_path, "distances_with_mutations.txt")
 fitness_est_file <- paste0(results_path, "ddg.txt")
+lineage_data_file <- paste0(lineage_path, "lineage_file.csv")
 
 ```
 
@@ -408,6 +410,7 @@ CM_RM_gene_assoc <- read.csv(CM_RM_gene_assoc_file)
 # Protein modelling
 distances <- read.delim(distances_file)
 fitness_est <- read.delim(fitness_est_file)
+lineage_data <- read.csv(lineage_data_file)
 
 ```
 
@@ -509,6 +512,15 @@ PCM_KCM_merged$status <- ifelse(PCM_KCM_merged$gene_change %in% KCM$gene_change,
 # Distances file
 distances$status <- ifelse(distances$status == "novel", "putative", distances$status)
 
+# --- 
+
+# Clean lineage data
+lineage_data$sublin <- gsub("lineage", "", lineage_data$sublin)
+
+# Merge in sublin
+inh_bin <- merge(inh_bin, select(lineage_data, id, sublin), by.x = "wgs_id", 
+                 by.y = "id", all.x = T, sort = F)
+inh_bin <- dplyr::rename(inh_bin, sublin = sublin.y)
 
 ```
 
@@ -1284,85 +1296,145 @@ inh_n_samps_ser315_and_CM <- nrow(subset(inh_kat315_no_PRM, CM_bin == "present")
 
 ```{r make-fitness-plot, echo = F, warning=F}
 
+
+# PLOT 
+# x-axis - n sublins
+# y-axis - % samples with CM
+# Filters - >3 samples, no promoters, PRM no katG
+
+
+# Get data for both axes - subset and split out haplotypes
+
 # KRM
-# KRM <- subset(inh_bin, KRM_bin == "present")
+# KRM <- subset(inh_bin, KRM_bin == "present" & PRM_bin == "absent")
+KRM <- subset(inh_bin, KRM_katG_bin == "present" & PRM_bin == "absent")
 # KRM <- data.frame(KRM %>% mutate(KRM = strsplit(as.character(KRM), "; ")) %>% unnest(KRM))
-# KRM_tab <- pivot_num(KRM, formula(KRM ~ CM_bin))
-# KRM_tab$KRM <- clean_del_ins_dup(KRM_tab$KRM)
-
-# Just take Ser315Thr for now - all samples with Ser315Thr (but no PRM)
-# KRM_tab <- subset(KRM_tab, grepl("Ser315Thr", KRM_tab$KRM))
-# KRM_tab <- pivot_num(inh_kat315_no_PRM, formula(KRM ~ CM_bin))
-
-KRM <- subset(inh_bin, KRM_bin == "present" & PRM_bin == "absent")
-KRM <- data.frame(KRM %>% mutate(KRM = strsplit(as.character(KRM), "; ")) %>% unnest(KRM))
-KRM_tab <- pivot_num(KRM, formula(KRM ~ CM_bin))
-KRM_tab$KRM <- clean_del_ins_dup(KRM_tab$KRM)
-KRM_tab <- subset(KRM_tab, grepl("katG", KRM_tab$KRM))
-KRM_tab$status <- rep('known', nrow(KRM_tab))
-
+KRM <- data.frame(KRM %>% mutate(KRM_katG = strsplit(as.character(KRM_katG), "; ")) %>% unnest(KRM_katG))
 # PRM
-# PRM <- subset(inh_bin, PRM_bin == "present")
-# Split out PRM haplotypes (one row per PRM, duplicating the ID and everything else in the row)
-# PRM <- data.frame(PRM %>% mutate(PRM = strsplit(as.character(PRM), "; ")) %>% unnest(PRM))
-# PRM_tab <- pivot_num(PRM, formula(PRM ~ CM_bin))
-
-# Split out PRM haplotypes (one row per PRM, duplicating the ID and everything else in the row)
 # Use PRM with no known katG
-PRM <- data.frame(inh_4_e_g_table %>% 
-                    mutate(PRM = strsplit(as.character(PRM), "; ")) 
-                  %>% unnest(PRM))
-PRM_tab <- pivot_num(PRM, formula(PRM ~ CM_bin))
+PRM <- data.frame(inh_4_e_g_table %>% mutate(PRM = strsplit(as.character(PRM), "; ")) %>% unnest(PRM))
+
+
+# y-axis - % samples with CM
+
+# KRM y-axis
+KRM_CM_tab <- pivot_num(KRM, formula(KRM_katG ~ CM_bin))
+KRM_CM_tab$KRM_katG <- clean_del_ins_dup(KRM_CM_tab$KRM_katG)
+KRM_CM_tab$status <- rep('known', nrow(KRM_CM_tab))
+
+# PRM y-axis
+
+# Split out PRM haplotypes (one row per PRM, duplicating the ID and everything else in the row)
+
+PRM_CM_tab <- pivot_num(PRM, formula(PRM ~ CM_bin))
 # Clean up
-PRM_tab$PRM <- clean_del_ins_dup(PRM_tab$PRM)
-PRM_tab <- sort_pos(PRM_tab, "PRM")
-PRM_tab$status <- rep('unknown', nrow(PRM_tab))
+PRM_CM_tab$PRM <- clean_del_ins_dup(PRM_CM_tab$PRM)
+PRM_CM_tab <- sort_pos(PRM_CM_tab, "PRM")
+PRM_CM_tab$status <- rep('putative', nrow(PRM_CM_tab))
+
+# Put together and get % for CM
+CM_data <- rbind_mod(KRM_CM_tab, PRM_CM_tab, c("mutation", drop_col_name(KRM_CM_tab, "KRM_katG")))
+CM_data$CM_pc <- round((CM_data$present / (CM_data$absent + CM_data$present) )*100, 2)
+
+
+# x-axis - n sublins
+
+# KRM
+
+# First get n col, then merge in n sublins
+KRM_n_tab <- reshape2::dcast(KRM, KRM_katG ~ 'n', value.var = "KRM_katG", fun.aggregate = length)
+KRM_sublin_n <- reshape2::dcast(reshape2::dcast(KRM, KRM_katG + sublin ~ 'n',
+                                                  value.var = "KRM_katG",
+                                                  fun.aggregate = length),
+                                  KRM_katG ~ 'n_sublin', value.var = "KRM_katG", fun.aggregate = length)
+KRM_sublin_tab <- merge(KRM_n_tab, KRM_sublin_n, by = "KRM_katG", all.x = T, sort = F)
+KRM_sublin_tab$KRM_katG <- clean_del_ins_dup(KRM_sublin_tab$KRM_katG)
+KRM_sublin_tab$status <- rep("known", nrow(KRM_sublin_tab))
+
+
+# PRM - same as KRM x-axis
+
+PRM_n <- reshape2::dcast(PRM, PRM ~ 'n', value.var = "PRM", fun.aggregate = length)
+PRM_sublin_n <- reshape2::dcast(reshape2::dcast(PRM, PRM + sublin ~ 'n', value.var = "PRM", fun.aggregate = length), 
+                                PRM ~ 'n_sublin', value.var = "PRM", fun.aggregate = length)
+PRM_sublin_tab <- merge(PRM_n, PRM_sublin_n, by = "PRM", all.x = T, sort = F)
+PRM_sublin_tab$status <- rep("putative", nrow(PRM_sublin_tab))
+
 # Put together
-KRM_PRM_tab <- rbind_mod(KRM_tab, PRM_tab, c("change", drop_col_name(KRM_tab, "KRM")))
-KRM_PRM_tab$pc <- round((KRM_PRM_tab$present / (KRM_PRM_tab$absent + KRM_PRM_tab$present) )*100, 2)
+sublin_data <- setNames(rbind_force(KRM_sublin_tab, PRM_sublin_tab),
+                        c("mutation", "n", "n_sublin", "status"))
 
-PRM_med <- median(subset(KRM_PRM_tab, status == 'unknown')$pc)
 
-# Plot each PRM % of samples with a CM with only 
-fitness_plot <- ggplot() + geom_point(data = subset(KRM_PRM_tab, status == "unknown" | change == "katG-p.Ser315Thr"), 
-                                      aes(x = factor(change, level = change), y = pc, 
-                                          colour = status), size = 3)
-fitness_plot <- fitness_plot + scale_x_discrete(name="") + 
-  scale_y_continuous(name="% of samples with CM")
-fitness_plot <- fitness_plot + theme_bw()
-fitness_plot <- fitness_plot + theme(axis.text.x = element_text(angle=45, hjust = 1))
-fitness_plot <- fitness_plot + theme(aspect.ratio=50/100)
-fitness_plot <- fitness_plot + geom_hline(yintercept=PRM_med, linetype="dashed", color = "red")
+# x- and y-axes - PUT TOGETHER
+
+CM_sublin_data <- merge(CM_data, dplyr::select(sublin_data, -(status)), 
+                                               by = "mutation", all.x = T, sort = F)
+s
+# # Apply filters
+CM_sublin_data <- subset(CM_sublin_data, n > 2)
+CM_sublin_data <- subset(CM_sublin_data, !(grepl("c.", mutation)))
+
+# PRM_med <- median(subset(CM_data, status == 'putative')$CM_pc)
+# 
+# # Plot each PRM % of samples with a CM with only 
+# fitness_plot <- ggplot() + 
+#   geom_point(data = subset(CM_data, status == "unknown" | change == "katG-p.Ser315Thr"),
+#              aes(x = factor(change, level = change), y = pc, 
+#                                           colour = status), size = 3)
+# fitness_plot <- fitness_plot + scale_x_discrete(name="") + 
+#   scale_y_continuous(name="% of samples with CM")
+# fitness_plot <- fitness_plot + theme_bw()
+# fitness_plot <- fitness_plot + theme(axis.text.x = element_text(angle=45, hjust = 1))
+# fitness_plot <- fitness_plot + theme(aspect.ratio=50/100)
+# fitness_plot <- fitness_plot + geom_hline(yintercept=PRM_med, linetype="dashed", color = "red")
 
 # Plot number of samples vs % of samples with a CM
 
-max_n <- max(KRM_PRM_tab$absent + KRM_PRM_tab$present)
-# x_ax_A <- seq(0, max_n/10, 10)
-x_ax_A <- seq(0, 10, 2)
-x_ax_B <- seq(20, 100, 20)
-x_ax_C <- seq(200, 1000, 200)
-x_ax_D <- seq(2000, max_n, 2000)
-x_ax <- c(x_ax_A, x_ax_B, x_ax_C, x_ax_D)
-
-fitness_pc_total_plot <- ggplot() + geom_point(data = KRM_PRM_tab, 
-                                      aes(x = absent + present, y = pc, 
-                                          fill = status), 
-                                      colour="black", pch=21,
-                                      size = 3)
-# fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="n samples") + scale_y_continuous(name="% samples with compensatory mutations")
-fitness_pc_total_plot <- fitness_pc_total_plot + scale_y_continuous(name="% samples with compensatory mutations")
-fitness_pc_total_plot <- fitness_pc_total_plot + theme(aspect.ratio=50/100)
-fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_tab, change == "katG-p.Ser315Thr"),
-                                                           aes(x = absent + present, y = pc, label = "Ser315Thr"), 
-                                                           hjust = 1.1)
-fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_log10(breaks = x_ax, name="n samples")
-fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
-fitness_pc_total_plot <- fitness_pc_total_plot + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-
+# max_n <- max(KRM_PRM_tab$absent + KRM_PRM_tab$present)
+# # x_ax_A <- seq(0, max_n/10, 10)
+# x_ax_A <- seq(0, 10, 2)
+# x_ax_B <- seq(20, 100, 20)
+# x_ax_C <- seq(200, 1000, 200)
+# x_ax_D <- seq(2000, max_n, 2000)
+# x_ax <- c(x_ax_A, x_ax_B, x_ax_C, x_ax_D)
+# 
+# fitness_pc_total_plot <- ggplot() + geom_point(data = KRM_PRM_tab,
+#                                       aes(x = absent + present, y = pc,
+#                                           fill = status),
+#                                       colour="black", pch=21,
+#                                       size = 3)
+# # fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_continuous(name="n samples") + scale_y_continuous(name="% samples with compensatory mutations")
+# fitness_pc_total_plot <- fitness_pc_total_plot + scale_y_continuous(name="% samples with compensatory mutations")
+# fitness_pc_total_plot <- fitness_pc_total_plot + theme(aspect.ratio=50/100)
+# fitness_pc_total_plot <- fitness_pc_total_plot + geom_text(data=subset(KRM_PRM_tab, change == "katG-p.Ser315Thr"),
+#                                                            aes(x = absent + present, y = pc, label = "Ser315Thr"),
+#                                                            hjust = 1.1)
+# fitness_pc_total_plot <- fitness_pc_total_plot + scale_x_log10(breaks = x_ax, name="n samples")
+# fitness_pc_total_plot <- fitness_pc_total_plot + theme_bw()
+# fitness_pc_total_plot <- fitness_pc_total_plot + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
+max_sublin <- max(CM_sublin_data$n_sublin)
+x_ax_A <- c(0:10)
+# x_ax_B <- seq(15, max_sublin/2, 5)
+# x_ax_C <- seq(max(x_ax_A)+10, max_sublin, 10)
+x_ax_B <- seq(max(x_ax_A)+10, max_sublin, 10)
+x_ax <- c(x_ax_A, x_ax_B)
 
+max_log_n <- max(log(CM_sublin_data$n))
+sz_leg <- round_any(exp(c(2, 4, 6, max_log_n)), 10)
+
+sublin_CM_plot <- ggplot() +
+  geom_point(data = CM_sublin_data,
+             aes(x = n_sublin, y = CM_pc,fill = status),
+             colour="black", pch=21, size = 3)+ 
+  scale_y_continuous(name="% samples with compensatory mutations")+
+  theme(aspect.ratio=50/100)+
+  geom_text(data=subset(CM_sublin_data, mutation == "katG-p.Ser315Thr"),
+            aes(x = n_sublin, y = CM_pc, label = "Ser315Thr"),
+            hjust = 1.1)+
+  scale_x_log10(breaks = x_ax, name="n sublineages")+
+  theme_bw()
 
 ```
 
@@ -1956,13 +2028,16 @@ knitr::include_graphics("../results/samples_trees.png")
 
 **Figure S2**
 
-Number of samples versus percentage of samples with a compensatory mutation for the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known and `r KRM_PRM_CM_pc_tab_plot_n_KRM` putative katG mutations. Ser315Thr is labeled, and has low fitness cost, and infrequently co-occurs a compensatory mutation. See **Table S5**
+<!-- Number of samples versus percentage of samples with a compensatory mutation for the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known and `r KRM_PRM_CM_pc_tab_plot_n_KRM` putative katG mutations. Ser315Thr is labeled, and has low fitness cost, and infrequently co-occurs a compensatory mutation. See **Table S5** -->
 
-```{r fitness-pc-plot, echo = F, warning=F}
+Number of sublineages versus percentage of samples with a compensatory mutation for the `r KRM_PRM_CM_pc_tab_plot_n_KRM` known and `r KRM_PRM_CM_pc_tab_plot_n_KRM` putative katG mutations. Ser315Thr is labeled, and has low fitness cost, and infrequently co-occurs a compensatory mutation.
 
-fitness_pc_total_plot_file <- "../results/fitness_pc_total_plot.png"
-ggsave(fitness_pc_total_plot, file = fitness_pc_total_plot_file, width = 1100/4, height = 700/4, units = "mm")
-knitr::include_graphics(fitness_pc_total_plot_file)
+```{r sublin-CM-plot, echo = F, warning=F}
+
+# fitness_pc_total_plot_file <- "../results/fitness_pc_total_plot.png"
+sublin_CM_plot_file <- "../results/sublin_CM_plot.png"
+ggsave(plot = sublin_CM_plot, file = sublin_CM_plot_file, width = 1100/6, height = 700/6, units = "mm")
+knitr::include_graphics(sublin_CM_plot_file)
 
 ```
 
