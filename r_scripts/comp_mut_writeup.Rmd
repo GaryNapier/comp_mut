@@ -935,6 +935,13 @@ MOST_IMPORTANT_NUMBER <- inh_n_uniq_PRM_katg
 
 total_unique_katg <- inh_n_uniq_KRM_katg + inh_n_uniq_other_katg + inh_n_uniq_PRM_katg
 
+
+# Get all known katG
+# x <- data.frame(inh_bin %>% mutate(KRM_katG = strsplit(as.character(KRM_katG), "; ")) %>% unnest(KRM_katG))
+# x <- unique(select(x, wgs_id, KRM_katG))
+# x <- subset(x, !(is.na(KRM_katG)))
+# write.csv(x, file = "../results/all_known_katg_and_samps.csv", quote = F, row.names = F)
+
 ```
 
 *Isolate data*
@@ -1427,7 +1434,10 @@ sz_leg <- round_any(exp(c(2, 4, 6, max_log_n)), 10)
 sublin_CM_plot <- ggplot() +
   geom_point(data = CM_sublin_data,
              aes(x = n_sublin, y = CM_pc,fill = status),
-             colour="black", pch=21, size = 3)+ 
+             colour="black", pch=21, size = 3)+
+  # geom_jitter(data = CM_sublin_data,
+  #          aes(x = n_sublin, y = CM_pc,fill = status),
+  #          colour="black", pch=21, size = 3)+
   scale_y_continuous(name="% samples with compensatory mutations")+
   theme(aspect.ratio=50/100)+
   geom_text(data=subset(CM_sublin_data, mutation == "katG-p.Ser315Thr"),
